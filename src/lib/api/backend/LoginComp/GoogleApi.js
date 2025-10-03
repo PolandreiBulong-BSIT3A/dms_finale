@@ -2,6 +2,7 @@ import express from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import db from '../connections/connection.js';
+import { generateTokens } from '../middleware/authMiddleware.js';
 
 // Environment variables (no hardcoded secrets)
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -208,6 +209,25 @@ router.get('/auth/google/callback', (req, res, next) => {
       }
 
       try {
+        // Generate JWT tokens and set cookies (same as manual login flow)
+        try {
+          const { accessToken, refreshToken } = generateTokens(user);
+          res.cookie('accessToken', accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 24 * 60 * 60 * 1000,
+          });
+          res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+          });
+        } catch (tokenErr) {
+          console.error('Failed to issue JWT tokens for Google login:', tokenErr);
+        }
+
         const userData = encodeURIComponent(JSON.stringify({
           id: user.user_id,
           email: user.user_email,
