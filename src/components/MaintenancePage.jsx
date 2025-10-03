@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildUrl } from '../lib/api/frontend/client.js';
 import { FaTools, FaCog, FaServer, FaRedo, FaUserShield, FaEnvelope, FaPhone, FaSignOutAlt } from 'react-icons/fa';
 
 const MaintenancePage = ({ isAdminView = false }) => {
@@ -7,7 +8,7 @@ const MaintenancePage = ({ isAdminView = false }) => {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/logout', {
+      const response = await fetch(buildUrl('logout'), {
         method: 'POST',
         credentials: 'include'
       });
@@ -34,7 +35,7 @@ const MaintenancePage = ({ isAdminView = false }) => {
   useEffect(() => {
     const checkUserRole = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/auth/me', {
+        const response = await fetch(buildUrl('auth/me'), {
           credentials: 'include'
         });
         if (response.ok) {

@@ -8,6 +8,7 @@ import MaintenanceNotification from './components/MaintenanceNotification.jsx'
 import { DocumentProvider } from './contexts/DocumentContext.jsx'
 import { NotificationProvider } from './contexts/NotificationContext.jsx'
 import { UserProvider } from './contexts/UserContext.jsx'
+import { buildUrl, fetchJson } from './lib/api/frontend/client.js'
 import './App.css'
 
 function App() {
@@ -21,7 +22,7 @@ function App() {
   useEffect(() => {
     const checkMaintenanceStatus = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/maintenance/status');
+        const response = await fetch(buildUrl('maintenance/status'));
         if (response.ok) {
           const data = await response.json();
           const newMaintenanceMode = data.maintenanceMode || false;
@@ -46,20 +47,11 @@ function App() {
 
     const checkUserRole = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/auth/me', {
-          credentials: 'include'
-        });
-        if (response.ok) {
-          const userData = await response.json();
-          setUserRole(userData.role);
-        } else if (response.status === 401) {
-          // User is not authenticated - this is expected and normal
-          setUserRole(null);
-        } else {
-          setUserRole(null);
-        }
+        const userData = await fetchJson(buildUrl('auth/me'));
+        // Backend returns { success, user: { role, ... } }
+        setUserRole(userData?.user?.role || null);
       } catch (error) {
-        // Suppress network errors for auth check as they're expected when not logged in
+        // Not authenticated or error
         setUserRole(null);
       }
     };

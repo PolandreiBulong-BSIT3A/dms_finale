@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchWithRetry } from '../../lib/api/frontend/http.js';
-import { buildUrl } from '../../lib/api/frontend/client.js';
+import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { 
   FiUsers, 
   FiSettings, 
@@ -94,14 +94,8 @@ const AdminPanel = ({ role }) => {
   // Fetch functions
   const fetchDepartments = async () => {
     try {
-      const response = await fetch(buildUrl('departments'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setDepartments(data.departments || []);
-      }
+      const data = await fetchJson(buildUrl('departments'));
+      setDepartments(data.departments || []);
     } catch (error) {
       console.error('Error fetching departments:', error);
     }
@@ -109,14 +103,8 @@ const AdminPanel = ({ role }) => {
 
   const fetchActions = async () => {
     try {
-      const response = await fetch(buildUrl('actions'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setActions(data.actions || []);
-      }
+      const data = await fetchJson(buildUrl('actions'));
+      setActions(data.actions || []);
     } catch (error) {
       console.error('Error fetching actions:', error);
     }
@@ -147,14 +135,8 @@ const AdminPanel = ({ role }) => {
   const fetchDocumentTypes = async () => {
     setLoadingDocTypes(true);
     try {
-      const response = await fetchWithRetry(buildUrl('document-types'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setDocumentTypes(data.documentTypes || []);
-      }
+      const data = await fetchJson(buildUrl('document-types'));
+      setDocumentTypes(data.documentTypes || []);
     } catch (error) {
       console.error('Error fetching document types:', error);
     } finally {
@@ -164,14 +146,8 @@ const AdminPanel = ({ role }) => {
 
   const fetchFolders = async () => {
     try {
-      const response = await fetchWithRetry(buildUrl('folders'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFolders(data.folders || []);
-      }
+      const data = await fetchJson(buildUrl('folders'));
+      setFolders(data.folders || []);
     } catch (error) {
       console.error('Error fetching folders:', error);
     }
@@ -181,14 +157,8 @@ const AdminPanel = ({ role }) => {
   const fetchSystemHealth = async () => {
     setLoadingHealth(true);
     try {
-      const response = await fetchWithRetry(buildUrl('system/health'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSystemHealth(data.health || {});
-      }
+      const data = await fetchJson(buildUrl('system/health'));
+      setSystemHealth(data.health || {});
     } catch (error) {
       console.error('Error fetching system health:', error);
     } finally {
@@ -198,14 +168,8 @@ const AdminPanel = ({ role }) => {
 
   const fetchSystemLogs = async () => {
     try {
-      const response = await fetch(buildUrl('system/logs?limit=50'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSystemLogs(data.logs || []);
-      }
+      const data = await fetchJson(buildUrl('system/logs?limit=50'));
+      setSystemLogs(data.logs || []);
     } catch (error) {
       console.error('Error fetching system logs:', error);
     }
@@ -213,14 +177,8 @@ const AdminPanel = ({ role }) => {
 
   const fetchBackupHistory = async () => {
     try {
-      const response = await fetch(buildUrl('system/backups'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setBackupHistory(data.backups || []);
-      }
+      const data = await fetchJson(buildUrl('system/backups'));
+      setBackupHistory(data.backups || []);
     } catch (error) {
       console.error('Error fetching backup history:', error);
     }
@@ -228,14 +186,8 @@ const AdminPanel = ({ role }) => {
 
   const fetchMaintenanceMode = async () => {
     try {
-      const response = await fetch(buildUrl('system/maintenance'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMaintenanceMode(data.maintenanceMode || false);
-      }
+      const data = await fetchJson(buildUrl('system/maintenance'));
+      setMaintenanceMode(data.maintenanceMode || false);
     } catch (error) {
       console.error('Error fetching maintenance mode:', error);
     }
@@ -243,12 +195,10 @@ const AdminPanel = ({ role }) => {
 
   const fetchMaintenanceSettings = async () => {
     try {
-      const response = await fetch(buildUrl('maintenance/status'));
-      if (response.ok) {
-        const data = await response.json();
-        const msg = data.maintenanceMessage || '';
-        const startIso = data.maintenanceStartTime || '';
-        const endIso = data.maintenanceEndTime || '';
+      const data = await fetchJson(buildUrl('maintenance/status'));
+      const msg = data.maintenanceMessage || '';
+      const startIso = data.maintenanceStartTime || '';
+      const endIso = data.maintenanceEndTime || '';
         // Convert ISO to datetime-local format (YYYY-MM-DDTHH:MM)
         let endLocal = '';
         let startLocal = '';
@@ -269,7 +219,6 @@ const AdminPanel = ({ role }) => {
         setMaintenanceMessage(msg);
         setMaintenanceStartTime(startLocal);
         setMaintenanceEndTime(endLocal);
-      }
     } catch (error) {
       console.error('Error fetching maintenance settings:', error);
     }
@@ -277,14 +226,8 @@ const AdminPanel = ({ role }) => {
 
   const fetchSystemStats = async () => {
     try {
-      const response = await fetch(buildUrl('system/stats'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSystemStats(data.stats || {});
-      }
+      const data = await fetchJson(buildUrl('system/stats'));
+      setSystemStats(data.stats || {});
     } catch (error) {
       console.error('Error fetching system stats:', error);
     }
@@ -292,15 +235,8 @@ const AdminPanel = ({ role }) => {
 
   const handleClearCache = async () => {
     try {
-      const response = await fetch(buildUrl('system/cache/clear'), {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        alert('Cache cleared successfully!');
-      } else {
-        alert('Failed to clear cache');
-      }
+      await fetchJson(buildUrl('system/cache/clear'), { method: 'POST' });
+      alert('Cache cleared successfully!');
     } catch (error) {
       console.error('Error clearing cache:', error);
       alert('Failed to clear cache');
@@ -310,17 +246,9 @@ const AdminPanel = ({ role }) => {
   const handleCreateBackup = async () => {
     setLoadingBackup(true);
     try {
-      const response = await fetchWithRetry(buildUrl('system/backup'), {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        alert(`Backup initiated: ${data.backupName}`);
-        await fetchBackupHistory();
-      } else {
-        alert('Failed to create backup');
-      }
+      const data = await fetchJson(buildUrl('system/backup'), { method: 'POST' });
+      alert(`Backup initiated: ${data.backupName || 'OK'}`);
+      await fetchBackupHistory();
     } catch (error) {
       console.error('Error creating backup:', error);
       alert('Failed to create backup');
@@ -331,10 +259,8 @@ const AdminPanel = ({ role }) => {
 
   const handleToggleMaintenanceMode = async () => {
     try {
-      const response = await fetch(buildUrl('system/maintenance'), {
+      const data = await fetchJson(buildUrl('system/maintenance'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ 
           enabled: !maintenanceMode,
           maintenanceMessage,
@@ -342,11 +268,9 @@ const AdminPanel = ({ role }) => {
           maintenanceEndTime: maintenanceEndTime ? new Date(maintenanceEndTime).toISOString() : null
         })
       });
-      if (response.ok) {
-        const data = await response.json();
-        setMaintenanceMode(data.maintenanceMode);
-        if (typeof data.maintenanceMessage === 'string') setMaintenanceMessage(data.maintenanceMessage);
-        if (data.maintenanceEndTime) {
+      setMaintenanceMode(data.maintenanceMode);
+      if (typeof data.maintenanceMessage === 'string') setMaintenanceMessage(data.maintenanceMessage);
+      if (data.maintenanceEndTime) {
           // convert back to datetime-local
           const d = new Date(data.maintenanceEndTime);
           if (!isNaN(d.getTime())) {
@@ -354,10 +278,7 @@ const AdminPanel = ({ role }) => {
             setMaintenanceEndTime(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
           }
         }
-        alert(data.message);
-      } else {
-        alert('Failed to toggle maintenance mode');
-      }
+      alert(data.message || 'Maintenance mode updated');
     } catch (error) {
       console.error('Error toggling maintenance mode:', error);
       alert('Failed to toggle maintenance mode');
@@ -383,25 +304,16 @@ const AdminPanel = ({ role }) => {
 
     try {
       setSavingMaintenance(true);
-      const response = await fetch(buildUrl('system/maintenance'), {
+      await fetchJson(buildUrl('system/maintenance'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           enabled: maintenanceMode,
           maintenanceMessage,
           maintenanceStartTime: maintenanceStartTime ? new Date(maintenanceStartTime).toISOString() : null,
           maintenanceEndTime: maintenanceEndTime ? new Date(maintenanceEndTime).toISOString() : null
         })
-      })
-;
-      if (response.ok) {
-        const data = await response.json();
-        alert('Maintenance settings saved');
-      } else {
-        const err = await response.json().catch(()=>({}));
-        alert(err.message || 'Failed to save maintenance settings');
-      }
+      });
+      alert('Maintenance settings saved');
     } catch (error) {
       console.error('Error saving maintenance settings:', error);
       alert('Failed to save maintenance settings');
@@ -413,14 +325,8 @@ const AdminPanel = ({ role }) => {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const response = await fetchWithRetry(buildUrl('admin/stats'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
+      const data = await fetchJson(buildUrl('admin/stats'));
+      setStats(data);
     } catch (error) {
       console.error('Error fetching admin stats:', error);
     } finally {
@@ -601,18 +507,11 @@ const AdminPanel = ({ role }) => {
         }
         
         try {
-          const response = await fetch(endpoint, {
-            method: 'GET',
-            credentials: 'include',
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            setRowDocuments(prev => ({
-              ...prev,
-              [key]: data.documents || data.users || []
-            }));
-          }
+          const data = await fetchJson(endpoint);
+          setRowDocuments(prev => ({
+            ...prev,
+            [key]: data.documents || data.users || []
+          }));
         } catch (error) {
           console.error('Error fetching documents:', error);
         }
@@ -636,8 +535,8 @@ const AdminPanel = ({ role }) => {
   const handleSaveDocumentType = async () => {
     try {
       const url = editingDocType 
-        ? `http://localhost:5000/api/document-types/${editingDocType.type_id}`
-        : 'http://localhost:5000/api/document-types';
+        ? buildUrl(`document-types/${editingDocType.type_id}`)
+        : buildUrl('document-types');
       
       const response = await fetch(url, {
         method: editingDocType ? 'PUT' : 'POST',
@@ -665,7 +564,7 @@ const AdminPanel = ({ role }) => {
     if (!confirm('Are you sure you want to delete this document type?')) return;
     
     try {
-      const response = await fetch(`http://localhost:5000/api/document-types/${typeId}`, {
+      const response = await fetch(buildUrl(`document-types/${typeId}`), {
         method: 'DELETE',
         credentials: 'include'
       });

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { Button, Modal, Form } from 'react-bootstrap';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useUser } from '../../contexts/UserContext.jsx';
@@ -7,7 +8,7 @@ import { fetchDepartments, getFallbackDepartments } from '../../lib/api/frontend
 import Select from 'react-select';
 
 const Announcements = ({ role, setActiveTab }) => {
-  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+  // Use shared API builder; do not hardcode base URLs
   const [loading, setLoading] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
   const [error, setError] = useState('');
@@ -115,15 +116,12 @@ const Announcements = ({ role, setActiveTab }) => {
         target_roles: formIsPublic ? [] : selectedRoles,
         target_users: [],
       };
-      const endpoint = isEditing ? `${API_BASE}/api/announcements/${editingId}` : `${API_BASE}/api/announcements`;
-      const res = await fetch(endpoint, {
+      const endpoint = isEditing ? buildUrl(`announcements/${editingId}`) : buildUrl('announcements');
+      const data = await fetchJson(endpoint, {
         method: isEditing ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to create');
+      if (!data || data.success === false) throw new Error(data?.message || 'Failed to create');
       // Optimistic add (socket will also deliver it)
       if (data.announcement) {
         const fallbackCreatorName =
@@ -198,9 +196,8 @@ const Announcements = ({ role, setActiveTab }) => {
     if (!deleteTargetId) return;
     setDeleting(true);
     try {
-      const res = await fetch(`${API_BASE}/api/announcements/${deleteTargetId}`, { method: 'DELETE', credentials: 'include' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || 'Failed to delete');
+      const data = await fetchJson(buildUrl(`announcements/${deleteTargetId}`), { method: 'DELETE' });
+      if (!data || data.success === false) throw new Error(data?.message || 'Failed to delete');
       setAnnouncements(prev => prev.filter(a => a.id !== deleteTargetId));
       setShowDeleteModal(false);
       setDeleteTargetId(null);
@@ -218,9 +215,7 @@ const Announcements = ({ role, setActiveTab }) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/api/announcements`, { credentials: 'include' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to load announcements');
+      const data = await fetchJson(buildUrl('announcements'));
       setAnnouncements(Array.isArray(data.announcements) ? data.announcements : (Array.isArray(data) ? data : []));
       setCurrentSlide(0);
     } catch (e) {

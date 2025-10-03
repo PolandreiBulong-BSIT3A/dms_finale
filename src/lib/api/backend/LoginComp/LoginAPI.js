@@ -23,14 +23,59 @@ const router = express.Router();
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
-// Configure Nodemailer (Gmail example)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'victoriyaklauss03@gmail.com',
-    pass: process.env.EMAIL_PASS || 'kohi fkij wnmz syxl'
+// Configure Nodemailer from environment
+const EMAIL_SERVICE = process.env.EMAIL_SERVICE; // e.g., 'gmail'
+const EMAIL_HOST = process.env.EMAIL_HOST;       // e.g., 'smtp.gmail.com'
+const EMAIL_PORT = Number(process.env.EMAIL_PORT || 0); // e.g., 465 or 587
+const EMAIL_SECURE = (() => {
+  const v = (process.env.EMAIL_SECURE || '').toString().toLowerCase();
+  if (v === 'true' || v === '1') return true;
+  if (v === 'false' || v === '0') return false;
+  return undefined;
+})();
+const EMAIL_USER = process.env.EMAIL_USER;       // required
+const EMAIL_PASS = process.env.EMAIL_PASS;       // required
+const EMAIL_FROM = process.env.EMAIL_FROM || EMAIL_USER;
+
+let transporter;
+try {
+  if (EMAIL_SERVICE) {
+    // Service-based config
+    transporter = nodemailer.createTransport({
+      service: EMAIL_SERVICE,
+      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+    });
+  } else if (EMAIL_HOST) {
+    // Host/port-based config
+    transporter = nodemailer.createTransport({
+      host: EMAIL_HOST,
+      port: EMAIL_PORT || 587,
+      secure: EMAIL_SECURE ?? false,
+      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+    });
+  } else {
+    // Fallback to well-known Gmail host if nothing provided
+    transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+    });
   }
-});
+} catch (e) {
+  console.error('Failed to initialize mail transporter:', e?.message || e);
+}
+
+// Verify transporter on startup for better diagnostics
+(async () => {
+  try {
+    if (!transporter) throw new Error('Transporter not configured');
+    await transporter.verify();
+    console.log('Email transporter verified and ready');
+  } catch (err) {
+    console.error('Email transporter verification failed:', err?.message || err);
+  }
+})();
 
 // Multer for profile picture upload (memory storage)
 const upload = multer({ 
@@ -168,13 +213,14 @@ router.post('/signup', signupRateLimit, validateSignup, async (req, res) => {
 
     // Send OTP email
           const mailOptions = {
-      from: process.env.EMAIL_USER || 'victoriyaklauss03@gmail.com',
-            to: email,
+      from: process.env.EMAIL_FROM || EMAIL_USER,
+      to: email,
       subject: 'ISPSc DMS - Email Verification',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #dc2626;">Welcome to ISPSc DMS!</h2>
           <p>Hi ${firstname},</p>
+{{ ... }}
           <p>Thank you for registering with ISPSc DMS. To complete your registration, please use the verification code below:</p>
           <div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
             <h1 style="color: #dc2626; font-size: 32px; margin: 0; letter-spacing: 8px;">${otp}</h1>
@@ -593,7 +639,7 @@ router.post('/resend-otp', otpRateLimit, async (req, res) => {
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'victoriyaklauss03@gmail.com',
+      from: EMAIL_FROM,
       to: email,
       subject: 'ISPSc DMS - New Verification Code',
       html: `

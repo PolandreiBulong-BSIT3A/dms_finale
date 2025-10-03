@@ -3,7 +3,8 @@ import { Row, Col, Nav, Card, Badge, Form, InputGroup } from 'react-bootstrap';
 import Announcements from './Announcements.jsx';
 import './Dashboard.css';
 import { useUser } from '../../contexts/UserContext.jsx';
-import { buildUrl, fetchJson, fetchWithRetry } from '../../lib/api/frontend/client.js';
+import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
+import { fetchWithRetry } from '../../lib/api/frontend/http.js';
 import { 
   FiUsers, 
   FiFileText, 
@@ -87,9 +88,8 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
       
       try {
         // Fetch latest users
-        const usersResponse = await fetchWithRetry(buildUrl('users/latest?limit=10'), { credentials: 'include' });
-        if (usersResponse.ok) {
-          const usersData = await usersResponse.json();
+        try {
+          const usersData = await fetchJson(buildUrl('users/latest?limit=10'));
           let filteredUsers = usersData.users || [];
           
           // Filter users by department for deans and users
@@ -109,43 +109,39 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
           }
           
           setLatestUsers(filteredUsers.slice(0, 10));
-        }
+        } catch {}
 
         // Fetch latest documents
-        const docsResponse = await fetchWithRetry(buildUrl('documents/latest?limit=10'), { credentials: 'include' });
-        if (docsResponse.ok) {
-          const docsData = await docsResponse.json();
+        try {
+          const docsData = await fetchJson(buildUrl('documents/latest?limit=10'));
           const filteredDocs = docsData.documents || [];
           setLatestDocuments(filteredDocs.slice(0, 10));
-        }
+        } catch {}
 
         // Fetch latest requests (scope-aware for dean/faculty)
         const scopeParam = (effectiveIsDean || isUser) ? `?scope=${encodeURIComponent(reqScope)}` : '';
-        const requestsResponse = await fetchWithRetry(buildUrl(`documents/requests${scopeParam}`), { credentials: 'include' });
-        if (requestsResponse.ok) {
-          const requestsData = await requestsResponse.json();
+        try {
+          const requestsData = await fetchJson(buildUrl(`documents/requests${scopeParam}`));
           const filteredRequests = requestsData.documents || [];
           setLatestRequests(filteredRequests.slice(0, 10));
-        }
+        } catch {}
 
         // Fetch notifications with proper visibility filtering
-        const notifResponse = await fetchWithRetry(buildUrl('notifications'), { credentials: 'include' });
-        if (notifResponse.ok) {
-          const notifData = await notifResponse.json();
+        try {
+          const notifData = await fetchJson(buildUrl('notifications'));
           setNotifications(notifData.notifications || []);
-        }
+        } catch {}
 
                 // Fetch departments
-        const deptResponse = await fetchWithRetry(buildUrl('departments'), { credentials: 'include' });
-        if (deptResponse.ok) {
-          const deptData = await deptResponse.json();
+        try {
+          const deptData = await fetchJson(buildUrl('departments'));
           const transformedDepartments = (deptData.departments || []).map(dept => ({
             department_id: parseInt(dept.value),
             name: dept.label,
             code: dept.code
           }));
           setDepartments(transformedDepartments);
-        }
+        } catch {}
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -163,12 +159,9 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
   // Function to mark notification as read
   const markNotificationAsRead = async (notificationId) => {
     try {
-      const response = await fetchWithRetry(buildUrl(`notifications/${notificationId}/read`), {
-        method: 'POST',
-        credentials: 'include'
+      await fetchJson(buildUrl(`notifications/${notificationId}/read`), {
+        method: 'POST'
       });
-      
-      if (response.ok) {
         // Update the notification in the local state
         setNotifications(prevNotifications => 
           prevNotifications.map(notif => 
@@ -180,7 +173,6 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
         
         // Refresh unread count
         fetchUnreadNotificationCount();
-      }
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }

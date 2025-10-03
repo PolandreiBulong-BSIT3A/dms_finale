@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import socket from '../lib/realtime/socket.js';
 import { useUser } from './UserContext.jsx';
-import { fetchWithRetry, buildUrl } from '../lib/api/frontend/client.js';
+import { buildUrl, fetchJson } from '../lib/api/frontend/client.js';
 
 const NotificationContext = createContext();
 
@@ -71,9 +71,8 @@ export const NotificationProvider = ({ children }) => {
       updateUnreadCount();
 
       // Optional: Send to server in background (non-blocking)
-      fetchWithRetry(buildUrl(`notifications/${notificationId}/read`), {
+      fetchJson(buildUrl(`notifications/${notificationId}/read`), {
         method: 'POST',
-        credentials: 'include',
       }).catch(error => {
         console.error('Background notification read update failed:', error);
         // Don't show error to user since local state is already updated
@@ -102,16 +101,7 @@ export const NotificationProvider = ({ children }) => {
     setError(null);
     
     try {
-      const response = await fetchWithRetry(buildUrl('notifications'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await fetchJson(buildUrl('notifications'));
       console.log('Notification API response:', data);
       
       if (data.success) {
@@ -219,9 +209,8 @@ export const NotificationProvider = ({ children }) => {
     setUnreadCount(0);
 
     // Optional: Send to server in background
-    fetchWithRetry(buildUrl('notifications/mark-all-read'), {
+    fetchJson(buildUrl('notifications/mark-all-read'), {
       method: 'POST',
-      credentials: 'include',
     }).catch(error => {
       console.error('Background mark all read update failed:', error);
     });
@@ -233,14 +222,8 @@ export const NotificationProvider = ({ children }) => {
   // Get lightweight notification count (for performance)
   const getNotificationCountOnly = async () => {
     try {
-      const response = await fetchWithRetry(buildUrl('notifications/count'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) return data.count;
-      }
+      const data = await fetchJson(buildUrl('notifications/count'));
+      if (data.success) return data.count;
     } catch (error) {
       console.error('Error fetching notification count:', error);
     }

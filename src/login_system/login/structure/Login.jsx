@@ -14,6 +14,7 @@ import SignupBackgroundImage from "../../../assets/backgrounds/banner.png";
 import { fetchDepartments, getFallbackDepartments } from "../../../lib/api/frontend/departments.api.js";
 import { googleAuth } from "../../../lib/api/frontend/google.api.js";
 import { signup, verifyOtp, resendOtp, forgotPassword, verifyForgotPasswordOtp, updatePassword } from "../../../lib/api/frontend/auth.api.js";
+import { buildUrl } from "../../../lib/api/frontend/client.js";
 import '../css/Login.css';
 
 const Login = () => {
@@ -124,7 +125,7 @@ const Login = () => {
   const fetchMaintenanceStatus = async () => {
     setCheckingMaintenance(true);
     try {
-      const res = await fetch('http://localhost:5000/api/maintenance/status');
+      const res = await fetch(buildUrl('maintenance/status'));
       if (res.ok) {
         const data = await res.json();
         const on = !!data.maintenanceMode;
@@ -278,7 +279,7 @@ const Login = () => {
       setLoading(true);
       setAuthError("");
       try {
-        const response = await fetch('http://localhost:5000/api/login', {
+        const response = await fetch(buildUrl('login'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -288,7 +289,7 @@ const Login = () => {
           })
         });
         let data = null;
-        try { data = await response.json(); } catch {}
+        try { data = await response.json(); } catch (err) {}
         if (!response.ok) {
           if (response.status === 503 && data && data.code === 'MAINTENANCE_MODE') {
             setAuthError('The system is currently under maintenance. Only administrators can sign in.');

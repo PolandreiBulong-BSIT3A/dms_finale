@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { ArrowCounterclockwise, Trash2, Search, ExclamationTriangle, X, ArrowDownUp, ArrowUp, ArrowDown, Envelope, Trash } from 'react-bootstrap-icons';
 import { FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
 import { useUser } from '../../contexts/UserContext';
@@ -69,7 +70,7 @@ const UserTrash = ({ onBack, currentUser, isAdmin, effectiveIsDean }) => {
     setError('');
     try {
       // Build URL with dean scoping if applicable
-      const base = 'http://localhost:5000/api/users';
+      const base = buildUrl('users');
       const qs = new URLSearchParams({ status: 'deleted' });
       if (effectiveIsDean && currentUser) {
         if (currentUser.department_id) {
@@ -78,14 +79,7 @@ const UserTrash = ({ onBack, currentUser, isAdmin, effectiveIsDean }) => {
           qs.append('department', String(currentUser.department || currentUser.department_name || currentUser.dept_name));
         }
       }
-      const response = await fetch(`${base}?${qs.toString()}`, {
-        method: 'GET',
-        credentials: 'include'
-      });
-      const data = await response.json();
-      if (!response.ok || data.success === false) {
-        throw new Error(data.message || 'Failed to load deleted users');
-      }
+      const data = await fetchJson(`${base}?${qs.toString()}`);
       const rows = Array.isArray(data.users) ? data.users : (Array.isArray(data.data) ? data.data : []);
       const onlyDeleted = rows.filter(r => (r.status || r.user_status || '').toString().toLowerCase() === 'deleted');
       let normalized = onlyDeleted.map(normalizeUser);
@@ -123,70 +117,45 @@ const UserTrash = ({ onBack, currentUser, isAdmin, effectiveIsDean }) => {
   }, []);
 
   const restoreUser = async (userId) => {
-    const response = await fetch('http://localhost:5000/api/users/trash', {
+    const data = await fetchJson(buildUrl('users/trash'), {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, action: 'restore_from_trashcan' })
     });
-    const data = await response.json().catch(() => ({ success: false }));
-    if (!response.ok || data.success === false) {
-      throw new Error(data.message || 'Failed to restore user');
-    }
+    if (!data.success) throw new Error(data.message || 'Failed to restore user');
   };
 
   const permanentlyDeleteUser = async (userId) => {
-    const response = await fetch('http://localhost:5000/api/users/trash', {
+    const data = await fetchJson(buildUrl('users/trash'), {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, action: 'permanent_delete' })
     });
-    const data = await response.json().catch(() => ({ success: false }));
-    if (!response.ok || data.success === false) {
-      throw new Error(data.message || 'Failed to permanently delete user');
-    }
+    if (!data.success) throw new Error(data.message || 'Failed to permanently delete user');
   };
 
   const restoreSelected = async () => {
     if (selectedIds.length === 0) return;
-    const response = await fetch('http://localhost:5000/api/users/trash', {
+    const data = await fetchJson(buildUrl('users/trash'), {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userIds: selectedIds, action: 'restore_from_trashcan' })
     });
-    const data = await response.json().catch(() => ({ success: false }));
-    if (!response.ok || data.success === false) {
-      throw new Error(data.message || 'Failed to restore selected users');
-    }
+    if (!data.success) throw new Error(data.message || 'Failed to restore selected users');
   };
 
   const permanentlyDeleteSelected = async () => {
     if (selectedIds.length === 0) return;
-    const response = await fetch('http://localhost:5000/api/users/trash', {
+    const data = await fetchJson(buildUrl('users/trash'), {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userIds: selectedIds, action: 'permanent_delete' })
     });
-    const data = await response.json().catch(() => ({ success: false }));
-    if (!response.ok || data.success === false) {
-      throw new Error(data.message || 'Failed to permanently delete selected users');
-    }
+    if (!data.success) throw new Error(data.message || 'Failed to permanently delete selected users');
   };
 
   const permanentlyDeleteAll = async () => {
-    const response = await fetch('http://localhost:5000/api/users/trash', {
+    const data = await fetchJson(buildUrl('users/trash'), {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'permanent_delete_all' })
     });
-    const data = await response.json().catch(() => ({ success: false }));
-    if (!response.ok || data.success === false) {
-      throw new Error(data.message || 'Failed to permanently delete all deleted users');
-    }
+    if (!data.success) throw new Error(data.message || 'Failed to permanently delete all deleted users');
   };
 
   const handleSelectAll = (checked) => {

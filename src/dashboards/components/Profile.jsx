@@ -14,7 +14,7 @@ import {
   FiTrash2
 } from 'react-icons/fi';
 import { useUser } from '../../contexts/UserContext';
-import { buildUrl } from '../../lib/api/frontend/client.js';
+import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 
 
 
@@ -78,18 +78,9 @@ const Profile = () => {
   const fetchDepartments = async () => {
     try {
       setDepartmentsLoading(true);
-      const response = await fetch(buildUrl('departments'), { credentials: 'include' });
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data.success && data.departments) {
-          setDepartmentOptions(data.departments);
-        } else {
-          // no-op
-        }
-      } else {
-        // no-op
+      const data = await fetchJson(buildUrl('departments'));
+      if (data.success && data.departments) {
+        setDepartmentOptions(data.departments);
       }
     } catch (error) {
       // swallow
@@ -191,24 +182,12 @@ const Profile = () => {
         department: formData.department, // This will be department_id as string
         contactNumber: formData.contactNumber
       };
-      const response = await fetch(buildUrl('users/update-profile'), {
+      const data = await fetchJson(buildUrl('users/update-profile'), {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify(requestBody)
       });
       
-      let data;
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        const textResponse = await response.text();
-        throw new Error('Invalid JSON response from server');
-      }
-
-      if (response.ok && data.success) {
+      if (data.success) {
         // Update context user data
         const updated = { 
           ...contextUser, 
@@ -266,7 +245,6 @@ const Profile = () => {
       });
     }
     setIsEditing(false);
-    setShowProfileSelector(false);
     setMessage({ text: '', type: '', show: false });
   };
 
@@ -283,17 +261,11 @@ const Profile = () => {
     try {
       setDeletingAccount(true);
       
-      const response = await fetch(buildUrl('users/delete-account'), {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
+      const data = await fetchJson(buildUrl('users/delete-account'), {
+        method: 'DELETE'
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         setMessage({ 
           text: 'Account deleted successfully. You will be logged out.', 
           type: 'success', 
@@ -389,39 +361,38 @@ const Profile = () => {
   };
 
   // Get department display name
-  const getDepartmentDisplayName = (departmentId) => {
-    console.log('Getting department display name for:', departmentId);
-    console.log('Available department options:', departmentOptions);
-    
-    if (!departmentId) return 'Not assigned';
-    
-    // Try to find by exact value match
-    let dept = departmentOptions.find(opt => opt.value === departmentId);
-    
-    // If not found, try to find by string comparison (case-insensitive)
-    if (!dept) {
-      dept = departmentOptions.find(opt => 
-        opt.value.toString().toLowerCase() === departmentId.toString().toLowerCase()
-      );
-    }
-    
-    // If still not found, try to find by label (for backward compatibility)
-    if (!dept) {
-      dept = departmentOptions.find(opt => 
-        opt.label.toLowerCase().includes(departmentId.toString().toLowerCase())
-      );
-    }
-    
-    console.log('Found department:', dept);
-    
-    if (dept) {
-      return dept.label;
-    } else {
-      // For debugging: show both the ID and available options
-      console.warn(`Department ID ${departmentId} not found in options:`, departmentOptions);
-      return `Department ID: ${departmentId} (Name not found)`;
-    }
-  };
+const getDepartmentDisplayName = (departmentId) => {
+  console.log('Getting department display name for:', departmentId);
+  console.log('Available department options:', departmentOptions);
+
+  if (!departmentId) return 'Not assigned';
+
+  const opts = Array.isArray(departmentOptions) ? departmentOptions : [];
+  const idStr = String(departmentId ?? '').toLowerCase();
+
+  // Try to find by exact value match first
+  let dept = opts.find(opt => opt?.value === departmentId);
+
+  // If not found, try a safe string comparison on value
+  if (!dept) {
+    dept = opts.find(opt => String(opt?.value ?? '').toLowerCase() === idStr);
+  }
+
+  // If still not found, try to find by label (case-insensitive, includes)
+  if (!dept) {
+    const labelMatch = opts.find(opt => String(opt?.label ?? '').toLowerCase().includes(idStr));
+    if (labelMatch) dept = labelMatch;
+  }
+
+  console.log('Found department:', dept);
+
+  if (dept?.label) {
+    return dept.label;
+  }
+  // For debugging: show both the ID and available options
+  console.warn(`Department ID ${departmentId} not found in options:`, opts);
+  return `Department ID: ${departmentId} (Name not found)`;
+};
 
   // Get current department name for display
   const getCurrentDepartmentName = () => {

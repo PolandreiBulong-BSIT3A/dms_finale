@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { fetchWithRetry } from '../lib/api/frontend/http.js';
+import { buildUrl, fetchJson } from '../lib/api/frontend/client.js';
 
 const DocumentContext = createContext();
 
@@ -34,44 +34,27 @@ export const DocumentProvider = ({ children }) => {
     totalItems: 0
   });
 
-  // API base URL
-  const API_BASE_URL = 'http://localhost:5000/api';
-
   // Utility function for API calls
   const apiCall = useCallback(async (endpoint, options = {}) => {
     const defaultOptions = {
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers
-      }
+        ...(options.headers || {})
+      },
+      ...options,
     };
-
     try {
-      const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
-        ...defaultOptions,
-        ...options
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Unauthorized - Please login again');
-        }
-        if (response.status === 403) {
-          throw new Error('Access denied - Insufficient permissions');
-        }
-        if (response.status === 404) {
-          throw new Error('Resource not found');
-        }
-        if (response.status >= 500) {
-          throw new Error('Server error - Please try again later');
-        }
-        throw new Error(`Request failed with status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const normalized = (endpoint || '').replace(/^\//, '');
+      const data = await fetchJson(buildUrl(normalized), defaultOptions);
       return data;
     } catch (error) {
+      // Normalize common error statuses for callers
+      if (error && typeof error.status === 'number') {
+        if (error.status === 401) throw new Error('Unauthorized - Please login again');
+        if (error.status === 403) throw new Error('Access denied - Insufficient permissions');
+        if (error.status === 404) throw new Error('Resource not found');
+        if (error.status >= 500) throw new Error('Server error - Please try again later');
+      }
       console.error('API call error:', error);
       throw error;
     }

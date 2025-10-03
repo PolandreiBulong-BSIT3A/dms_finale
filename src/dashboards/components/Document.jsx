@@ -1123,46 +1123,57 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     }
 
     try {
-      let response;
+      let responseOk = false;
+      let resultData = null;
       
       if (draggedDocument.isMultiple) {
         // Mass move operation
-        response = await fetch(`http://localhost:5000/api/documents/bulk/folder`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ 
-            documentIds: draggedDocument.ids,
-            folder: targetFolder.name 
-          })
-        });
+        try {
+          const data = await fetchJson(buildUrl('documents/bulk/folder'), {
+            method: 'PUT',
+            body: JSON.stringify({
+              documentIds: draggedDocument.ids,
+              targetFolderId: targetFolder.folder_id
+            })
+          });
+          responseOk = !!data?.success;
+          resultData = data;
+        } catch (err) {
+          responseOk = false;
+        }
       } else {
         // Single document move
-        response = await fetch(`http://localhost:5000/api/documents/${draggedDocument.id}/folder`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ folder: targetFolder.name })
-        });
+        try {
+          const data = await fetchJson(buildUrl(`documents/${draggedDocument.id}/folder`), {
+            method: 'PUT',
+            body: JSON.stringify({
+              targetFolderId: targetFolder.folder_id
+            })
+          });
+          responseOk = !!data?.success;
+          resultData = data;
+        } catch (err) {
+          responseOk = false;
+        }
       }
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Success - just refresh the documents list
-        if (draggedDocument.isMultiple) {
-          // Clear selected documents after successful move
-          setSelectedDocuments([]);
-          alert(`${draggedDocument.count} documents moved to "${targetFolder.name}" folder successfully!`);
-        } else {
-          alert(`Document moved to "${targetFolder.name}" folder successfully!`);
-        }
-        
-        // Refresh documents to get updated data from server
-        refreshDocuments();
+      if (responseOk) {
+        // Update local state
+        setFolders(prev => {
+          const updated = prev.map(f => {
+            if (f.folder_id === targetFolder.folder_id) {
+              return { ...f, doc_count: (Number(f.doc_count) || 0) + (draggedDocument.isMultiple ? draggedDocument.count : 1) };
+            }
+            if (!draggedDocument.isMultiple && f.name === draggedDocument.folder) {
+              return { ...f, doc_count: Math.max(0, (Number(f.doc_count) || 0) - 1) };
+            }
+            return f;
+          });
+          return updated;
+        });
+        alert(`${draggedDocument.count} document(s) moved to "${targetFolder.name}" folder successfully!`);
       } else {
-        const errorData = await response.json();
-        alert(errorData.message || 'Failed to move document(s). Please try again.');
+        alert((resultData && resultData.message) || 'Failed to move document(s). Please try again.');
       }
     } catch (error) {
       console.error('Error moving document(s):', error);
@@ -1679,7 +1690,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const fetchDocumentTypes = useCallback(async () => {
     setDocumentTypesLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/document-types', {
+      const response = await fetch(buildUrl('document-types'), {
         method: 'GET',
         credentials: 'include',
       });
@@ -1700,7 +1711,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const fetchDepartments = useCallback(async () => {
     setDepartmentsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/departments', {
+      const response = await fetch(buildUrl('departments'), {
         method: 'GET',
         credentials: 'include',
       });

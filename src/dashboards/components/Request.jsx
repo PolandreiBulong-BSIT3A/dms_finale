@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { fetchWithRetry } from '../../lib/api/frontend/http.js';
-import { buildUrl } from '../../lib/api/frontend/client.js';
+import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { FiExternalLink, FiEye, FiMessageSquare, FiUpload, FiDownload, FiPlus, FiMoreVertical, FiEdit3, FiTrash2, FiBookmark, FiInfo, FiAlertTriangle, FiSearch } from 'react-icons/fi';
 import { ArrowDownUp, ArrowUp, ArrowDown } from 'react-bootstrap-icons';
 import { useDocuments } from '../../contexts/DocumentContext.jsx';
@@ -51,12 +51,9 @@ const Request = ({ onNavigateToUpload }) => {
     (async () => {
       try {
         const scopeParam = (reqScope ? `?scope=${encodeURIComponent(reqScope)}` : '');
-        const res = await fetchWithRetry(buildUrl(`documents/requests${scopeParam}`), { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          const list = data?.documents || [];
-          setRequestDocs(list);
-        }
+        const data = await fetchJson(buildUrl(`documents/requests${scopeParam}`));
+        const list = data?.documents || [];
+        setRequestDocs(list);
       } catch (e) {
         console.error('Failed to fetch requests:', e);
       }
@@ -67,15 +64,9 @@ const Request = ({ onNavigateToUpload }) => {
   const fetchAnsweredDocuments = async () => {
     setAnsweredLoading(true);
     try {
-      const response = await fetchWithRetry(buildUrl('documents/answered'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setAnsweredDocs(data.documents || []);
-        }
+      const data = await fetchJson(buildUrl('documents/answered'));
+      if (data.success) {
+        setAnsweredDocs(data.documents || []);
       }
     } catch (error) {
       console.error('Error fetching answered documents:', error);
@@ -96,21 +87,18 @@ const Request = ({ onNavigateToUpload }) => {
     const loadUsers = async () => {
       try {
         setUsersLoading(true);
-        const res = await fetchWithRetry(buildUrl('users'), { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          const list = Array.isArray(data) ? data : (data.users || []);
-          const normalized = list.map(u => ({
-            id: u.user_id ?? u.id,
-            firstname: u.firstname ?? u.first_name,
-            lastname: u.lastname ?? u.last_name,
-            full_name: `${(u.firstname ?? u.first_name) || ''} ${(u.lastname ?? u.last_name) || ''}`.trim(),
-            username: u.Username || u.username || '',
-            email: u.email || u.user_email || '',
-            profilePic: u.profile_pic || u.profilePic || ''
-          }));
-          setAllUsers(normalized);
-        }
+        const data = await fetchJson(buildUrl('users'));
+        const list = Array.isArray(data) ? data : (data.users || []);
+        const normalized = list.map(u => ({
+          id: u.user_id ?? u.id,
+          firstname: u.firstname ?? u.first_name,
+          lastname: u.lastname ?? u.last_name,
+          full_name: `${(u.firstname ?? u.first_name) || ''} ${(u.lastname ?? u.last_name) || ''}`.trim(),
+          username: u.Username || u.username || '',
+          email: u.email || u.user_email || '',
+          profilePic: u.profile_pic || u.profilePic || ''
+        }));
+        setAllUsers(normalized);
       } finally {
         setUsersLoading(false);
       }
@@ -261,7 +249,7 @@ const Request = ({ onNavigateToUpload }) => {
     if (!confirmDelete) return;
     try {
       for (const id of selectedIds) {
-        await fetch(buildUrl(`documents/${id}`), { method: 'DELETE', credentials: 'include' });
+        await fetchJson(buildUrl(`documents/${id}`), { method: 'DELETE' });
       }
       // Remove from local lists
       setSelectedIds([]);
@@ -1327,7 +1315,7 @@ const ReplyModal = ({ document, onClose, onSuccess }) => {
       // Find the document type id for "Reply" to satisfy FK constraint
       let replyTypeId = null;
       try {
-        const typesRes = await fetch('http://localhost:5000/api/document-types', {
+        const typesRes = await fetch(buildUrl('document-types'), {
           method: 'GET',
           credentials: 'include'
         });
@@ -1354,7 +1342,7 @@ const ReplyModal = ({ document, onClose, onSuccess }) => {
         // ignore; backend may default
       }
 
-      const response = await fetch('http://localhost:5000/api/documents/reply', {
+      const response = await fetch(buildUrl('documents/reply'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1365,8 +1353,6 @@ const ReplyModal = ({ document, onClose, onSuccess }) => {
           title: replyTitle,
           description: replyDescription,
           google_drive_link: replyLink,
-          reply_type: 'action_response',
-          // Provide multiple possible keys to satisfy backend expectations
           ...(replyTypeId ? { doc_type: replyTypeId, type_id: replyTypeId, doc_type_id: replyTypeId } : {})
         }),
       });
@@ -1683,7 +1669,7 @@ const EditModal = ({ document, onClose, onSuccess }) => {
     const fetchDepartments = async () => {
       try {
         setDepartmentsLoading(true);
-        const res = await fetch('http://localhost:5000/api/departments', { credentials: 'include' });
+        const res = await fetch(buildUrl('departments'), { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           const list = Array.isArray(data) ? data : (data.departments || []);
@@ -1701,7 +1687,7 @@ const EditModal = ({ document, onClose, onSuccess }) => {
     const fetchUsers = async () => {
       try {
         setUsersLoading(true);
-        const res = await fetch('http://localhost:5000/api/users', { credentials: 'include' });
+        const res = await fetch(buildUrl('users'), { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           const list = Array.isArray(data) ? data : (data.users || []);
@@ -1736,7 +1722,7 @@ const EditModal = ({ document, onClose, onSuccess }) => {
     setSuccess('');
 
     try {
-      const response = await fetch(`http://localhost:5000/api/documents/${document.id || document.doc_id}`, {
+      const response = await fetch(buildUrl(`documents/${document.id || document.doc_id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1747,7 +1733,6 @@ const EditModal = ({ document, onClose, onSuccess }) => {
           doc_type: editData.doc_type,
           description: editData.description,
           google_drive_link: editData.google_drive_link,
-          // visibility mapping similar to Upload.jsx
           visible_to_all: visibilityMode === 'all',
           ...(visibilityMode === 'specific' && { department_ids: selectedVisibility }),
           ...(visibilityMode === 'users' && { targetUsers: selectedUsers }),
@@ -1974,7 +1959,7 @@ const DeleteModal = ({ document, onClose, onSuccess }) => {
     setError('');
 
     try {
-      const response = await fetch(`http://localhost:5000/api/documents/${document.id || document.doc_id}`, {
+      const response = await fetch(buildUrl(`documents/${document.id || document.doc_id}`), {
         method: 'DELETE',
         credentials: 'include',
       });

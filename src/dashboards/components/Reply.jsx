@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FiCheck, FiAlertCircle } from 'react-icons/fi';
-import { buildUrl } from '../../lib/api/frontend/client.js';
+import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 
 const Reply = ({ onNavigateToDocuments }) => {
   const [replyTitle, setReplyTitle] = useState('');
@@ -122,23 +122,18 @@ const Reply = ({ onNavigateToDocuments }) => {
       // Try to get a Reply document type id to satisfy backend if needed
       let replyTypeId = null;
       try {
-        const typesRes = await fetch(buildUrl('document-types'), { method: 'GET', credentials: 'include' });
-        if (typesRes.ok) {
-          const typesData = await typesRes.json();
-          const list = Array.isArray(typesData) ? typesData : (typesData.documentTypes || []);
-          const byName = list.find(t => (t.name || t.type_name || '').toString().toLowerCase() === 'reply');
-          if (byName) replyTypeId = byName.type_id ?? byName.id ?? byName.typeId ?? null;
-          if (!replyTypeId && list.length > 0) {
-            const f = list[0];
-            replyTypeId = f.type_id ?? f.id ?? f.typeId ?? null;
-          }
+        const typesData = await fetchJson(buildUrl('document-types'));
+        const list = Array.isArray(typesData) ? typesData : (typesData.documentTypes || []);
+        const byName = list.find(t => (t.name || t.type_name || '').toString().toLowerCase() === 'reply');
+        if (byName) replyTypeId = byName.type_id ?? byName.id ?? byName.typeId ?? null;
+        if (!replyTypeId && list.length > 0) {
+          const f = list[0];
+          replyTypeId = f.type_id ?? f.id ?? f.typeId ?? null;
         }
       } catch {}
 
-      const res = await fetch(buildUrl('documents/reply'), {
+      const data = await fetchJson(buildUrl('documents/reply'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           original_doc_id: sourceDocumentId,
           title: replyTitle,
@@ -152,8 +147,7 @@ const Reply = ({ onNavigateToDocuments }) => {
         })
       });
 
-      const data = await res.json();
-      if (data.success) {
+      if (data && data.success) {
         setSuccess('Reply uploaded successfully');
         sessionStorage.removeItem('createReply');
         setTimeout(() => {

@@ -159,16 +159,22 @@ router.get('/auth/google/callback', (req, res, next) => {
   passport.authenticate('google', async (err, user, info) => {
     if (err) {
       console.error('Passport error during Google callback:', err);
-      return res.redirect(`${FRONTEND_URL}/login?error=oauth_error`);
+      const url = `${FRONTEND_URL}/#/login?error=oauth_error`;
+      console.log('OAuth redirect (error):', url);
+      return res.redirect(url);
     }
 
     // Handle deleted account
     if (info && (info.code === 'ACCOUNT_DELETED' || (info.message && info.message.includes('deleted')))) {
-      return res.redirect(`${FRONTEND_URL}/login?error=account_deleted`);
+      const url = `${FRONTEND_URL}/#/login?error=account_deleted`;
+      console.log('OAuth redirect (account_deleted):', url);
+      return res.redirect(url);
     }
 
     if (!user) {
-      return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
+      const url = `${FRONTEND_URL}/#/login?error=oauth_failed`;
+      console.log('OAuth redirect (no user):', url);
+      return res.redirect(url);
     }
 
     // Check maintenance mode before establishing session
@@ -186,7 +192,9 @@ router.get('/auth/google/callback', (req, res, next) => {
     if (maintenanceMode) {
       const isAdmin = user.role && user.role.toLowerCase() === 'admin';
       if (!isAdmin) {
-        return res.redirect(`${FRONTEND_URL}/login?error=maintenance_mode`);
+        const url = `${FRONTEND_URL}/#/login?error=maintenance_mode`;
+        console.log('OAuth redirect (maintenance_mode):', url);
+        return res.redirect(url);
       }
     }
 
@@ -194,7 +202,9 @@ router.get('/auth/google/callback', (req, res, next) => {
     req.logIn(user, (loginErr) => {
       if (loginErr) {
         console.error('Error establishing session after Google login:', loginErr);
-        return res.redirect(`${FRONTEND_URL}/login?error=oauth_error`);
+        const url = `${FRONTEND_URL}/#/login?error=oauth_error`;
+        console.log('OAuth redirect (login error):', url);
+        return res.redirect(url);
       }
 
       try {
@@ -214,10 +224,14 @@ router.get('/auth/google/callback', (req, res, next) => {
           updatedAt: user.updated_at,
           isNewGoogleUser: user.isNewGoogleUser || false
         }));
-        return res.redirect(`${FRONTEND_URL}/login?user=${userData}`);
+        const url = `${FRONTEND_URL}/#/login?user=${userData}`;
+        console.log('OAuth redirect (success):', url);
+        return res.redirect(url);
       } catch (serializeErr) {
         console.error('Error serializing user data for redirect:', serializeErr);
-        return res.redirect(`${FRONTEND_URL}/login?error=oauth_error`);
+        const url = `${FRONTEND_URL}/#/login?error=oauth_error`;
+        console.log('OAuth redirect (serialize error):', url);
+        return res.redirect(url);
       }
     });
   })(req, res, next);

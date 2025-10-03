@@ -237,12 +237,14 @@ export const sessionConfig = {
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: true, // Force HTTPS in production
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'strict'
+    sameSite: 'none', // Allow cross-site cookies
+    domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined
   },
-  name: 'ispsc-dms-session'
+  name: 'ispsc-dms-session',
+  proxy: true // Trust the reverse proxy (Render)
 };
 
 // Security headers configuration

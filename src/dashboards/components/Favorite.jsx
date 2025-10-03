@@ -123,9 +123,7 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
         setUsersLoading(true);
         const base = buildUrl('users');
         const url = base + (base.includes('?') ? '&' : '?') + `_=${Date.now()}`;
-        const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
-        if (!res.ok && res.status !== 304) return;
-        const data = res.status === 304 ? {} : await res.json().catch(() => ({}));
+        const data = await fetchJson(url, { cache: 'no-store' });
         const list = Array.isArray(data?.users) ? data.users : (Array.isArray(data) ? data : []);
         setUsersList(list);
       } catch (e) {
@@ -277,9 +275,7 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
         setDocumentTypesLoading(true);
         const base = buildUrl('document-types');
         const url = base + (base.includes('?') ? '&' : '?') + `_=${Date.now()}`;
-        const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
-        if (!res.ok && res.status !== 304) return;
-        const data = res.status === 304 ? {} : await res.json().catch(() => ({}));
+        const data = await fetchJson(url, { cache: 'no-store' });
         
         // Handle different possible response structures
         let list = [];
@@ -357,24 +353,20 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
 
       for (const id of ids) {
         try {
-          const resp = await fetch(buildUrl('documents/trashcan'), {
+          const data = await fetchJson(buildUrl('documents/trashcan'), {
             method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ documentId: id, action: 'move_to_trashcan' })
           });
-          if (resp.ok) {
+          if (data && (data.success || data.ok)) {
             successCount += 1;
           } else {
-            const data = await resp.json().catch(() => ({}));
-            if (resp.status === 403) {
-              denied.push(id);
-            } else {
-              failed.push({ id, msg: data?.message || 'Failed' });
-            }
+            failed.push({ id, msg: data?.message || 'Failed' });
           }
         } catch (e) {
-          failed.push({ id, msg: e?.message || 'Network error' });
+          // If backend sends 403, fetchJson throws. We can't read status here, so assume denied if message hints.
+          const msg = e?.message || '';
+          if (/forbidden|permission|403/i.test(msg)) denied.push(id);
+          else failed.push({ id, msg: msg || 'Network error' });
         }
       }
 
@@ -1229,22 +1221,19 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       
       if (draggedDocument.isMultiple) {
         // Mass move operation
-        response = await fetch(`http://localhost:5000/api/documents/bulk/folder`, {
+        response = await fetch(buildUrl('documents/bulk/folder'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ 
-            documentIds: draggedDocument.ids,
-            folder: targetFolder.name 
-          })
+          body: JSON.stringify({ document_ids: draggedDocument.ids, folder_id: targetFolder.folder_id })
         });
       } else {
         // Single document move
-        response = await fetch(`http://localhost:5000/api/documents/${draggedDocument.id}/folder`, {
+        response = await fetch(buildUrl(`documents/${draggedDocument.id}/folder`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ folder: targetFolder.name })
+          body: JSON.stringify({ folder_id: targetFolder.folder_id })
         });
       }
 
@@ -1773,7 +1762,7 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const fetchDepartments = useCallback(async () => {
     setDepartmentsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/departments', {
+      const response = await fetch(buildUrl('departments'), {
         method: 'GET',
         credentials: 'include',
       });

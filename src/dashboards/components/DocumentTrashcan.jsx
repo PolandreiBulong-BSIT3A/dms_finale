@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { useDocuments } from '../../contexts/DocumentContext';
 import { useUser } from '../../contexts/UserContext';
 import { ArrowCounterclockwise, Trash, ArrowDownUp, ChevronUp, ChevronDown, Funnel, Search, Plus, Pencil, Trash2, X } from 'react-bootstrap-icons';
@@ -62,23 +63,16 @@ const DocumentTrashcan = ({ onBack }) => {
   useEffect(() => {
     const fetchDocumentTypes = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/document-types', {
-          method: 'GET',
-          credentials: 'include',
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.documentTypes) {
-            // Build a map: doc_type_id -> type_name
-            const typeMap = {};
-            data.documentTypes.forEach(dt => {
-              if (dt.doc_type_id && dt.type_name) {
-                typeMap[String(dt.doc_type_id)] = dt.type_name;
-              }
-            });
-            setDocTypeLookup(typeMap);
-          }
+        const data = await fetchJson(buildUrl('document-types'));
+        if (data.success && data.documentTypes) {
+          // Build a map: doc_type_id -> type_name
+          const typeMap = {};
+          data.documentTypes.forEach(dt => {
+            if (dt.doc_type_id && dt.type_name) {
+              typeMap[String(dt.doc_type_id)] = dt.type_name;
+            }
+          });
+          setDocTypeLookup(typeMap);
         }
       } catch (error) {
         console.error('Error fetching document types:', error);
@@ -92,15 +86,9 @@ const DocumentTrashcan = ({ onBack }) => {
   useEffect(() => {
     const fetchFolders = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/folders', {
-          method: 'GET',
-          credentials: 'include',
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.folders) {
-            setAllFolders(data.folders);
-          }
+        const data = await fetchJson(buildUrl('folders'));
+        if (data.success && data.folders) {
+          setAllFolders(data.folders);
         }
       } catch (error) {
         console.error('Error fetching folders:', error);
@@ -138,28 +126,19 @@ const DocumentTrashcan = ({ onBack }) => {
 
     try {
       const url = folderModalMode === 'add' 
-        ? 'http://localhost:5000/api/folders'
-        : `http://localhost:5000/api/folders/${editingFolder.folder_id}`;
-      
-      const response = await fetch(url, {
+        ? buildUrl('folders')
+        : buildUrl(`folders/${editingFolder.folder_id}`);
+
+      const data = await fetchJson(url, {
         method: folderModalMode === 'add' ? 'POST' : 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(folderForm),
       });
 
-      const data = await response.json();
       if (data.success) {
         // Refresh folders
-        const foldersResponse = await fetch('http://localhost:5000/api/folders', {
-          method: 'GET',
-          credentials: 'include',
-        });
-        if (foldersResponse.ok) {
-          const foldersData = await foldersResponse.json();
-          if (foldersData.success && foldersData.folders) {
-            setAllFolders(foldersData.folders);
-          }
+        const foldersData = await fetchJson(buildUrl('folders'));
+        if (foldersData.success && foldersData.folders) {
+          setAllFolders(foldersData.folders);
         }
         closeFolderModal();
       } else {
@@ -177,23 +156,15 @@ const DocumentTrashcan = ({ onBack }) => {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/folders/${folder.folder_id}`, {
+      const data = await fetchJson(buildUrl(`folders/${folder.folder_id}`), {
         method: 'DELETE',
-        credentials: 'include',
       });
 
-      const data = await response.json();
       if (data.success) {
         // Refresh folders
-        const foldersResponse = await fetch('http://localhost:5000/api/folders', {
-          method: 'GET',
-          credentials: 'include',
-        });
-        if (foldersResponse.ok) {
-          const foldersData = await foldersResponse.json();
-          if (foldersData.success && foldersData.folders) {
-            setAllFolders(foldersData.folders);
-          }
+        const foldersData = await fetchJson(buildUrl('folders'));
+        if (foldersData.success && foldersData.folders) {
+          setAllFolders(foldersData.folders);
         }
         if (selectedFolder === folder.name) {
           setSelectedFolder('');

@@ -1,12 +1,11 @@
 // Document Preferences Client API
 // Handles user-specific document preferences like favorites and pins
-
-const BASE_URL = 'http://localhost:5000/api';
+import { buildUrl } from '../../frontend/client.js';
 
 // Get user's document preferences
 export const fetchUserPreferences = async () => {
   try {
-    const response = await fetch(`${BASE_URL}/documents/preferences`, {
+    const response = await fetch(buildUrl('documents/preferences'), {
       method: 'GET',
       credentials: 'include'
     });
@@ -25,7 +24,7 @@ export const fetchUserPreferences = async () => {
 // Toggle favorite status for a document
 export const toggleFavorite = async (docId) => {
   try {
-    const response = await fetch(`${BASE_URL}/documents/${docId}/favorite`, {
+    const response = await fetch(buildUrl(`documents/${docId}/favorite`), {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -47,7 +46,7 @@ export const toggleFavorite = async (docId) => {
 // Toggle pin status for a document
 export const togglePin = async (docId) => {
   try {
-    const response = await fetch(`${BASE_URL}/documents/${docId}/pin`, {
+    const response = await fetch(buildUrl(`documents/${docId}/pin`), {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -69,7 +68,7 @@ export const togglePin = async (docId) => {
 // Get user's favorite documents
 export const fetchFavoriteDocuments = async () => {
   try {
-    const response = await fetch(`${BASE_URL}/documents/favorites`, {
+    const response = await fetch(buildUrl('documents/favorites'), {
       method: 'GET',
       credentials: 'include'
     });
@@ -88,7 +87,7 @@ export const fetchFavoriteDocuments = async () => {
 // Remove document from favorites
 export const removeFromFavorites = async (docId) => {
   try {
-    const response = await fetch(`${BASE_URL}/documents/${docId}/favorite`, {
+    const response = await fetch(buildUrl(`documents/${docId}/favorite`), {
       method: 'DELETE',
       credentials: 'include'
     });

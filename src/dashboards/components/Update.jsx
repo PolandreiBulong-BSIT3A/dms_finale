@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../../contexts/UserContext.jsx';
-import { fetchWithRetry } from '../../lib/api/frontend/http.js';
-import { buildUrl } from '../../lib/api/frontend/client.js';
+import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { FiLink, FiX, FiCheck, FiAlertCircle, FiExternalLink, FiMaximize2, FiPlus, FiChevronDown } from 'react-icons/fi';
 import { useDocuments } from '../../contexts/DocumentContext.jsx';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
@@ -15,11 +14,7 @@ const Update = ({ role, onNavigateToDocuments, id }) => {
   useEffect(() => {
     if (!id) return;
     setPrefillLoading(true);
-    fetchWithRetry(buildUrl(`documents/${id}`), {
-      method: 'GET',
-      credentials: 'include',
-    })
-      .then(response => response.ok ? response.json() : Promise.reject())
+    fetchJson(buildUrl(`documents/${id}`))
       .then(data => {
         if (!data?.success || !data?.document) return;
         const d = data.document;
@@ -137,15 +132,9 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
   // Fetch document types
   const fetchDocumentTypes = async () => {
     try {
-      const response = await fetchWithRetry(buildUrl('document-types'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setDocumentTypes(data.documentTypes || []);
-        }
+      const data = await fetchJson(buildUrl('document-types'));
+      if (data.success) {
+        setDocumentTypes(data.documentTypes || []);
       }
     } catch (error) {
       console.error('Error fetching document types:', error);
@@ -155,15 +144,9 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
   // Fetch folders
   const fetchFolders = async () => {
     try {
-      const response = await fetchWithRetry(buildUrl('folders'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setFolders(data.folders || []);
-        }
+      const data = await fetchJson(buildUrl('folders'));
+      if (data.success) {
+        setFolders(data.folders || []);
       }
     } catch (error) {
       console.error('Error fetching folders:', error);
@@ -174,17 +157,12 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const fetchDepartments = async () => {
     try {
       setDepartmentsLoading(true);
-      const response = await fetchWithRetry(buildUrl('departments'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const list = Array.isArray(data)
-          ? data
-          : Array.isArray(data.departments)
-            ? data.departments
-            : [];
+      const data = await fetchJson(buildUrl('departments'));
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data.departments)
+          ? data.departments
+          : [];
         // Normalize field names
         let normalized = list.map(d => ({
           department_id: d.department_id ?? d.id ?? d.departmentId ?? d.value,
@@ -198,7 +176,6 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
           return aKey.localeCompare(bKey);
         });
         setDepartments(normalized);
-      }
     } catch (error) {
       console.error('Error fetching departments:', error);
     } finally {
@@ -210,17 +187,12 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const fetchUsers = async () => {
     try {
       setUsersLoading(true);
-      const response = await fetchWithRetry(buildUrl('users'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const list = Array.isArray(data)
-          ? data
-          : Array.isArray(data.users)
-            ? data.users
-            : [];
+      const data = await fetchJson(buildUrl('users'));
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data.users)
+          ? data.users
+          : [];
         // Normalize user data with department info
         let normalized = list.map(u => ({
           user_id: u.user_id ?? u.id ?? u.userId,
@@ -236,7 +208,6 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
         // Sort by name
         normalized = normalized.sort((a, b) => a.full_name.localeCompare(b.full_name));
         setUsers(normalized);
-      }
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -248,17 +219,12 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const fetchActionRequired = async () => {
     try {
       setActionsLoading(true);
-      const response = await fetchWithRetry(buildUrl('actions'), {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const list = Array.isArray(data)
-          ? data
-          : Array.isArray(data.actions)
-            ? data.actions
-            : [];
+      const data = await fetchJson(buildUrl('actions'));
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data.actions)
+          ? data.actions
+          : [];
         const normalized = list.map(a => ({
           id: a.id ?? a.action_id ?? a.value,
           name: a.name ?? a.action_name ?? a.label,
@@ -268,9 +234,6 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
         } else {
           setActionOptions(defaultActionOptions);
         }
-      } else {
-        setActionOptions(defaultActionOptions);
-      }
     } catch (error) {
       console.warn('Action Required API not available, using defaults.');
       setActionOptions(defaultActionOptions);
@@ -376,12 +339,7 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
     if (seeded === 'true') return;
     (async () => {
       try {
-        const resp = await fetchWithRetry(buildUrl('documents/distinct-from-to?limit=200'), {
-          method: 'GET',
-          credentials: 'include'
-        });
-        if (!resp.ok) return;
-        const data = await resp.json().catch(() => ({}));
+        const data = await fetchJson(buildUrl('documents/distinct-from-to?limit=200'));
         if (data && data.success) {
           const fromValues = Array.isArray(data.from_values) ? data.from_values : [];
           const toValues = Array.isArray(data.to_values) ? data.to_values : [];
@@ -457,28 +415,18 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
     
     setAddingDocType(true);
     try {
-      const response = await fetchWithRetry('http://localhost:5000/api/document-types', {
+      const data = await fetchJson(buildUrl('document-types'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({ name: newDocTypeName.trim() }),
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          await fetchDocumentTypes(); // Refresh the list
-          setDocType(newDocTypeName.trim()); // Select the newly added type
-          setNewDocTypeName('');
-          setShowAddDocTypeModal(false);
-          setSuccessMessage(`Document type "${newDocTypeName.trim()}" added successfully`);
-        } else {
-          setErrorMessage(data.message || 'Failed to add document type');
-        }
+      if (data.success) {
+        await fetchDocumentTypes();
+        setDocType(newDocTypeName.trim());
+        setNewDocTypeName('');
+        setShowAddDocTypeModal(false);
+        setSuccessMessage(`Document type "${newDocTypeName.trim()}" added successfully`);
       } else {
-        setErrorMessage('Failed to add document type');
+        setErrorMessage(data.message || 'Failed to add document type');
       }
     } catch (error) {
       console.error('Error adding document type:', error);
@@ -494,32 +442,22 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
     
     setAddingFolder(true);
     try {
-      const response = await fetchWithRetry('http://localhost:5000/api/folders', {
+      const data = await fetchJson(buildUrl('folders'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({ name: newFolderName.trim() }),
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          await fetchFolders(); // Refresh the list
-          // Select newly added folder in both legacy name and multi-select ids
-          setSelectedFolder(newFolderName.trim());
-          if (data.folder?.folder_id) {
-            setSelectedFolderIds(prev => Array.from(new Set([...(prev || []), Number(data.folder.folder_id)])));
-          }
-          setNewFolderName('');
-          setShowAddFolderModal(false);
-          setSuccessMessage(`Folder "${newFolderName.trim()}" added successfully`);
-        } else {
-          setErrorMessage(data.message || 'Failed to add folder');
+      if (data.success) {
+        await fetchFolders();
+        // Select newly added folder in both legacy name and multi-select ids
+        setSelectedFolder(newFolderName.trim());
+        if (data.folder?.folder_id) {
+          setSelectedFolderIds(prev => Array.from(new Set([...(prev || []), Number(data.folder.folder_id)])));
         }
+        setNewFolderName('');
+        setShowAddFolderModal(false);
+        setSuccessMessage(`Folder "${newFolderName.trim()}" added successfully`);
       } else {
-        setErrorMessage('Failed to add folder');
+        setErrorMessage(data.message || 'Failed to add folder');
       }
     } catch (error) {
       console.error('Error adding folder:', error);

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import socket from '../lib/realtime/socket.js';
+import { buildUrl } from '../lib/api/frontend/client.js';
 import { useNavigate } from 'react-router-dom';
 
 const UserContext = createContext();
@@ -20,9 +21,9 @@ export const UserProvider = ({ children }) => {
     accessToken: null,
     refreshToken: null
   });
+  const [tokensReady, setTokensReady] = useState(false);
 
-  // API base URL
-  const API_BASE_URL = 'http://localhost:5000/api';
+  // API base URL is derived by buildUrl(); do not hardcode
 
   // Enhanced API request function with automatic token refresh
   const apiRequest = useCallback(async (url, options = {}) => {
@@ -41,11 +42,11 @@ export const UserProvider = ({ children }) => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}${url}`, config);
+      const response = await fetch(buildUrl(url.replace(/^\//, '')), config);
       
       // If token is expired, try to refresh it
       if (response.status === 401 && tokens.refreshToken) {
-        const refreshResponse = await fetch(`${API_BASE_URL}/refresh-token`, {
+        const refreshResponse = await fetch(buildUrl('refresh-token'), {
           method: 'POST',
           credentials: 'include',
           headers: {
@@ -62,7 +63,7 @@ export const UserProvider = ({ children }) => {
 
           // Retry the original request with new token
           config.headers.Authorization = `Bearer ${refreshData.tokens.accessToken}`;
-          const retryResponse = await fetch(`${API_BASE_URL}${url}`, config);
+          const retryResponse = await fetch(buildUrl(url.replace(/^\//, '')), config);
           return retryResponse;
         } else {
           // Refresh failed, logout user
@@ -155,7 +156,7 @@ export const UserProvider = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       // Call logout API to destroy session and clear tokens
-      await fetch(`${API_BASE_URL}/logout`, {
+      await fetch(buildUrl('logout'), {
         method: 'POST',
         credentials: 'include'
       });
@@ -246,7 +247,7 @@ export const UserProvider = ({ children }) => {
     }
   }, []);
 
-  // Initialize tokens from localStorage on mount
+  // Initialize tokens from storage on mount
   useEffect(() => {
     const storedAccessToken = localStorage.getItem('accessToken');
     const storedRefreshToken = localStorage.getItem('refreshToken');
@@ -269,12 +270,15 @@ export const UserProvider = ({ children }) => {
         });
       }
     }
+    // Mark tokens as initialized (even if none found)
+    setTokensReady(true);
   }, []);
 
-  // Initial load
+  // Initial load: wait until tokens are initialized so Authorization header is present if available
   useEffect(() => {
+    if (!tokensReady) return;
     loadUser().finally(() => setLoading(false));
-  }, [loadUser]);
+  }, [tokensReady, loadUser]);
 
   // Periodic refresh to keep session alive and check for role changes
   useEffect(() => {
@@ -299,7 +303,7 @@ export const UserProvider = ({ children }) => {
 
     const tokenRefreshInterval = setInterval(async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/refresh-token`, {
+        const response = await fetch(buildUrl('refresh-token'), {
           method: 'POST',
           credentials: 'include',
           headers: {
