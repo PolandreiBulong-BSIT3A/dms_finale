@@ -41,6 +41,12 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // ----- App & Realtime -----
 const app = express();
+
+// Trust proxy when behind Render/reverse proxy
+if (NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
