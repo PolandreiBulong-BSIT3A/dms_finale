@@ -23,45 +23,30 @@ const router = express.Router();
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
-// Configure Nodemailer from environment
-const EMAIL_SERVICE = process.env.EMAIL_SERVICE; // e.g., 'gmail'
-const EMAIL_HOST = process.env.EMAIL_HOST;       // e.g., 'smtp.gmail.com'
-const EMAIL_PORT = Number(process.env.EMAIL_PORT || 0); // e.g., 465 or 587
-const EMAIL_SECURE = (() => {
-  const v = (process.env.EMAIL_SECURE || '').toString().toLowerCase();
-  if (v === 'true' || v === '1') return true;
-  if (v === 'false' || v === '0') return false;
-  return undefined;
+// Configure Nodemailer using SMTP_* envs (with EMAIL_* fallbacks)
+const SMTP_HOST = process.env.SMTP_HOST || process.env.EMAIL_HOST || (!process.env.EMAIL_SERVICE ? 'smtp.gmail.com' : undefined);
+const SMTP_PORT = Number(process.env.SMTP_PORT || process.env.EMAIL_PORT || 587);
+const SMTP_SECURE = (() => {
+  const raw = (process.env.SMTP_SECURE ?? process.env.EMAIL_SECURE ?? '').toString().toLowerCase();
+  if (raw === 'true' || raw === '1') return true;
+  if (raw === 'false' || raw === '0') return false;
+  return SMTP_PORT === 465; // infer from port when not provided
 })();
-const EMAIL_USER = process.env.EMAIL_USER;       // required
-const EMAIL_PASS = process.env.EMAIL_PASS;       // required
-const EMAIL_FROM = process.env.EMAIL_FROM || EMAIL_USER;
+const SMTP_USER = process.env.SMTP_USER || process.env.EMAIL_USER; // required
+const SMTP_PASS = process.env.SMTP_PASS || process.env.EMAIL_PASS; // required
+const EMAIL_FROM = process.env.MAIL_FROM || process.env.EMAIL_FROM || SMTP_USER;
 
 let transporter;
 try {
-  if (EMAIL_SERVICE) {
-    // Service-based config
-    transporter = nodemailer.createTransport({
-      service: EMAIL_SERVICE,
-      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-    });
-  } else if (EMAIL_HOST) {
-    // Host/port-based config
-    transporter = nodemailer.createTransport({
-      host: EMAIL_HOST,
-      port: EMAIL_PORT || 587,
-      secure: EMAIL_SECURE ?? false,
-      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-    });
-  } else {
-    // Fallback to well-known Gmail host if nothing provided
-    transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-    });
-  }
+  transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE, // true for 465, false for 587
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
+  });
 } catch (e) {
   console.error('Failed to initialize mail transporter:', e?.message || e);
 }
@@ -71,7 +56,7 @@ try {
   try {
     if (!transporter) throw new Error('Transporter not configured');
     await transporter.verify();
-    console.log('Email transporter verified and ready');
+    console.log(`Email transporter verified: host=${SMTP_HOST} port=${SMTP_PORT} secure=${SMTP_SECURE}`);
   } catch (err) {
     console.error('Email transporter verification failed:', err?.message || err);
   }
