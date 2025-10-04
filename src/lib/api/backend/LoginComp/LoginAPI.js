@@ -96,6 +96,7 @@ const sendViaBrevoHttp = async ({ from, to, subject, html }) => {
     htmlContent: html,
   };
 
+  console.log('[Brevo HTTP] Sending email:', { sender, to: payload.to, subject });
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -106,10 +107,12 @@ const sendViaBrevoHttp = async ({ from, to, subject, html }) => {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
+    console.error('[Brevo HTTP] Failed:', res.status, text);
     const err = new Error(`Brevo HTTP send failed: ${res.status} ${text}`);
     err.status = res.status;
     throw err;
   }
+  console.log('[Brevo HTTP] Email sent successfully');
 };
 
 const sendEmail = async ({ from, to, subject, html }) => {
