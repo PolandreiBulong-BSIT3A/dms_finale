@@ -271,19 +271,16 @@ router.post('/signup', signupRateLimit, validateSignup, async (req, res) => {
       from: EMAIL_FROM,
       to: email,
       subject: 'ISPSc DMS - Email Verification',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #dc2626;">Welcome to ISPSc DMS!</h2>
-          <p>Hi ${firstname},</p>
-{{ ... }}
-          <p>Thank you for registering with ISPSc DMS. To complete your registration, please use the verification code below:</p>
-          <div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-            <h1 style="color: #dc2626; font-size: 32px; margin: 0; letter-spacing: 8px;">${otp}</h1>
-          </div>
-          <p>This code will expire in 10 minutes. If you didn't request this code, please ignore this email.</p>
-          <p>Best regards,<br>ISPSc DMS Team</p>
-        </div>
-      `
+      html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+<h2 style="color: #dc2626;">Welcome to ISPSc DMS</h2>
+<p>Hi ${firstname},</p>
+<p>Thank you for registering with ISPSc DMS. To complete your registration, please use the verification code below:</p>
+<div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+<h1 style="color: #dc2626; font-size: 32px; margin: 0; letter-spacing: 8px;">${otp}</h1>
+</div>
+<p>This code will expire in 10 minutes. If you did not request this code, please ignore this email.</p>
+<p>Best regards,<br>ISPSc DMS Team</p>
+</div>`
     };
 
     try {
@@ -697,17 +694,15 @@ router.post('/resend-otp', otpRateLimit, async (req, res) => {
       from: EMAIL_FROM,
       to: email,
       subject: 'ISPSc DMS - New Verification Code',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #dc2626;">New Verification Code</h2>
-          <p>You requested a new verification code. Here it is:</p>
-          <div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-            <h1 style="color: #dc2626; font-size: 32px; margin: 0; letter-spacing: 8px;">${otp}</h1>
-          </div>
-          <p>This code will expire in 10 minutes.</p>
-          <p>Best regards,<br>ISPSc DMS Team</p>
-        </div>
-      `
+      html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+<h2 style="color: #dc2626;">New Verification Code</h2>
+<p>You requested a new verification code. Here it is:</p>
+<div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+<h1 style="color: #dc2626; font-size: 32px; margin: 0; letter-spacing: 8px;">${otp}</h1>
+</div>
+<p>This code will expire in 10 minutes.</p>
+<p>Best regards,<br>ISPSc DMS Team</p>
+</div>`
     };
 
     await sendEmail(mailOptions);
