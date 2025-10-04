@@ -55,10 +55,18 @@ try {
 (async () => {
   try {
     if (!transporter) throw new Error('Transporter not configured');
+    console.log(`Attempting SMTP verify: host=${SMTP_HOST} port=${SMTP_PORT} secure=${SMTP_SECURE} user=${SMTP_USER}`);
     await transporter.verify();
-    console.log(`Email transporter verified: host=${SMTP_HOST} port=${SMTP_PORT} secure=${SMTP_SECURE}`);
+    console.log(`[SMTP verify OK] host=${SMTP_HOST} port=${SMTP_PORT} secure=${SMTP_SECURE}`);
   } catch (err) {
-    console.error('Email transporter verification failed:', err?.message || err);
+    console.error('[SMTP verify FAILED]', {
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE,
+      user: SMTP_USER,
+      error: err?.message || err,
+      code: err?.code
+    });
   }
 })();
 
