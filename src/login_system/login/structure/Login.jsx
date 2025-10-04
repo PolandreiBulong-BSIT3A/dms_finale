@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from "react";
 import {
-  Container, Form, Button, FloatingLabel, Card, Image, Row, Col, Navbar, Modal, Nav, Alert
+  Container, Form, Button, FloatingLabel, Image, Row, Col, Alert
 } from "react-bootstrap";
 import { Eye, EyeSlash, ExclamationTriangleFill } from "react-bootstrap-icons";
-import { FaTools, FaEnvelope, FaPhone } from 'react-icons/fa';
+import { FaEnvelope, FaPhone } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../../../contexts/UserContext.jsx';
 import Logo from "../../../assets/logos/logo.png";
 import LanImage from "../../../assets/logos/lan.png";
 import LoginBackgroundImage from "../../../assets/backgrounds/smallbanner.png";
-import SignupBackgroundImage from "../../../assets/backgrounds/banner.png";
 import { fetchDepartments, getFallbackDepartments } from "../../../lib/api/frontend/departments.api.js";
 import { googleAuth } from "../../../lib/api/frontend/google.api.js";
 import { signup, verifyOtp, resendOtp, forgotPassword, verifyForgotPasswordOtp, updatePassword } from "../../../lib/api/frontend/auth.api.js";
@@ -217,14 +216,27 @@ const Login = () => {
   const loadDepartments = async () => {
     setDepartmentsLoading(true);
     try {
+      console.log('[Signup] Fetching departments...');
       const depts = await fetchDepartments();
-      setDepartments(depts);
+      console.log('[Signup] Departments API response:', depts);
+      if (Array.isArray(depts) && depts.length > 0) {
+        setDepartments(depts);
+        console.log(`[Signup] Using API departments: count=${depts.length}`);
+      } else {
+        // If API returns empty, use fallback list so the dropdown is never empty
+        const fallback = getFallbackDepartments();
+        console.warn('[Signup] API returned empty departments. Using fallback list.', fallback);
+        setDepartments(fallback);
+      }
     } catch (error) {
-      console.error('Error loading departments:', error);
+      console.error('[Signup] Error loading departments:', error);
       // Use fallback departments if API fails
-      setDepartments(getFallbackDepartments());
+      const fallback = getFallbackDepartments();
+      console.warn('[Signup] Using fallback departments due to error.', fallback);
+      setDepartments(fallback);
     } finally {
       setDepartmentsLoading(false);
+      console.log('[Signup] Departments loading done.');
     }
   };
 
@@ -1358,7 +1370,7 @@ const Login = () => {
         </Container>
       </div>
 
-      {/* Right Section - Banner Background (only show in login mode) */}
+      {/* Right Section - Banner Background (login only) */}
       {isLogin && (
         <div 
           className="banner-section d-none d-lg-block"
@@ -1369,6 +1381,7 @@ const Login = () => {
           <div className="banner-overlay"></div>
         </div>
       )}
+
     </div>
   );
 };

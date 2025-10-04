@@ -2,7 +2,23 @@ import { buildUrl, fetchJson } from './client.js';
 
 export const fetchDepartments = async () => {
   const data = await fetchJson(buildUrl('/departments'));
-  return data.departments || [];
+  const list = data.departments || [];
+  // Normalize to { value, label, code }
+  return list.map((item) => {
+    // Already normalized
+    if (item && typeof item.value !== 'undefined' && typeof item.label !== 'undefined') {
+      return item;
+    }
+    // Backend row shape
+    const id = item.department_id ?? item.id ?? item.value ?? '';
+    const name = item.name ?? item.label ?? '';
+    const code = item.code ?? item.department_code ?? undefined;
+    return {
+      value: String(id),
+      label: String(name),
+      ...(code ? { code: String(code) } : {}),
+    };
+  });
 };
 
 export const getFallbackDepartments = () => ([
