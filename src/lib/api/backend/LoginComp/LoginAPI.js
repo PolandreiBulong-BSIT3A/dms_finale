@@ -35,8 +35,10 @@ const SMTP_SECURE = (() => {
 const SMTP_USER = process.env.SMTP_USER || process.env.EMAIL_USER; // required
 const SMTP_PASS = process.env.SMTP_PASS || process.env.EMAIL_PASS; // required
 const EMAIL_FROM = process.env.MAIL_FROM || process.env.EMAIL_FROM || SMTP_USER;
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 
 let transporter;
+let smtpReady = false;
 try {
   transporter = nodemailer.createTransport({
     host: SMTP_HOST,
@@ -58,6 +60,7 @@ try {
     console.log(`Attempting SMTP verify: host=${SMTP_HOST} port=${SMTP_PORT} secure=${SMTP_SECURE} user=${SMTP_USER}`);
     await transporter.verify();
     console.log(`[SMTP verify OK] host=${SMTP_HOST} port=${SMTP_PORT} secure=${SMTP_SECURE}`);
+    smtpReady = true;
   } catch (err) {
     console.error('[SMTP verify FAILED]', {
       host: SMTP_HOST,
@@ -69,6 +72,62 @@ try {
     });
   }
 })();
+
+// Unified email sender with Brevo HTTP fallback
+const sendViaBrevoHttp = async ({ from, to, subject, html }) => {
+  if (!BREVO_API_KEY) throw new Error('BREVO_API_KEY missing');
+  const sender = (() => {
+    // Parse display name if provided in from string
+    if (typeof from === 'string') {
+      const match = from.match(/^(.*)<(.+@.+)>\s*$/);
+      if (match) {
+        return { name: match[1].trim().replace(/\"/g, ''), email: match[2].trim() };
+      }
+      return { email: from.replace(/["<>]/g, '').trim() };
+    }
+    if (from && typeof from === 'object') return from;
+    throw new Error('Invalid MAIL_FROM');
+  })();
+
+  const payload = {
+    sender,
+    to: Array.isArray(to) ? to.map(e => (typeof e === 'string' ? { email: e } : e)) : [{ email: to }],
+    subject,
+    htmlContent: html,
+  };
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': BREVO_API_KEY,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    const err = new Error(`Brevo HTTP send failed: ${res.status} ${text}`);
+    err.status = res.status;
+    throw err;
+  }
+};
+
+const sendEmail = async ({ from, to, subject, html }) => {
+  // Try SMTP first if verified
+  if (smtpReady && transporter) {
+    try {
+      await transporter.sendMail({ from, to, subject, html });
+      return;
+    } catch (e) {
+      const code = e?.code || '';
+      const msg = e?.message || '';
+      console.warn('SMTP sendMail failed, will try Brevo HTTP fallback:', code, msg);
+      // fall through to HTTP
+    }
+  }
+  // Fallback to Brevo HTTP API
+  await sendViaBrevoHttp({ from, to, subject, html });
+};
 
 // Multer for profile picture upload (memory storage)
 const upload = multer({ 
@@ -225,7 +284,7 @@ router.post('/signup', signupRateLimit, validateSignup, async (req, res) => {
     };
 
     try {
-      await transporter.sendMail(mailOptions);
+      await sendEmail(mailOptions);
       res.json({ 
         success: true, 
         message: 'Account created successfully! Please check your email for the verification code.',
@@ -648,7 +707,7 @@ router.post('/resend-otp', otpRateLimit, async (req, res) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await sendEmail(mailOptions);
     res.json({ 
       success: true, 
       message: 'Verification code resent successfully.',
