@@ -264,8 +264,8 @@ router.post('/signup', signupRateLimit, validateSignup, async (req, res) => {
     }
 
     // Send OTP email
-          const mailOptions = {
-      from: process.env.EMAIL_FROM || EMAIL_USER,
+    const mailOptions = {
+      from: EMAIL_FROM,
       to: email,
       subject: 'ISPSc DMS - Email Verification',
       html: `
