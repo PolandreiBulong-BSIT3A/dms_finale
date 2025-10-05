@@ -270,7 +270,7 @@ router.post('/signup', signupRateLimit, validateSignup, async (req, res) => {
     const mailOptions = {
       from: EMAIL_FROM,
       to: email,
-      subject: 'ISPSc DMS - Email Verification',
+      subject: 'ISPSC DMS - Email Verification',
       html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
 <h2 style="color: #dc2626;">Welcome to ISPSc DMS</h2>
 <p>Hi ${firstname},</p>
@@ -717,6 +717,175 @@ router.post('/resend-otp', otpRateLimit, async (req, res) => {
       success: false, 
       message: 'Failed to send verification email.',
       code: 'EMAIL_SEND_ERROR'
+    });
+  }
+});
+
+// Forgot Password - Send OTP
+router.post('/forgot-password', otpRateLimit, async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Email is required.',
+      code: 'EMAIL_REQUIRED'
+    });
+  }
+
+  try {
+    // Check if user exists and is verified
+    const [users] = await db.promise().query(
+      'SELECT user_id, user_email, firstname FROM dms_user WHERE user_email = ? AND is_verified = ?',
+      [email, 'yes']
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No verified account found with this email.',
+        code: 'EMAIL_NOT_FOUND'
+      });
+    }
+
+    const user = users[0];
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store OTP in password_reset_code column (add this column if not exists)
+    await db.promise().query(
+      'UPDATE dms_user SET password_reset_code = ?, password_reset_expires = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE user_email = ?',
+      [otp, email]
+    );
+
+    // Send OTP email
+    const mailOptions = {
+      from: EMAIL_FROM,
+      to: email,
+      subject: 'ISPSC DMS - Password Reset Code',
+      html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+<h2 style="color: #dc2626;">Password Reset Request</h2>
+<p>Hi ${user.firstname || 'User'},</p>
+<p>You requested to reset your password. Use the verification code below to proceed:</p>
+<div style="background-color: #f3f4f6; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+<h1 style="color: #dc2626; font-size: 32px; margin: 0; letter-spacing: 8px;">${otp}</h1>
+</div>
+<p>This code will expire in 10 minutes. If you did not request this, please ignore this email.</p>
+<p>Best regards,<br>ISPSc DMS Team</p>
+</div>`
+    };
+
+    await sendEmail(mailOptions);
+    res.json({ 
+      success: true, 
+      message: 'Password reset code sent to your email.',
+      code: 'OTP_SENT'
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to send password reset code.',
+      code: 'EMAIL_SEND_ERROR'
+    });
+  }
+});
+
+// Verify Forgot Password OTP
+router.post('/verify-forgot-password-otp', otpRateLimit, async (req, res) => {
+  const { email, code } = req.body;
+  
+  if (!email || !code) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Email and verification code are required.',
+      code: 'MISSING_FIELDS'
+    });
+  }
+
+  try {
+    const [users] = await db.promise().query(
+      'SELECT user_id FROM dms_user WHERE user_email = ? AND password_reset_code = ? AND password_reset_expires > NOW()',
+      [email, code]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid or expired verification code.',
+        code: 'INVALID_OTP'
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Verification code confirmed.',
+      code: 'OTP_VERIFIED'
+    });
+  } catch (error) {
+    console.error('Verify forgot password OTP error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during verification.',
+      code: 'VERIFICATION_ERROR'
+    });
+  }
+});
+
+// Update Password
+router.post('/update-password', async (req, res) => {
+  const { email, code, newPassword } = req.body;
+  
+  if (!email || !code || !newPassword) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Email, verification code, and new password are required.',
+      code: 'MISSING_FIELDS'
+    });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Password must be at least 8 characters long.',
+      code: 'PASSWORD_TOO_SHORT'
+    });
+  }
+
+  try {
+    // Verify OTP is still valid
+    const [users] = await db.promise().query(
+      'SELECT user_id FROM dms_user WHERE user_email = ? AND password_reset_code = ? AND password_reset_expires > NOW()',
+      [email, code]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid or expired verification code.',
+        code: 'INVALID_OTP'
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await hashPassword(newPassword);
+
+    // Update password and clear reset code
+    await db.promise().query(
+      'UPDATE dms_user SET password = ?, password_reset_code = NULL, password_reset_expires = NULL WHERE user_email = ?',
+      [hashedPassword, email]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Password updated successfully.',
+      code: 'PASSWORD_UPDATED'
+    });
+  } catch (error) {
+    console.error('Update password error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update password.',
+      code: 'UPDATE_ERROR'
     });
   }
 });
