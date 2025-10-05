@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { Button, Modal, Form } from 'react-bootstrap';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useUser } from '../../contexts/UserContext.jsx';
 import socket from '../../lib/realtime/socket.js';
 import { fetchDepartments, getFallbackDepartments } from '../../lib/api/frontend/departments.api.js';
+import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import Select from 'react-select';
 
 const Announcements = ({ role, setActiveTab }) => {
-  // Use shared API builder; do not hardcode base URLs
   const [loading, setLoading] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
   const [error, setError] = useState('');
+  const [showForm] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const { user: currentUser } = useUser();
@@ -20,10 +20,12 @@ const Announcements = ({ role, setActiveTab }) => {
   const [formTitle, setFormTitle] = useState('');
   const [formMessage, setFormMessage] = useState('');
   const [formIsPublic, setFormIsPublic] = useState(false);
+  const [deptInput, setDeptInput] = useState(''); // comma-separated department IDs
   const [selectedRoles, setSelectedRoles] = useState([]); // ['ADMIN','DEAN','FACULTY']
   const [creating, setCreating] = useState(false);
   const [deptOptions, setDeptOptions] = useState([]);
   const [selectedDeptIds, setSelectedDeptIds] = useState([]);
+  const [deptFilter, setDeptFilter] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -89,7 +91,14 @@ const Announcements = ({ role, setActiveTab }) => {
     placeholder: (base) => ({ ...base, color: '#9ca3af' }),
   }), []);
 
-  // Department IDs are selected via react-select only
+  const parseDeptIds = (text) => {
+    return String(text || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(n => Number(n))
+      .filter(n => !Number.isNaN(n));
+  };
 
   const userDisplayName = useMemo(() => {
     const u = currentUser || {};
@@ -105,6 +114,7 @@ const Announcements = ({ role, setActiveTab }) => {
   const roleLower = (currentUser?.role || '').toString().toLowerCase();
   const isDean = roleLower === 'dean';
   const isFaculty = roleLower === 'faculty';
+  const isAdmin = roleLower === 'admin';
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
@@ -112,16 +122,34 @@ const Announcements = ({ role, setActiveTab }) => {
       setError('Title and message are required');
       return;
     }
+    
+    // Validate DEAN has department
+    if (isDean) {
+      const deanDept = currentUser?.department_id ?? currentUser?.department ?? null;
+      if (!deanDept) {
+        setError('Your account is missing a department assignment. Please contact an administrator.');
+        return;
+      }
+    }
+    
     setCreating(true);
     try {
       const payload = {
         title: formTitle.trim(),
         message: formMessage.trim(),
         visible_to_all: formIsPublic,
-        target_departments: formIsPublic ? [] : selectedDeptIds,
-        target_roles: formIsPublic ? [] : selectedRoles,
+        target_departments: formIsPublic ? [] : (selectedDeptIds.length ? selectedDeptIds : parseDeptIds(deptInput)),
+        target_roles: [], // Removed target roles
         target_users: [],
       };
+      
+      // Debug: Log payload for DEAN
+      if (isDean) {
+        console.log('DEAN Creating Announcement:', payload);
+        console.log('Current User:', currentUser);
+        console.log('Department ID:', currentUser?.department_id ?? currentUser?.department);
+      }
+      
       const endpoint = isEditing ? buildUrl(`announcements/${editingId}`) : buildUrl('announcements');
       const data = await fetchJson(endpoint, {
         method: isEditing ? 'PUT' : 'POST',
@@ -158,10 +186,13 @@ const Announcements = ({ role, setActiveTab }) => {
           setTimeout(() => setNewNotice(null), 4000);
         }
       }
-      // Reset
+      // Reset form based on role
       setFormTitle('');
       setFormMessage('');
-      setFormIsPublic(!isDean); // dean forced targeting; others default back to public
+      // Dean: always force targeting (public=false)
+      // Admin/Others: default to public
+      setFormIsPublic(!isDean);
+      setDeptInput('');
       setSelectedDeptIds([]);
       setSelectedRoles([]);
       setIsEditing(false);
@@ -181,16 +212,21 @@ const Announcements = ({ role, setActiveTab }) => {
     setFormMessage(ann.message || '');
     const visAll = ann.visible_to_all === true || ann.visible_to_all === 1 || (typeof ann.visible_to_all === 'string' && ann.visible_to_all.toLowerCase() === 'true');
     const deptIds = Array.isArray(ann.target_departments) ? ann.target_departments : [];
-    const roles = Array.isArray(ann.target_roles) ? ann.target_roles : [];
+    
     if (isDean) {
+      // Dean: force department targeting
       setFormIsPublic(false);
       const deanDept = currentUser?.department_id ?? currentUser?.department ?? null;
       setSelectedDeptIds(deanDept != null ? [Number(deanDept)] : []);
+    } else if (isAdmin) {
+      // Admin: can edit all fields freely
+      setFormIsPublic(Boolean(visAll));
+      setSelectedDeptIds(deptIds.map(Number).filter(n => !Number.isNaN(n)));
     } else {
+      // Faculty/Others: use existing values
       setFormIsPublic(Boolean(visAll));
       setSelectedDeptIds(deptIds.map(Number).filter(n => !Number.isNaN(n)));
     }
-    setSelectedRoles(roles);
     setShowCreateModal(true);
   };
 
@@ -294,10 +330,13 @@ const Announcements = ({ role, setActiveTab }) => {
     // Status/time gate first
     if (!isPublishedAndActive(a)) return false;
 
+    // ADMIN can see ALL announcements
+    const role = (currentUser?.role || '').toString().toLowerCase();
+    if (role === 'admin') return true;
+
     // Public
     if (isPublic(a)) return true;
 
-    const role = (currentUser?.role || '').toString().toLowerCase();
     const deptId = currentUser?.department_id ?? currentUser?.department;
     const userId = currentUser?.user_id || currentUser?.id;
     const { roles, departments, users } = extractTargets(a);
@@ -400,11 +439,8 @@ const Announcements = ({ role, setActiveTab }) => {
       try {
         const departments = await fetchDepartments();
         if (departments && departments.length > 0) {
-          setDeptOptions(departments.map(d => ({
-            value: d.department_id || d.id,
-            label: d.name || d.department_name,
-            code: d.code || d.department_code
-          })));
+          // fetchDepartments() already returns normalized { value, label, code }
+          setDeptOptions(departments);
         } else {
           // Use fallback departments if API fails
           setDeptOptions(getFallbackDepartments());
@@ -418,7 +454,7 @@ const Announcements = ({ role, setActiveTab }) => {
     loadDepartments();
   }, []);
 
-  //
+  const goToAdminPanel = () => setActiveTab && setActiveTab('admin');
 
   const timeAgo = (dateValue) => {
     const now = new Date();
@@ -506,7 +542,24 @@ const Announcements = ({ role, setActiveTab }) => {
         <Button
           size="sm"
           variant="outline-dark"
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => {
+            // Reset form to create mode
+            setIsEditing(false);
+            setEditingId(null);
+            setFormTitle('');
+            setFormMessage('');
+            setFormIsPublic(!isDean);
+            // For DEAN: auto-set their department
+            if (isDean) {
+              const deanDept = currentUser?.department_id ?? currentUser?.department ?? null;
+              setSelectedDeptIds(deanDept != null ? [Number(deanDept)] : []);
+            } else {
+              setSelectedDeptIds([]);
+            }
+            setSelectedRoles([]);
+            setError('');
+            setShowCreateModal(true);
+          }}
           style={{
             borderRadius: '20px',
             padding: '6px 16px',
@@ -527,10 +580,15 @@ const Announcements = ({ role, setActiveTab }) => {
         {(() => {
           const currentAnn = visibleAnnouncements[currentSlide];
           if (!currentAnn) return null;
+          
+          // FACULTY cannot edit or delete announcements
+          if (isFaculty) return null;
+          
           const author = currentAnn.created_by || currentAnn.author || '';
           const isCreator = String(author).trim().toLowerCase() === String(userDisplayName).trim().toLowerCase();
-          const canEdit = roleLower === 'admin' || isCreator;
-          const canDelete = roleLower === 'admin' || isCreator;
+          const canEdit = isAdmin || (isDean && isCreator);
+          const canDelete = isAdmin || (isDean && isCreator);
+          
           if (!canEdit && !canDelete) return null;
           return (
             <>
@@ -860,7 +918,18 @@ const Announcements = ({ role, setActiveTab }) => {
           </div>
         )}
       </div>
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} centered>
+      <Modal show={showCreateModal} onHide={() => {
+        setShowCreateModal(false);
+        // Reset form state when closing modal
+        setIsEditing(false);
+        setEditingId(null);
+        setFormTitle('');
+        setFormMessage('');
+        setFormIsPublic(!isDean);
+        setSelectedDeptIds([]);
+        setSelectedRoles([]);
+        setError('');
+      }} centered>
         <Modal.Header closeButton>
           <Modal.Title>{isEditing ? 'Edit Announcement' : 'Create Announcement'}</Modal.Title>
         </Modal.Header>
@@ -917,26 +986,6 @@ const Announcements = ({ role, setActiveTab }) => {
                 isDisabled={formIsPublic || isDean}
               />
               <Form.Text className="text-muted">Search and select one or more departments.</Form.Text>
-            </Form.Group>
-            <Form.Group className="mb-2" controlId="annRoles">
-              <Form.Label>Target Roles</Form.Label>
-              <div style={{ display: 'flex', gap: 16 }}>
-                {['ADMIN','DEAN','FACULTY'].map((r) => (
-                  <Form.Check
-                    key={r}
-                    type="checkbox"
-                    id={`role-${r}`}
-                    label={r}
-                    checked={selectedRoles.includes(r)}
-                    onChange={(e) => {
-                      setSelectedRoles((prev) => (
-                        e.target.checked ? [...prev, r] : prev.filter((x) => x !== r)
-                      ));
-                    }}
-                    disabled={formIsPublic}
-                  />
-                ))}
-              </div>
             </Form.Group>
         </Form>
       </Modal.Body>

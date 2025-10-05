@@ -24,8 +24,11 @@ import {
 } from 'react-icons/fi';
 
 const AdminPanel = ({ role }) => {
+  // Normalize role to lowercase for consistent comparison
+  const normalizedRole = (role || '').toString().toLowerCase();
+  
   // Check if user has access to admin panel
-  if (role === 'faculty') {
+  if (normalizedRole === 'faculty') {
     return (
       <div style={styles.container}>
         <div style={styles.header}>
@@ -650,7 +653,7 @@ const AdminPanel = ({ role }) => {
     fetchActions();
     
     // Role-based data fetching
-    if (role === 'admin') {
+    if (normalizedRole === 'admin') {
       // Admins can see everything
       fetchDepartments();
       fetchSystemHealth();
@@ -672,6 +675,7 @@ const AdminPanel = ({ role }) => {
 
   // Role-based tabs
   const getTabsForRole = (userRole) => {
+    const normalizedRole = (userRole || '').toString().toLowerCase();
     const allTabs = [
       { id: 'documents', label: 'Document Management', icon: FiFileText },
       { id: 'departments', label: 'Departments', icon: FiSettings },
@@ -680,15 +684,15 @@ const AdminPanel = ({ role }) => {
       { id: 'system', label: 'System Settings', icon: FiShield }
     ];
 
-    if (userRole === 'dean') {
+    if (normalizedRole === 'dean') {
       // Deans can only see documents and actions
       return allTabs.filter(tab => ['documents', 'actions'].includes(tab.id));
-    } else if (userRole === 'admin') {
+    } else if (normalizedRole === 'admin') {
       // Admins can see all tabs
       return allTabs;
     }
     
-    // Default fallback
+    // Default fallback (show all for admin)
     return allTabs;
   };
 
@@ -1935,12 +1939,12 @@ const AdminPanel = ({ role }) => {
       case 'departments': return <DepartmentsTab />;
       case 'actions': return <ActionsTab />;
       case 'maintenance': 
-        if (role === 'admin') {
+        if (normalizedRole === 'admin') {
           return <MaintenanceTab />;
         }
         return <div style={styles.tabContent}><p>Access denied. Only administrators can access maintenance settings.</p></div>;
       case 'system': 
-        if (role === 'admin') {
+        if (normalizedRole === 'admin') {
           return <SystemTab />;
         }
         return <div style={styles.tabContent}><p>Access denied. Only administrators can access system settings.</p></div>;

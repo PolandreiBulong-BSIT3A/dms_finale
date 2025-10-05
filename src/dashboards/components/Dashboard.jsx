@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Badge, Form } from 'react-bootstrap';
+import { Row, Col, Card, Badge, Form, Nav } from 'react-bootstrap';
 import Announcements from './Announcements.jsx';
 import './Dashboard.css';
 import { useUser } from '../../contexts/UserContext.jsx';
@@ -9,12 +9,12 @@ import {
   FiFileText, 
   FiBell, 
   FiSpeaker,
-  FiEye,
-  FiPlus,
-  FiClipboard
+  FiClipboard,
+  FiSearch
 } from 'react-icons/fi';
 
-//
+// Create alias for modal icon usage
+const FileText = FiFileText;
 
 const Dashboard = ({ role, onNavigateToDocuments }) => {
   // Get user context
@@ -67,12 +67,13 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
   const [reqQuery, setReqQuery] = useState('');
   const [reqScope, setReqScope] = useState('assigned'); // 'assigned' | 'dept'
 
-  // Define tabs based on user role
+  // Define tabs (Announcements first to match default)
   const tabs = [
+    { id: 'announcements', label: 'Announcements', icon: FiSpeaker },
     { id: 'documents', label: 'Documents', icon: FiFileText },
     { id: 'requests', label: 'Requests', icon: FiClipboard },
     { id: 'users', label: 'Users', icon: FiUsers },
-    { id: 'announcements', label: 'Announcements', icon: FiSpeaker },  ];
+  ];
 
 
   // Fetch dashboard data
@@ -166,7 +167,12 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
   };
 
   // Helper function to get user initials (used in cards)
-  const getInitials = (name) => (!name ? 'U' : name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2));
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = String(name).trim().split(' ').filter(Boolean);
+    if (parts.length === 0) return 'U';
+    return parts.map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
 
   //
 
@@ -177,7 +183,44 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
     return t.length > maxChars ? `${t.slice(0, maxChars)}...` : t;
   };
 
-  //
+  // Helpers used in the document modal details
+  const formatDateTimeDisplay = (value) => {
+    if (!value) return '—';
+    if (typeof value === 'string') {
+      const s = value.trim();
+      const ymdHms = /^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}:\d{2})$/;
+      if (ymdHms.test(s)) {
+        const isoLike = s.replace(' ', 'T');
+        const dt = new Date(isoLike);
+        if (!isNaN(dt)) return `${dt.toLocaleDateString()} at ${dt.toLocaleTimeString()}`;
+      }
+      const ymdOnly = /^(\d{4}-\d{2}-\d{2})$/;
+      if (ymdOnly.test(s)) {
+        const dt = new Date(`${s}T00:00:00`);
+        if (!isNaN(dt)) return `${dt.toLocaleDateString()} at ${dt.toLocaleTimeString()}`;
+      }
+      const fallback = new Date(s);
+      if (!isNaN(fallback)) return `${fallback.toLocaleDateString()} at ${fallback.toLocaleTimeString()}`;
+      return s;
+    }
+    const d = new Date(value);
+    if (isNaN(d)) return String(value);
+    return `${d.toLocaleDateString()} at ${d.toLocaleTimeString()}`;
+  };
+
+  const pickCreatedDate = (obj) => {
+    if (!obj) return null;
+    const candidates = [obj.date_received, obj.created_at, obj.createdAt, obj.dateCreated, obj.created_date];
+    return candidates.find(Boolean) || null;
+  };
+
+  const getActionDisplay = (obj) => {
+    if (!obj) return '—';
+    if (Array.isArray(obj.action_required) && obj.action_required.length > 0) {
+      return obj.action_required.join(', ');
+    }
+    return obj.action_status || obj.status || '—';
+  };
 
   //
 
@@ -261,37 +304,24 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
       <div style={styles.tabContent} className="dashboard-tab-content">
         <div style={styles.sectionHeader} className="dashboard-section-header">
           <h2 style={styles.sectionTitle}>Recent Documents</h2>
-          <div className="dashboard-section-actions d-flex align-items-center flex-wrap" style={{ gap: 8 }}>
-            <Form.Control
-              size="sm"
-              type="text"
-              placeholder="Search documents..."
-              value={docQuery}
-              onChange={(e)=>setDocQuery(e.target.value)}
-              style={{ maxWidth: 220 }}
-            />
-            <button 
-              style={{
-                ...styles.secondaryBtn,
-                borderRadius: '999px',
-                padding: '8px 16px'
-              }}
-              onClick={() => onNavigateToDocuments('documents')}
-            >
-              <FiEye size={16} />
-              View All
-            </button>
-            <button 
-              style={{
-                ...styles.primaryBtn,
-                borderRadius: '999px',
-                padding: '8px 16px'
-              }}
-              onClick={() => onNavigateToDocuments('upload')}
-            >
-              <FiPlus size={16} />
-              Upload New
-            </button>
+          <div className="dashboard-section-actions d-flex align-items-center" style={{ gap: 10, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+            <div style={{ position: 'relative', minWidth: isMobile ? '100%' : 320 }}>
+              <FiSearch size={16} color="#6b7280" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                value={docQuery}
+                onChange={(e)=>setDocQuery(e.target.value)}
+                placeholder="Search documents..."
+                style={{
+                  width: '100%',
+                  padding: '10px 14px 10px 36px',
+                  borderRadius: 999,
+                  border: '1px solid #e5e7eb',
+                  outline: 'none',
+                  background: '#fff',
+                }}
+              />
+            </div>
           </div>
         </div>
         {loading ? (
@@ -331,7 +361,7 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
 ) : list.length > 0 ? (
           <Row className="g-3">
             {list.map((doc) => (
-           <Col key={doc.id} xs={12} sm={6} md={6} lg={4} xl={3}>
+           <Col key={doc.id || doc.doc_id || Math.random()} xs={12} sm={6} md={6} lg={4} xl={3}>
                 <Card className="h-100 recent-card" onClick={() => handleDocumentClick(doc)} style={{ cursor: 'pointer' }}>
                   <Card.Body>
                     <div className="d-flex justify-content-between align-items-start mb-2">
@@ -377,14 +407,26 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
   const UsersTab = () => {
     // Local UI state for table controls
     const [roleFilter, setRoleFilter] = useState('');
+    // Auto-set department filter for DEAN/FACULTY to their own department
+    const userDeptName = currentUser?.department_name || '';
     const [deptFilter, setDeptFilter] = useState('');
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [sortKey, setSortKey] = useState('name');
-    const [sortDir, setSortDir] = useState('asc'); // 'asc' | 'desc'
+    // Sort by most recent (created_at) by default for DEAN/FACULTY to see new users first
+    const [sortKey, setSortKey] = useState((effectiveIsDean || isUser) ? 'created' : 'name');
+    const [sortDir, setSortDir] = useState((effectiveIsDean || isUser) ? 'desc' : 'asc');
+
+    // Initialize department filter after component mounts
+    useEffect(() => {
+      if ((effectiveIsDean || isUser) && userDeptName && deptFilter === '') {
+        setDeptFilter(userDeptName);
+      }
+    }, [effectiveIsDean, isUser, userDeptName, deptFilter])
 
     // Build role options from data
-    const roleOptions = Array.from(new Set((latestUsers || []).map(u => (u.role || '').toString().trim()).filter(Boolean))).sort();
+    const roleOptions = React.useMemo(() => {
+      return Array.from(new Set((latestUsers || []).map(u => (u.role || '').toString().trim()).filter(Boolean))).sort();
+    }, [latestUsers]);
 
     // Text search
     const searched = (latestUsers || []).filter(u => {
@@ -412,6 +454,7 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
           case 'role': return (obj.role || '').toString().toLowerCase();
           case 'department': return (obj.department_name || '').toString().toLowerCase();
           case 'lastActive': return new Date(obj.last_active || obj.updated_at || obj.created_at || 0).getTime();
+          case 'created': return new Date(obj.created_at || 0).getTime();
           case 'name':
           default: return (obj.name || '').toString().toLowerCase();
         }
@@ -449,29 +492,46 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
     return (
       <div style={styles.tabContent} className="dashboard-tab-content">
         <div style={styles.sectionHeader} className="dashboard-section-header">
-          <h2 style={styles.sectionTitle}>Recent Users</h2>
-          <div className="dashboard-section-actions d-flex align-items-center flex-wrap" style={{ gap: 8 }}>
-            <Form.Control
-              size="sm"
-              type="text"
-              placeholder="Search users..."
-              value={userQuery}
-              onChange={(e)=>setUserQuery(e.target.value)}
-              style={{ maxWidth: 220 }}
-            />
-            <button 
-              style={{
-                ...styles.secondaryBtn,
-                borderRadius: '999px',
-                padding: '8px 16px'
-              }}
-              onClick={() => onNavigateToDocuments('admin-user')}
-            >
-              <FiEye size={16} />
-              View All
-            </button>
+          <h2 style={styles.sectionTitle}>
+            {(effectiveIsDean || isUser) && userDeptName 
+              ? `${userDeptName} - Recent Users` 
+              : 'Recent Users'}
+          </h2>
+          <div className="dashboard-section-actions d-flex align-items-center" style={{ gap: 10, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+            <div style={{ position: 'relative', minWidth: isMobile ? '100%' : 320 }}>
+              <FiSearch size={16} color="#6b7280" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                value={userQuery}
+                onChange={(e)=>setUserQuery(e.target.value)}
+                placeholder="Search users..."
+                style={{
+                  width: '100%',
+                  padding: '10px 14px 10px 36px',
+                  borderRadius: 999,
+                  border: '1px solid #e5e7eb',
+                  outline: 'none',
+                  background: '#fff',
+                }}
+              />
+            </div>
           </div>
         </div>
+        {/* Info banner for DEAN/FACULTY */}
+        {(effectiveIsDean || isUser) && userDeptName && (
+          <div style={{ 
+            padding: '12px 16px', 
+            backgroundColor: '#eff6ff', 
+            border: '1px solid #bfdbfe', 
+            borderRadius: 8, 
+            marginBottom: 12,
+            fontSize: 14,
+            color: '#1e40af'
+          }}>
+            <strong>📌 Department View:</strong> Showing users from your department ({userDeptName}). 
+            Sorted by newest first to help you see new members.
+          </div>
+        )}
         {/* Controls: search already bound to userQuery; add role/department filters and page size */}
         <div className="d-flex flex-wrap" style={{ gap: 8, marginBottom: 12 }}>
           <div>
@@ -493,13 +553,18 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
               value={deptFilter}
               onChange={(e) => { setDeptFilter(e.target.value); setPage(1); }}
               className="form-select"
-              style={{ minWidth: 200 }}
+              style={{ minWidth: 200, fontWeight: (effectiveIsDean || isUser) && deptFilter === userDeptName ? 600 : 400 }}
               title="Filter by department"
             >
               <option value="">All Departments</option>
-              {(departments || []).map(d => (
-                <option key={d.department_id} value={d.name}>{d.name}</option>
-              ))}
+              {(departments || []).map(d => {
+                const isUserDept = (effectiveIsDean || isUser) && d.name === userDeptName;
+                return (
+                  <option key={d.department_id} value={d.name}>
+                    {d.name}{isUserDept ? ' (Your Dept)' : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="ms-auto d-flex align-items-center" style={{ gap: 6 }}>
@@ -558,7 +623,7 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
           <>
           <Row className="g-3">
             {paged.map((user) => (
-              <Col key={user.id} xs={12} sm={6} md={6} lg={4} xl={3}>
+              <Col key={user.id || user.user_id || Math.random()} xs={12} sm={6} md={6} lg={4} xl={3}>
                 <Card className="h-100 recent-card" onClick={() => handleUserClick(user)} style={{ cursor: 'pointer' }}>
                   <Card.Body className="d-flex align-items-center">
                     <div style={{ marginRight: 12 }}>
@@ -678,15 +743,24 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
       <div style={styles.tabContent} className="dashboard-tab-content">
         <div style={styles.sectionHeader} className="dashboard-section-header">
           <h2 style={styles.sectionTitle}>Recent Requests</h2>
-          <div className="dashboard-section-actions d-flex align-items-center flex-wrap" style={{ gap: 8 }}>
-            <Form.Control
-              size="sm"
-              type="text"
-              placeholder="Search requests..."
-              value={reqQuery}
-              onChange={(e)=>setReqQuery(e.target.value)}
-              style={{ maxWidth: 220 }}
-            />
+          <div className="dashboard-section-actions d-flex align-items-center" style={{ gap: 10, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+            <div style={{ position: 'relative', minWidth: isMobile ? '100%' : 320 }}>
+              <FiSearch size={16} color="#6b7280" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                value={reqQuery}
+                onChange={(e)=>setReqQuery(e.target.value)}
+                placeholder="Search requests..."
+                style={{
+                  width: '100%',
+                  padding: '10px 14px 10px 36px',
+                  borderRadius: 999,
+                  border: '1px solid #e5e7eb',
+                  outline: 'none',
+                  background: '#fff',
+                }}
+              />
+            </div>
             {(effectiveIsDean || isUser) && (
               <div className="btn-group me-2" role="group" aria-label="Requests scope">
                 <button
@@ -706,17 +780,6 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
                 </button>
               </div>
             )}
-            <button 
-              style={{
-                ...styles.secondaryBtn,
-                borderRadius: '999px',
-                padding: '8px 16px'
-              }}
-              onClick={() => onNavigateToDocuments('requests')}
-            >
-              <FiEye size={16} />
-              View All
-            </button>
           </div>
         </div>
         {loading ? (
@@ -724,7 +787,7 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
         ) : list.length > 0 ? (
           <Row className="g-3">
             {list.map((request) => (
-              <Col key={request.id} xs={12} md={6} lg={4} xl={3}>
+              <Col key={request.id || request.doc_id || Math.random()} xs={12} md={6} lg={4} xl={3}>
                 <Card className="h-100 recent-card" onClick={() => handleDocumentClick(request)} style={{ cursor: 'pointer' }}>
                   <Card.Body>
                     <div className="d-flex justify-content-between align-items-start mb-2">
@@ -771,15 +834,18 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'documents': return <DocumentsTab />;
-      case 'requests': return <RequestsTab />;
-      case 'users': return <UsersTab />;
-      case 'announcements': return <Announcements role={role} setActiveTab={setActiveTab} />;
-      default: return <DocumentsTab />;
+      case 'documents':
+        return <DocumentsTab />;
+      case 'requests':
+        return <RequestsTab />;
+      case 'users':
+        return <UsersTab />;
+      case 'announcements':
+        return <Announcements />;
+      default:
+        return <DocumentsTab />;
     }
   };
-
-
 
   return (
     <div style={styles.container} className="dashboard-root">

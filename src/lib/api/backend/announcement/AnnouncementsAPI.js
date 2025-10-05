@@ -31,7 +31,7 @@ router.use((req, _res, next) => {
           Username: u.Username,
           firstname: u.firstname,
           lastname: u.lastname,
-          role: req.user?.role || u.role,
+          role: String(req.user?.role || u.role || '').toUpperCase(), // Normalize to uppercase
           department_id: req.user?.department_id ?? req.user?.department ?? u.department_id,
           profile_pic: u.profile_pic,
         };
