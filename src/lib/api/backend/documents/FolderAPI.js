@@ -127,12 +127,7 @@ router.put('/documents/:id/folder', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { folder } = req.body;
     
-    if (!folder) {
-      return res.status(400).json({
-        success: false,
-        message: 'Folder name is required'
-      });
-    }
+    // Note: do not require folder name; targetFolderId is also supported below
 
     // Verify document exists and user has permission
     const [documents] = await db.promise().execute(
@@ -171,23 +166,35 @@ router.put('/documents/:id/folder', requireAuth, async (req, res) => {
       });
     }
 
-    // Get folder_id from folder name
-    const [folderResult] = await db.promise().execute(
-      'SELECT folder_id FROM folders WHERE name = ?',
-      [folder]
-    );
-
-    if (folderResult.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Folder not found'
-      });
+    // Resolve target folder by name or ID
+    let targetFolderId = null;
+    const bodyId = req.body?.targetFolderId;
+    if (folder) {
+      const [folderByName] = await db.promise().execute(
+        'SELECT folder_id FROM folders WHERE name = ?',
+        [folder]
+      );
+      if (folderByName.length === 0) {
+        return res.status(404).json({ success: false, message: 'Folder not found' });
+      }
+      targetFolderId = folderByName[0].folder_id;
+    } else if (bodyId) {
+      const [folderById] = await db.promise().execute(
+        'SELECT folder_id FROM folders WHERE folder_id = ?',
+        [bodyId]
+      );
+      if (folderById.length === 0) {
+        return res.status(404).json({ success: false, message: 'Folder not found' });
+      }
+      targetFolderId = folderById[0].folder_id;
+    } else {
+      return res.status(400).json({ success: false, message: 'Target folder is required' });
     }
 
     // Update document primary folder
     await db.promise().execute(
       'UPDATE dms_documents SET folder_id = ? WHERE doc_id = ?',
-      [folderResult[0].folder_id, id]
+      [targetFolderId, id]
     );
 
     // Sync multi-folder join table: append target folder, avoid duplicates
@@ -198,7 +205,7 @@ router.put('/documents/:id/folder', requireAuth, async (req, res) => {
          WHERE NOT EXISTS (
            SELECT 1 FROM document_folders WHERE doc_id = ? AND folder_id = ?
          )`,
-        [id, folderResult[0].folder_id, id, folderResult[0].folder_id]
+        [id, targetFolderId, id, targetFolderId]
       );
     } catch (e) {
       console.warn('document_folders sync failed (single move append):', e?.message || e);
@@ -237,17 +244,29 @@ router.put('/documents/bulk/folder', requireAuth, async (req, res) => {
       });
     }
 
-    // Get folder_id from folder name
-    const [folderResult] = await db.promise().execute(
-      'SELECT folder_id FROM folders WHERE name = ?',
-      [folder]
-    );
-
-    if (folderResult.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Folder not found'
-      });
+    // Resolve target folder by name or ID
+    let targetFolderId = null;
+    const bodyId = req.body?.targetFolderId;
+    if (folder) {
+      const [folderByName] = await db.promise().execute(
+        'SELECT folder_id FROM folders WHERE name = ?',
+        [folder]
+      );
+      if (folderByName.length === 0) {
+        return res.status(404).json({ success: false, message: 'Folder not found' });
+      }
+      targetFolderId = folderByName[0].folder_id;
+    } else if (bodyId) {
+      const [folderById] = await db.promise().execute(
+        'SELECT folder_id FROM folders WHERE folder_id = ?',
+        [bodyId]
+      );
+      if (folderById.length === 0) {
+        return res.status(404).json({ success: false, message: 'Folder not found' });
+      }
+      targetFolderId = folderById[0].folder_id;
+    } else {
+      return res.status(400).json({ success: false, message: 'Target folder is required' });
     }
 
     // Verify all documents exist and user has permission
@@ -284,7 +303,7 @@ router.put('/documents/bulk/folder', requireAuth, async (req, res) => {
     // Update all documents (primary folder)
     await db.promise().execute(
       `UPDATE dms_documents SET folder_id = ? WHERE doc_id IN (${placeholders})`,
-      [folderResult[0].folder_id, ...documentIds]
+      [targetFolderId, ...documentIds]
     );
 
     // Sync multi-folder join table for all moved docs: append target folder, avoid duplicates
@@ -296,7 +315,7 @@ router.put('/documents/bulk/folder', requireAuth, async (req, res) => {
            WHERE NOT EXISTS (
              SELECT 1 FROM document_folders WHERE doc_id = ? AND folder_id = ?
            )`,
-          [did, folderResult[0].folder_id, did, folderResult[0].folder_id]
+          [did, targetFolderId, did, targetFolderId]
         );
       }
     } catch (e) {

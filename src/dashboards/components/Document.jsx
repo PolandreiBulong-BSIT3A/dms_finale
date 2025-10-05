@@ -1133,7 +1133,8 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
             method: 'PUT',
             body: JSON.stringify({
               documentIds: draggedDocument.ids,
-              targetFolderId: targetFolder.folder_id
+              // Backend expects folder NAME, not ID
+              folder: targetFolder.name
             })
           });
           responseOk = !!data?.success;
@@ -1147,7 +1148,8 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
           const data = await fetchJson(buildUrl(`documents/${draggedDocument.id}/folder`), {
             method: 'PUT',
             body: JSON.stringify({
-              targetFolderId: targetFolder.folder_id
+              // Backend expects folder NAME, not ID
+              folder: targetFolder.name
             })
           });
           responseOk = !!data?.success;
@@ -1158,7 +1160,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       }
 
       if (responseOk) {
-        // Update local state
+        // Update local state counts immediately
         setFolders(prev => {
           const updated = prev.map(f => {
             if (f.folder_id === targetFolder.folder_id) {
@@ -1171,13 +1173,51 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
           });
           return updated;
         });
-        alert(`${draggedDocument.count} document(s) moved to "${targetFolder.name}" folder successfully!`);
+
+        // Non-blocking success toast
+        try {
+          const toast = document.createElement('div');
+          toast.style.cssText = `
+            position: fixed; top: 20px; right: 20px; z-index: 9999;
+            background: #10b981; color: #fff; padding: 12px 16px; border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); font-weight: 600; max-width: 360px;
+          `;
+          toast.textContent = `✅ Moved ${draggedDocument.count} document(s) to "${targetFolder.name}"`;
+          document.body.appendChild(toast);
+          setTimeout(() => { toast.remove(); }, 2500);
+        } catch {}
+
+        // Auto-refresh list to ensure consistency
+        try { await refreshDocuments(); } catch {}
       } else {
-        alert((resultData && resultData.message) || 'Failed to move document(s). Please try again.');
+        console.error('Move documents failed:', resultData);
+        // Non-blocking error toast
+        try {
+          const toast = document.createElement('div');
+          toast.style.cssText = `
+            position: fixed; top: 20px; right: 20px; z-index: 9999;
+            background: #dc2626; color: #fff; padding: 12px 16px; border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18); font-weight: 600; max-width: 420px;
+          `;
+          const msg = (resultData && (resultData.message || resultData.error)) || 'Failed to move document(s). Please try again.';
+          toast.textContent = `⚠️ ${msg}`;
+          document.body.appendChild(toast);
+          setTimeout(() => { toast.remove(); }, 3500);
+        } catch {}
       }
     } catch (error) {
       console.error('Error moving document(s):', error);
-      alert('Error moving document(s). Please try again.');
+      try {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+          position: fixed; top: 20px; right: 20px; z-index: 9999;
+          background: #dc2626; color: #fff; padding: 12px 16px; border-radius: 10px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.18); font-weight: 600; max-width: 420px;
+        `;
+        toast.textContent = '⚠️ Error moving document(s). Please try again.';
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.remove(); }, 3500);
+      } catch {}
     }
     
     setDraggedDocument(null);

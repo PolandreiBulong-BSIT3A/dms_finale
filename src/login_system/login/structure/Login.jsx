@@ -141,6 +141,32 @@ const Login = () => {
     }
   };
 
+  // Open a link stored in the `others` table by category/name via OthersAPI
+  const openOtherLink = async (category, name) => {
+    try {
+      const url = buildUrl(`others/${encodeURIComponent(category)}/${encodeURIComponent(name)}`);
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) {
+        // Try fallback by listing category and picking first match by name (case-insensitive)
+        const listRes = await fetch(buildUrl(`others/${encodeURIComponent(category)}`), { credentials: 'include' });
+        if (!listRes.ok) throw new Error('Link not available');
+        const list = await listRes.json();
+        const items = Array.isArray(list.items) ? list.items : [];
+        const match = items.find(it => String(it.other_name).toLowerCase() === String(name).toLowerCase());
+        const link = match && match.link;
+        if (!link) throw new Error('Link not found');
+        window.open(link, '_blank', 'noopener');
+        return;
+      }
+      const data = await res.json();
+      const link = data?.item?.link;
+      if (!link) throw new Error('Link not found');
+      window.open(link, '_blank', 'noopener');
+    } catch (e) {
+      alert(e?.message || 'Unable to open link.');
+    }
+  };
+
   // Poll maintenance status on mount and every 60s; refresh on tab focus
   useEffect(() => {
     fetchMaintenanceStatus();
@@ -977,7 +1003,7 @@ const Login = () => {
                   <Button
                     variant="link"
                     className="link-custom p-0"
-                    onClick={() => alert('Terms & Conditions to be implemented')}
+                    onClick={() => openOtherLink('TERMS', 'TERMS & CONDITIONS')}
                   >
                     Terms and Conditions
                   </Button>
@@ -985,7 +1011,7 @@ const Login = () => {
                   <Button
                     variant="link"
                     className="link-custom p-0"
-                    onClick={() => alert('Privacy Policy to be implemented')}
+                    onClick={() => openOtherLink('POLICY', 'PRIVACY POLICY')}
                   >
                     Privacy Policy
                   </Button>

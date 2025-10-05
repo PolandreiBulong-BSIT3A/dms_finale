@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FiSearch, FiBell, FiUser, FiSettings, FiLogOut, FiX, FiRefreshCw, FiCheck, FiEye } from 'react-icons/fi';
+import { FiSearch, FiBell, FiUser, FiSettings, FiLogOut, FiX, FiRefreshCw, FiCheck, FiEye, FiHelpCircle, FiHeadphones } from 'react-icons/fi';
 import './navbar.css';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { useUser } from '../../../contexts/UserContext';
 import ProfilePicture from '../../../components/ProfilePicture';
 import Logo from '../../../assets/logos/logo.png';
+import { buildUrl } from '../../../lib/api/frontend/client.js';
 
 const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
   const navigate = useNavigate();
@@ -64,6 +65,42 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
     logout();
   };
 
+  // Helpers to open links stored in `others` table via OthersAPI
+  const openOtherLink = async (category, name) => {
+    try {
+      const res = await fetch(buildUrl(`others/${encodeURIComponent(category)}/${encodeURIComponent(name)}`), { credentials: 'include' });
+      if (!res.ok) throw new Error('Link not available');
+      const data = await res.json();
+      const link = data?.item?.link;
+      if (!link) throw new Error('Link not found');
+      window.open(link, '_blank', 'noopener');
+    } catch (e) {
+      console.error('openOtherLink error:', e);
+    }
+  };
+
+  const handleOpenManual = () => openOtherLink('MANUAL', 'USER & MAINTENANCE MANUAL');
+
+  const handleReportBug = async () => {
+    try {
+      // Fetch contact email from others table (category: INFO, other_name: CONTACT)
+      const res = await fetch(buildUrl('others/INFO/CONTACT'), { credentials: 'include' });
+      let email = 'support@example.com';
+      if (res.ok) {
+        const data = await res.json();
+        const link = data?.item?.link;
+        if (link) email = link;
+      }
+      const subject = encodeURIComponent('[ISPSC DMS] Bug Report');
+      const body = encodeURIComponent(
+        `Describe the issue:\n\nSteps to reproduce:\n1. \n2. \n3. \n\nExpected result:\n\nActual result:\n\nScreenshots/Attachments (if any):\n\nBrowser/OS:`
+      );
+      window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+    } catch (e) {
+      console.error('handleReportBug error:', e);
+    }
+  };
+
   const formatTimeAgo = (dateString) => {
     const now = new Date();
     const date = new Date(dateString);
@@ -112,8 +149,41 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
 
         {/* Right Side Actions */}
         <div className="navbar-actions" style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto' }}>
+          {/* Developer Support (Report Bug) */}
+          <button
+            className="icon-btn"
+            onClick={handleReportBug}
+            title="Report a bug"
+            aria-label="Report a bug"
+            style={{
+              background: 'none',
+              border: '1px solid #e5e7eb',
+              borderRadius: 8,
+              padding: 8,
+              marginRight: 8,
+              cursor: 'pointer'
+            }}
+          >
+            <FiHeadphones size={18} />
+          </button>
 
-          
+          {/* Help (User & Maintenance Manual) */}
+          <button
+            className="icon-btn"
+            onClick={handleOpenManual}
+            title="Open User & Maintenance Manual"
+            aria-label="Open User & Maintenance Manual"
+            style={{
+              background: 'none',
+              border: '1px solid #e5e7eb',
+              borderRadius: 8,
+              padding: 8,
+              marginRight: 12,
+              cursor: 'pointer'
+            }}
+          >
+            <FiHelpCircle size={18} />
+          </button>
 
 
           {/* Notifications */}

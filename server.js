@@ -23,6 +23,7 @@ import UsersRouter from './src/lib/api/backend/users/UsersAPI.js';
 import RequestsRouter from './src/lib/api/backend/documents/RequestsAPI.js';
 import DocumentsRouter from './src/lib/api/backend/documents/DocumentsAPI.js';
 import ActionsRouter from './src/lib/api/backend/actions/ActionsAPI.js';
+import OthersRouter from './src/lib/api/backend/others/OthersAPI.js';
 import { 
   sessionConfig, 
   securityHeaders, 
@@ -153,6 +154,7 @@ app.use('/api', UsersRouter);
 app.use('/api', RequestsRouter);
 app.use('/api', DocumentsRouter);
 app.use('/api', ActionsRouter);
+app.use('/api', OthersRouter);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
