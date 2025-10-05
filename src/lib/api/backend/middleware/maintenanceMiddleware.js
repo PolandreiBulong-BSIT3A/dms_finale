@@ -42,8 +42,22 @@ export const checkMaintenanceMode = async (req, res, next) => {
     
     if (isActive) {
       // Check if user is authenticated and is admin
-      const user = req.currentUser || req.user || (req.session && req.session.user);
-      const isAdmin = user && (user.role && user.role.toLowerCase() === 'admin');
+      // Try multiple sources: currentUser (from requireAuth), user, session, or JWT
+      let user = req.currentUser || req.user || (req.session && req.session.user);
+      
+      // If no user yet, try to extract from JWT token in headers
+      if (!user && req.headers.authorization) {
+        try {
+          const token = req.headers.authorization.replace('Bearer ', '');
+          const jwt = await import('jsonwebtoken');
+          const decoded = jwt.default.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+          user = decoded;
+        } catch (e) {
+          // Token invalid or expired, continue without user
+        }
+      }
+      
+      const isAdmin = user && (user.role && user.role.toString().toLowerCase() === 'admin');
       
       if (isAdmin) {
         // Allow admin access during maintenance

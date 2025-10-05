@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Modal, Button, Form } from 'react-bootstrap';
 import { fetchWithRetry } from '../../lib/api/frontend/http.js';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { 
@@ -93,6 +94,7 @@ const AdminPanel = ({ role }) => {
   const [systemStats, setSystemStats] = useState({});
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [loadingBackup, setLoadingBackup] = useState(false);
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
 
   // Fetch functions
   const fetchDepartments = async () => {
@@ -260,7 +262,14 @@ const AdminPanel = ({ role }) => {
     }
   };
 
-  const handleToggleMaintenanceMode = async () => {
+  const handleToggleMaintenanceMode = () => {
+    // Open modal to configure maintenance settings
+    setShowMaintenanceModal(true);
+  };
+
+  const handleSaveMaintenanceMode = async () => {
+    setSavingMaintenance(true);
+    setValidationError('');
     try {
       const data = await fetchJson(buildUrl('system/maintenance'), {
         method: 'POST',
@@ -282,9 +291,12 @@ const AdminPanel = ({ role }) => {
           }
         }
       alert(data.message || 'Maintenance mode updated');
+      setShowMaintenanceModal(false);
     } catch (error) {
       console.error('Error toggling maintenance mode:', error);
-      alert('Failed to toggle maintenance mode');
+      setValidationError(error.message || 'Failed to toggle maintenance mode');
+    } finally {
+      setSavingMaintenance(false);
     }
   };
 
@@ -1681,6 +1693,7 @@ const AdminPanel = ({ role }) => {
   );
 
   const SystemTab = () => (
+    <>
     <div style={styles.tabContent}>
       <div style={styles.sectionHeader}>
         <h2 style={styles.sectionTitle}>System Maintenance</h2>
@@ -1863,24 +1876,63 @@ const AdminPanel = ({ role }) => {
           </button>
         </div>
 
-        <div style={styles.actionCard}>
+        <div style={{...styles.actionCard, minHeight: '220px'}}>
           <div style={styles.actionHeader}>
             <FiAlertTriangle size={24} color={maintenanceMode ? '#ef4444' : '#10b981'} />
             <h4 style={styles.actionTitle}>Maintenance Mode</h4>
           </div>
-          <p style={styles.actionDescription}>
-            {maintenanceMode ? 'System is currently in maintenance mode.' : 'Enable maintenance mode for system updates.'}
-          </p>
-          <button 
-            style={{
-              ...styles.actionButton,
-              backgroundColor: maintenanceMode ? '#ef4444' : '#10b981',
-              color: 'white'
-            }}
-            onClick={handleToggleMaintenanceMode}
-          >
-            {maintenanceMode ? 'Disable' : 'Enable'} Maintenance
-          </button>
+          
+          <div style={{marginBottom: '12px'}}>
+            <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px'}}>
+              <span style={{fontSize: '14px', fontWeight: '500', color: '#374151'}}>Status:</span>
+              <span style={{
+                ...styles.statusBadge,
+                backgroundColor: maintenanceMode ? '#fee2e2' : '#dcfce7',
+                color: maintenanceMode ? '#dc2626' : '#166534'
+              }}>
+                {maintenanceMode ? 'ACTIVE' : 'INACTIVE'}
+              </span>
+            </div>
+            {maintenanceMessage && (
+              <p style={{fontSize: '13px', color: '#6b7280', margin: '4px 0', fontStyle: 'italic'}}>
+                "{maintenanceMessage}"
+              </p>
+            )}
+            {maintenanceEndTime && (
+              <p style={{fontSize: '12px', color: '#9ca3af', margin: '4px 0'}}>
+                Ends: {new Date(maintenanceEndTime).toLocaleString()}
+              </p>
+            )}
+          </div>
+          
+          <div style={{display: 'flex', gap: '8px', marginTop: 'auto'}}>
+            <button 
+              style={{
+                ...styles.actionButton,
+                backgroundColor: maintenanceMode ? '#ef4444' : '#10b981',
+                color: 'white',
+                flex: 1
+              }}
+              onClick={handleToggleMaintenanceMode}
+            >
+              {maintenanceMode ? 'Configure/Disable' : 'Configure/Enable'}
+            </button>
+            <button
+              style={{
+                ...styles.actionButton,
+                backgroundColor: '#f3f4f6',
+                color: '#374151',
+                padding: '10px 16px'
+              }}
+              onClick={() => {
+                fetchMaintenanceMode();
+                fetchMaintenanceSettings();
+              }}
+              title="Refresh status"
+            >
+              <FiRefreshCw size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1919,6 +1971,77 @@ const AdminPanel = ({ role }) => {
         </div>
       </div>
     </div>
+
+    {/* Maintenance Mode Configuration Modal */}
+    <Modal show={showMaintenanceModal} onHide={() => setShowMaintenanceModal(false)} centered size="lg">
+      <Modal.Header closeButton>
+        <Modal.Title>{maintenanceMode ? 'Disable' : 'Enable'} Maintenance Mode</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        {validationError && (
+          <div style={{ padding: '12px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '6px', marginBottom: '16px' }}>
+            {validationError}
+          </div>
+        )}
+        
+        <Form.Group className="mb-3">
+          <Form.Label>Maintenance Message</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={3}
+            placeholder="Enter a message to display to users (optional)"
+            value={maintenanceMessage}
+            onChange={(e) => setMaintenanceMessage(e.target.value)}
+          />
+          <Form.Text className="text-muted">
+            This message will be shown on the maintenance page.
+          </Form.Text>
+        </Form.Group>
+
+        <Form.Group className="mb-3">
+          <Form.Label>Start Time (optional)</Form.Label>
+          <Form.Control
+            type="datetime-local"
+            value={maintenanceStartTime}
+            onChange={(e) => setMaintenanceStartTime(e.target.value)}
+          />
+          <Form.Text className="text-muted">
+            When maintenance begins. Leave empty for immediate.
+          </Form.Text>
+        </Form.Group>
+
+        <Form.Group className="mb-3">
+          <Form.Label>End Time (optional)</Form.Label>
+          <Form.Control
+            type="datetime-local"
+            value={maintenanceEndTime}
+            onChange={(e) => setMaintenanceEndTime(e.target.value)}
+          />
+          <Form.Text className="text-muted">
+            When maintenance ends. Leave empty for indefinite.
+          </Form.Text>
+        </Form.Group>
+
+        <div style={{ padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '6px', marginTop: '16px' }}>
+          <p style={{ margin: 0, fontSize: '14px', color: '#374151' }}>
+            <strong>Note:</strong> {maintenanceMode ? 'Disabling' : 'Enabling'} maintenance mode will {maintenanceMode ? 'allow all users to access the system' : 'restrict access to administrators only'}.
+          </p>
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={() => setShowMaintenanceModal(false)} disabled={savingMaintenance}>
+          Cancel
+        </Button>
+        <Button 
+          variant={maintenanceMode ? 'danger' : 'success'}
+          onClick={handleSaveMaintenanceMode}
+          disabled={savingMaintenance}
+        >
+          {savingMaintenance ? 'Saving...' : (maintenanceMode ? 'Disable' : 'Enable')}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+    </>
   );
 
 
