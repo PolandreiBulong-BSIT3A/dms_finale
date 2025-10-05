@@ -1,25 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Nav, Card, Badge, Form, InputGroup } from 'react-bootstrap';
+import { Row, Col, Card, Badge, Form } from 'react-bootstrap';
 import Announcements from './Announcements.jsx';
 import './Dashboard.css';
 import { useUser } from '../../contexts/UserContext.jsx';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
-import { fetchWithRetry } from '../../lib/api/frontend/http.js';
 import { 
   FiUsers, 
   FiFileText, 
-  FiBarChart, 
   FiBell, 
   FiSpeaker,
-  FiRefreshCw,
   FiEye,
   FiPlus,
-  FiX,
   FiClipboard
 } from 'react-icons/fi';
 
-// Create aliases for modal icons
-const FileText = FiFileText;
+//
 
 const Dashboard = ({ role, onNavigateToDocuments }) => {
   // Get user context
@@ -27,7 +22,6 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
   
   // Determine user role and access level
   const roleLower = (role || currentUser?.role || '').toString().toLowerCase();
-  const isAdmin = roleLower === 'admin' || roleLower === 'administrator';
       const isDean = roleLower === 'dean';
       const isUser = roleLower === 'faculty';
       const effectiveIsDean = isDean || (currentUser?.role === 'DEAN' || currentUser?.role === 'dean');
@@ -156,27 +150,7 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
 
 
 
-  // Function to mark notification as read
-  const markNotificationAsRead = async (notificationId) => {
-    try {
-      await fetchJson(buildUrl(`notifications/${notificationId}/read`), {
-        method: 'POST'
-      });
-        // Update the notification in the local state
-        setNotifications(prevNotifications => 
-          prevNotifications.map(notif => 
-            notif.id === notificationId 
-              ? { ...notif, is_read: true }
-              : notif
-          )
-        );
-        
-        // Refresh unread count
-        fetchUnreadNotificationCount();
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  };
+  //
 
   // Helper function to format time ago
   const formatTimeAgo = (dateString) => {
@@ -191,34 +165,10 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
     return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
   };
 
-  // Helper function to get user initials
-  const getInitials = (name) => {
-    if (!name) return 'U';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
+  // Helper function to get user initials (used in cards)
+  const getInitials = (name) => (!name ? 'U' : name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2));
 
-  // Robust visibility checker: considers multiple backend representations
-  const isVisibleToAll = (obj = {}) => {
-    const vals = [
-      obj.visible_to_all,
-      obj.visibility,
-      obj.is_public,
-      obj.public,
-      obj.visibility_flag,
-    ];
-    for (const v of vals) {
-      if (v === true || v === 1) return true;
-      if (typeof v === 'number') {
-        if (v === 1) return true;
-      }
-      if (typeof v === 'string') {
-        const s = v.trim().toLowerCase();
-        if (s === '1' || s === 'true' || s === 'yes') return true;
-        if (s === 'all' || s === 'public' || s === 'everyone') return true;
-      }
-    }
-    return false;
-  };
+  //
 
   // Truncate text to a maximum number of characters
   const truncate = (text, maxChars = 20) => {
@@ -227,44 +177,11 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
     return t.length > maxChars ? `${t.slice(0, maxChars)}...` : t;
   };
 
-  // Safely format date/time values coming in various shapes
-  const formatDateTimeDisplay = (value) => {
-    if (!value) return '—';
-    if (typeof value === 'string') {
-      const s = value.trim();
-      const ymdHms = /^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}:\d{2})$/;
-      if (ymdHms.test(s)) {
-        const isoLike = s.replace(' ', 'T');
-        const dt = new Date(isoLike);
-        if (!isNaN(dt)) return `${dt.toLocaleDateString()} at ${dt.toLocaleTimeString()}`;
-      }
-      const ymdOnly = /^(\d{4}-\d{2}-\d{2})$/;
-      if (ymdOnly.test(s)) {
-        const dt = new Date(`${s}T00:00:00`);
-        if (!isNaN(dt)) return `${dt.toLocaleDateString()} at ${dt.toLocaleTimeString()}`;
-      }
-      const fallback = new Date(s);
-      if (!isNaN(fallback)) return `${fallback.toLocaleDateString()} at ${fallback.toLocaleTimeString()}`;
-      return s;
-    }
-    const d = new Date(value);
-    if (isNaN(d)) return String(value);
-    return `${d.toLocaleDateString()} at ${d.toLocaleTimeString()}`;
-  };
+  //
 
-  const pickCreatedDate = (obj) => {
-    if (!obj) return null;
-    const candidates = [obj.date_received, obj.created_at, obj.createdAt, obj.dateCreated, obj.created_date];
-    return candidates.find(Boolean) || null;
-  };
+  //
 
-  const getActionDisplay = (obj) => {
-    if (!obj) return '—';
-    if (Array.isArray(obj.action_required) && obj.action_required.length > 0) {
-      return obj.action_required.join(', ');
-    }
-    return obj.action_status || obj.status || '—';
-  };
+  //
 
   // Handle document click to open document modal
   const handleDocumentClick = (doc) => {
@@ -279,20 +196,7 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
     }
   };
 
-  // Handle hover effects
-  const handleMouseEnter = (event) => {
-    event.target.style.backgroundColor = '#f1f5f9';
-    event.target.style.borderColor = '#e2e8f0';
-    event.target.style.transform = 'translateY(-1px)';
-    event.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-  };
-
-  const handleMouseLeave = (event) => {
-    event.target.style.backgroundColor = '#f8fafc';
-    event.target.style.borderColor = 'transparent';
-    event.target.style.transform = 'translateY(0)';
-    event.target.style.boxShadow = 'none';
-  };
+  //
 
   // Tab Components
   const OverviewTab = () => (
@@ -357,7 +261,15 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
       <div style={styles.tabContent} className="dashboard-tab-content">
         <div style={styles.sectionHeader} className="dashboard-section-header">
           <h2 style={styles.sectionTitle}>Recent Documents</h2>
-          <div className="dashboard-section-actions d-flex align-items-center flex-wrap">
+          <div className="dashboard-section-actions d-flex align-items-center flex-wrap" style={{ gap: 8 }}>
+            <Form.Control
+              size="sm"
+              type="text"
+              placeholder="Search documents..."
+              value={docQuery}
+              onChange={(e)=>setDocQuery(e.target.value)}
+              style={{ maxWidth: 220 }}
+            />
             <button 
               style={{
                 ...styles.secondaryBtn,
@@ -538,7 +450,15 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
       <div style={styles.tabContent} className="dashboard-tab-content">
         <div style={styles.sectionHeader} className="dashboard-section-header">
           <h2 style={styles.sectionTitle}>Recent Users</h2>
-          <div className="dashboard-section-actions d-flex align-items-center flex-wrap">
+          <div className="dashboard-section-actions d-flex align-items-center flex-wrap" style={{ gap: 8 }}>
+            <Form.Control
+              size="sm"
+              type="text"
+              placeholder="Search users..."
+              value={userQuery}
+              onChange={(e)=>setUserQuery(e.target.value)}
+              style={{ maxWidth: 220 }}
+            />
             <button 
               style={{
                 ...styles.secondaryBtn,
@@ -758,7 +678,15 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
       <div style={styles.tabContent} className="dashboard-tab-content">
         <div style={styles.sectionHeader} className="dashboard-section-header">
           <h2 style={styles.sectionTitle}>Recent Requests</h2>
-          <div className="dashboard-section-actions d-flex align-items-center flex-wrap">
+          <div className="dashboard-section-actions d-flex align-items-center flex-wrap" style={{ gap: 8 }}>
+            <Form.Control
+              size="sm"
+              type="text"
+              placeholder="Search requests..."
+              value={reqQuery}
+              onChange={(e)=>setReqQuery(e.target.value)}
+              style={{ maxWidth: 220 }}
+            />
             {(effectiveIsDean || isUser) && (
               <div className="btn-group me-2" role="group" aria-label="Requests scope">
                 <button

@@ -12,7 +12,6 @@ const Announcements = ({ role, setActiveTab }) => {
   const [loading, setLoading] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
   const [error, setError] = useState('');
-  const [showForm] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const { user: currentUser } = useUser();
@@ -21,12 +20,10 @@ const Announcements = ({ role, setActiveTab }) => {
   const [formTitle, setFormTitle] = useState('');
   const [formMessage, setFormMessage] = useState('');
   const [formIsPublic, setFormIsPublic] = useState(false);
-  const [deptInput, setDeptInput] = useState(''); // comma-separated department IDs
   const [selectedRoles, setSelectedRoles] = useState([]); // ['ADMIN','DEAN','FACULTY']
   const [creating, setCreating] = useState(false);
   const [deptOptions, setDeptOptions] = useState([]);
   const [selectedDeptIds, setSelectedDeptIds] = useState([]);
-  const [deptFilter, setDeptFilter] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -40,6 +37,22 @@ const Announcements = ({ role, setActiveTab }) => {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Subscribe socket to user/dept/role rooms so realtime events arrive
+  useEffect(() => {
+    if (!currentUser) return;
+    const payload = {
+      userId: currentUser.user_id || currentUser.id,
+      departmentId: currentUser.department_id ?? currentUser.department ?? null,
+      role: currentUser.role || null,
+    };
+    try { socket.emit('subscribe', payload); } catch {}
+    const onConnect = () => {
+      try { socket.emit('subscribe', payload); } catch {}
+    };
+    socket.on('connect', onConnect);
+    return () => socket.off('connect', onConnect);
+  }, [currentUser]);
 
   // react-select flat theme styles
   const selectStyles = useMemo(() => ({
@@ -76,14 +89,7 @@ const Announcements = ({ role, setActiveTab }) => {
     placeholder: (base) => ({ ...base, color: '#9ca3af' }),
   }), []);
 
-  const parseDeptIds = (text) => {
-    return String(text || '')
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-      .map(n => Number(n))
-      .filter(n => !Number.isNaN(n));
-  };
+  // Department IDs are selected via react-select only
 
   const userDisplayName = useMemo(() => {
     const u = currentUser || {};
@@ -112,7 +118,7 @@ const Announcements = ({ role, setActiveTab }) => {
         title: formTitle.trim(),
         message: formMessage.trim(),
         visible_to_all: formIsPublic,
-        target_departments: formIsPublic ? [] : (selectedDeptIds.length ? selectedDeptIds : parseDeptIds(deptInput)),
+        target_departments: formIsPublic ? [] : selectedDeptIds,
         target_roles: formIsPublic ? [] : selectedRoles,
         target_users: [],
       };
@@ -146,7 +152,8 @@ const Announcements = ({ role, setActiveTab }) => {
               : a
           )));
         } else {
-          setAnnouncements(prev => [ann, ...prev]);
+          // Prevent duplicates if socket also delivers the new item
+          setAnnouncements(prev => (prev.some(p => String(p.id) === String(ann.id)) ? prev : [ann, ...prev]));
           setNewNotice({ title: ann.title });
           setTimeout(() => setNewNotice(null), 4000);
         }
@@ -155,11 +162,11 @@ const Announcements = ({ role, setActiveTab }) => {
       setFormTitle('');
       setFormMessage('');
       setFormIsPublic(!isDean); // dean forced targeting; others default back to public
-      setDeptInput('');
       setSelectedDeptIds([]);
       setSelectedRoles([]);
       setIsEditing(false);
       setEditingId(null);
+      setShowCreateModal(false);
     } catch (err) {
       setError(err.message || 'Failed to create announcement');
     } finally {
@@ -346,7 +353,8 @@ const Announcements = ({ role, setActiveTab }) => {
         created_by_profile_pic: item.created_by_profile_pic || item.author_avatar || null,
       };
       if (canSeeAnnouncement(normalized)) {
-        setAnnouncements(prev => [normalized, ...prev]);
+        // Deduplicate by id
+        setAnnouncements(prev => (prev.some(p => String(p.id) === String(normalized.id)) ? prev : [normalized, ...prev]));
         setNewNotice({ title: normalized.title });
         // Auto-hide after 4s
         setTimeout(() => setNewNotice(null), 4000);
@@ -410,7 +418,7 @@ const Announcements = ({ role, setActiveTab }) => {
     loadDepartments();
   }, []);
 
-  const goToAdminPanel = () => setActiveTab && setActiveTab('admin');
+  //
 
   const timeAgo = (dateValue) => {
     const now = new Date();

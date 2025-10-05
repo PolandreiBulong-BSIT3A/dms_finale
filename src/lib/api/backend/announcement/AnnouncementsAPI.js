@@ -1,7 +1,47 @@
 import express from 'express';
 import db from '../connections/connection.js';
+import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// Require authentication for all announcement routes and map currentUser
+router.use(requireAuth);
+router.use((req, _res, next) => {
+  // Announcements code expects req.user; our auth middleware sets req.currentUser
+  if (!req.user && req.currentUser) {
+    req.user = req.currentUser;
+  }
+  next();
+});
+
+// Enrich req.user with DB user fields so we can derive proper creator name and avatar
+router.use((req, _res, next) => {
+  try {
+    const uid = req.user?.id || req.currentUser?.id;
+    if (!uid) return next();
+    // If already has Username and profile_pic, skip
+    if (req.user?.Username && req.user?.profile_pic) return next();
+    const sql = 'SELECT user_id, Username, firstname, lastname, role, department_id, profile_pic FROM dms_user WHERE user_id = ? LIMIT 1';
+    db.query(sql, [uid], (err, rows) => {
+      if (!err && rows && rows[0]) {
+        const u = rows[0];
+        req.user = {
+          ...req.user,
+          id: u.user_id,
+          Username: u.Username,
+          firstname: u.firstname,
+          lastname: u.lastname,
+          role: req.user?.role || u.role,
+          department_id: req.user?.department_id ?? req.user?.department ?? u.department_id,
+          profile_pic: u.profile_pic,
+        };
+      }
+      next();
+    });
+  } catch (_) {
+    next();
+  }
+});
 
 // Helpers
 const deriveUserName = (u) => (
