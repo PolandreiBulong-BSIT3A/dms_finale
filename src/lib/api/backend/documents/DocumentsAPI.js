@@ -26,6 +26,54 @@ const router = express.Router();
 const normalizeRole = (role) => (role || '').toString().trim().toLowerCase();
 const isDeanRole = (role) => normalizeRole(role) === 'dean';
 
+// Helper to consistently derive a display name for the current user
+const deriveUserName = (u) => (
+  u?.Username ||
+  u?.username ||
+  ((u?.firstname && u?.lastname) ? `${u.firstname} ${u.lastname}` : null) ||
+  u?.name ||
+  u?.email ||
+  null
+);
+
+// Map requireAuth's req.currentUser to req.user for downstream consistency
+router.use((req, _res, next) => {
+  if (!req.user && req.currentUser) {
+    req.user = req.currentUser;
+  }
+  next();
+});
+
+// Enrich req.user with DB fields and normalize role casing (matches AnnouncementsAPI behavior)
+router.use(async (req, _res, next) => {
+  try {
+    const uid = req.user?.id || req.currentUser?.id;
+    if (!uid) return next();
+    // If we already have rich fields, skip
+    if (req.user?.Username && req.user?.profile_pic) return next();
+    const [rows] = await db.promise().query(
+      'SELECT user_id, Username, firstname, lastname, role, department_id, profile_pic FROM dms_user WHERE user_id = ? LIMIT 1',
+      [uid]
+    );
+    if (rows && rows[0]) {
+      const u = rows[0];
+      req.user = {
+        ...req.user,
+        id: u.user_id,
+        Username: u.Username,
+        firstname: u.firstname,
+        lastname: u.lastname,
+        role: String(req.user?.role || u.role || '').toUpperCase(),
+        department_id: req.user?.department_id ?? req.user?.department ?? u.department_id,
+        profile_pic: u.profile_pic,
+      };
+    }
+  } catch (_) {
+    // noop
+  }
+  next();
+});
+
 // Local helper to create a notification (scoped)
 // audience: { visibleToAll?: boolean, departments?: number[], roles?: string[], users?: (number|string)[] }
 const createNotification = async (title, message, type, relatedDocId = null, audience = {}) => {
@@ -520,7 +568,7 @@ router.post('/documents', requireAuth, async (req, res) => {
         visibleToAll,
         allowedUserIdsCsv || null,
         allowedRolesCsv || null,
-        req.currentUser?.username || `${req.currentUser?.firstname || ''} ${req.currentUser?.lastname || ''}`.trim() || 'Unknown User',
+        deriveUserName(req.user) || deriveUserName(req.currentUser) || 'System',
         'active'
       ];
 
@@ -572,7 +620,7 @@ router.post('/documents', requireAuth, async (req, res) => {
 
         // Notification - Create single, appropriate notification based on document type
         const hasAssignments = Array.isArray(assignments) && assignments.length > 0;
-        const userName = req.currentUser?.username || `${req.currentUser?.firstname || ''} ${req.currentUser?.lastname || ''}`.trim() || 'User';
+        const userName = deriveUserName(req.user) || deriveUserName(req.currentUser) || 'User';
         
         if (hasAssignments) {
           // For documents with assignments, create a single "Request Added" notification targeted to assignees
@@ -835,7 +883,6 @@ router.put('/documents/:id', requireAuth, (req, res) => {
       if (fields.length === 0) {
         return res.status(400).json({ success: false, message: 'No updatable fields provided.' });
       }
-      fields.push('updated_at = NOW()');
       db.query(`UPDATE dms_documents SET ${fields.join(', ')}, updated_at = NOW() WHERE doc_id = ?`, [...values, id], async (updateErr) => {
         if (updateErr) {
           console.error('Database error updating document:', updateErr);
@@ -846,9 +893,9 @@ router.put('/documents/:id', requireAuth, (req, res) => {
           try {
             await db.promise().query('DELETE FROM document_folders WHERE doc_id = ?', [id]);
             if (folderIdsUpdate.length > 0) {
-              for (const fid of folderIdsUpdate) {
-                await db.promise().query('INSERT INTO document_folders (doc_id, folder_id) VALUES (?, ?)', [id, fid]);
-              }
+              const placeholders = folderIdsUpdate.map(() => '(?, ?)').join(', ');
+              const bulkValues = folderIdsUpdate.flatMap(fid => [id, fid]);
+              await db.promise().query(`INSERT INTO document_folders (doc_id, folder_id) VALUES ${placeholders}` , bulkValues);
             }
           } catch (e) {
             console.warn('Failed updating document_folders:', e?.message || e);

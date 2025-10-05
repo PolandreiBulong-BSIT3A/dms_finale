@@ -1,24 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const Report = () => {
-  const [loaded, setLoaded] = useState(false);
-  const [showWarn, setShowWarn] = useState(false);
-  const [showTip, setShowTip] = useState(false);
-  const timeoutRef = useRef(null);
+  const [showPrompt, setShowPrompt] = useState(true);
 
   const streamlitUrl = 'https://dmsanalyticsfinalepy-jucq3wyqghj5iwgpyxwgkz.streamlit.app';
 
   const openStreamlitApp = () => {
-    window.open(streamlitUrl, '_blank');
+    window.open(streamlitUrl, '_blank', 'noopener,noreferrer');
   };
 
   useEffect(() => {
-    // If iframe doesn't load within 6s, show warning
-    timeoutRef.current = setTimeout(() => {
-      if (!loaded) setShowWarn(true);
-    }, 6000);
-    return () => clearTimeout(timeoutRef.current);
-  }, [loaded]);
+    // Optionally, auto-prompt once when entering the tab
+    setShowPrompt(true);
+  }, []);
 
   return (
     <div style={styles.container}>
@@ -32,39 +26,26 @@ const Report = () => {
         </button>
       </div>
       
-      <div
-        style={styles.iframeContainer}
-        onMouseEnter={() => setShowTip(true)}
-        onMouseLeave={() => setShowTip(false)}
-      >
-        {showTip && (
-          <div style={styles.tooltip}>
-            If this page isn’t working, click “Open in New Tab”.
-          </div>
-        )}
-        <iframe
-          src={streamlitUrl}
-          title="DMS Analytics Dashboard"
-          style={styles.iframe}
-          frameBorder="0"
-          allowFullScreen
-          onLoad={() => setLoaded(true)}
-          onError={() => setShowWarn(true)}
-        />
-      </div>
-
-      {showWarn && (
-        <div style={styles.modalBackdrop} onClick={() => setShowWarn(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: 0 }}>Having trouble loading the analytics?</h3>
-            <p style={{ margin: '12px 0 0' }}>
-              If the embedded dashboard doesn't load here due to browser or provider restrictions,
-              click the button below to open it in a new tab.
-            </p>
-            <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowWarn(false)} style={styles.secondaryButton}>Close</button>
-              <button onClick={openStreamlitApp} style={styles.pillButton}>Open in New Tab</button>
-            </div>
+      {showPrompt && (
+        <div style={styles.warnBox}>
+          <h3 style={{ margin: '0 0 8px 0', color: '#1e293b' }}>Leaving the app</h3>
+          <p style={styles.noteText}>
+            The Reports/Analytics page is hosted externally (Streamlit). Clicking continue will open the analytics
+            dashboard in a new browser tab.
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button
+              onClick={openStreamlitApp}
+              style={styles.pillButton}
+            >
+              Continue to Analytics
+            </button>
+            <button
+              onClick={() => setShowPrompt(false)}
+              style={styles.secondaryButton}
+            >
+              Stay Here
+            </button>
           </div>
         </div>
       )}
@@ -107,18 +88,27 @@ const styles = {
     transition: 'all 0.2s ease',
     boxShadow: '0 2px 4px rgba(99, 102, 241, 0.2)',
   },
-  iframeContainer: {
-    backgroundColor: 'white',
+  warnBox: {
+    backgroundColor: '#ffffff',
     borderRadius: '12px',
     padding: '24px',
-    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-    height: 'calc(100vh - 200px)',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.08)',
+    border: '1px solid #e2e8f0',
   },
-  iframe: {
-    width: '100%',
-    height: '100%',
-    border: 'none',
-    borderRadius: '8px',
+  noteText: {
+    margin: 0,
+    color: '#475569',
+    lineHeight: 1.6,
+  },
+  secondaryButton: {
+    padding: '12px 16px',
+    backgroundColor: 'transparent',
+    color: '#1f2937',
+    border: '1px solid #cbd5e1',
+    borderRadius: '50px',
+    fontSize: '14px',
+    fontWeight: 500,
+    cursor: 'pointer',
   },
 };
 

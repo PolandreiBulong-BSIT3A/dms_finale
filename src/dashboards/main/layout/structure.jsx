@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Container, Row, Col, Alert, Button } from 'react-bootstrap';
 import { FiBarChart, FiTrendingUp, FiActivity, FiChevronRight, FiChevronLeft, FiX } from 'react-icons/fi';
 import Sidebar from './sidebar.jsx';
 import Navbar from './navbar.jsx';
 import Dashboard from '../../components/Dashboard.jsx';
 import User from '../../components/User.jsx';
-import Upload from '../../components/Upload.jsx';
+const Upload = React.lazy(() => import('../../components/Upload.jsx'));
 import Update from '../../components/Update.jsx';
 import Reply from '../../components/Reply.jsx';
 import Document from '../../components/Document.jsx';
 import DocumentTrashcan from '../../components/DocumentTrashcan.jsx';
 import UserTrash from '../../components/UserTrash.jsx';
 import Profile from '../../components/Profile.jsx';
-import Report from '../../components/Report.jsx';
+const Report = React.lazy(() => import('../../components/Report.jsx'));
 import Request from '../../components/Request.jsx';
 import Favorite from '../../components/Favorite.jsx';
-import AdminPanel from '../../components/AdminPanel.jsx';
+const AdminPanel = React.lazy(() => import('../../components/AdminPanel.jsx'));
 import { useUser } from '../../../contexts/UserContext';
 import { useLocation } from 'react-router-dom';
 import BackgroundImage from '../../../assets/backgrounds/bg_main.png';
@@ -185,60 +185,62 @@ const Structure = ({ role }) => {
         {/* Content Area */}
         <Row>
           <Col xs={12}>
-            {activeTab === 'dashboard' ? (
-              <Dashboard role={role} onNavigateToDocuments={setActiveTab} />
-            ) : activeTab === 'user' ? (
-              <User role={role} />
-            ) : activeTab === 'department-users' ? (
-              <User role={role} />
-            ) : activeTab === 'admin-user' ? (
-              <User role={role} />
-            ) : activeTab === 'upload' ? (
-              <Upload role={role} onNavigateToDocuments={setActiveTab} />
-            ) : activeTab === 'reply' ? (
-              <Reply onNavigateToDocuments={setActiveTab} />
-            ) : activeTab === 'documents' ? (
-              <Document 
-                role={user?.role || role} 
-                onOpenTrash={() => setActiveTab('trash')} 
-                onNavigateToUpload={setActiveTab}
-                onNavigateToDocuments={setActiveTab}
-                onNavigateToUpdate={(id) => { setUpdateDocId(id); setActiveTab('update'); }}
-              />
-            ) : activeTab === 'update' ? (
-              <Update 
-                role={user?.role || role}
-                id={updateDocId}
-                onNavigateToDocuments={setActiveTab}
-              />
-            ) : activeTab === 'favorites' ? (
-              <Favorite 
-                role={user?.role || role} 
-                onNavigateToDocuments={setActiveTab}
-              />
-            ) : activeTab === 'trash' ? (
-              <DocumentTrashcan onBack={() => setActiveTab('documents')} />
-            ) : activeTab === 'user-trash' ? (
-              <UserTrash onBack={() => setActiveTab('admin-user')} />
-            ) : activeTab === 'reports' ? (
-              <Report />
-            ) : activeTab === 'profile' ? (
-              <Profile />
-            ) : activeTab === 'requests' ? (
-              <Request onNavigateToUpload={setActiveTab} />
-            ) : activeTab === 'admin' ? (
-              <AdminPanel role={role} />
-            ) : (
-              <div className="placeholder-content">
-                <div className="placeholder-inner">
-                  <FiBarChart className="placeholder-icon" />
-                  <h3 className="placeholder-title">Content Coming Soon</h3>
-                  <p className="placeholder-text">
-                    This section is under development.
-                  </p>
+            <Suspense fallback={<div style={{padding: 24}}>Loading...</div>}>
+              {activeTab === 'dashboard' ? (
+                <Dashboard role={role} onNavigateToDocuments={setActiveTab} />
+              ) : activeTab === 'user' ? (
+                <User role={role} />
+              ) : activeTab === 'department-users' ? (
+                <User role={role} />
+              ) : activeTab === 'admin-user' ? (
+                <User role={role} />
+              ) : activeTab === 'upload' ? (
+                <Upload role={role} onNavigateToDocuments={setActiveTab} />
+              ) : activeTab === 'reply' ? (
+                <Reply onNavigateToDocuments={setActiveTab} />
+              ) : activeTab === 'documents' ? (
+                <Document 
+                  role={user?.role || role} 
+                  onOpenTrash={() => setActiveTab('trash')} 
+                  onNavigateToUpload={setActiveTab}
+                  onNavigateToDocuments={setActiveTab}
+                  onNavigateToUpdate={(id) => { setUpdateDocId(id); setActiveTab('update'); }}
+                />
+              ) : activeTab === 'update' ? (
+                <Update 
+                  role={user?.role || role}
+                  id={updateDocId}
+                  onNavigateToDocuments={setActiveTab}
+                />
+              ) : activeTab === 'favorites' ? (
+                <Favorite 
+                  role={user?.role || role} 
+                  onNavigateToDocuments={setActiveTab}
+                />
+              ) : activeTab === 'trash' ? (
+                <DocumentTrashcan onBack={() => setActiveTab('documents')} />
+              ) : activeTab === 'user-trash' ? (
+                <UserTrash onBack={() => setActiveTab('admin-user')} />
+              ) : activeTab === 'reports' ? (
+                <Report />
+              ) : activeTab === 'profile' ? (
+                <Profile />
+              ) : activeTab === 'requests' ? (
+                <Request onNavigateToUpload={setActiveTab} />
+              ) : activeTab === 'admin' ? (
+                <AdminPanel role={role} />
+              ) : (
+                <div className="placeholder-content">
+                  <div className="placeholder-inner">
+                    <FiBarChart className="placeholder-icon" />
+                    <h3 className="placeholder-title">Content Coming Soon</h3>
+                    <p className="placeholder-text">
+                      This section is under development.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </Suspense>
           </Col>
         </Row>
       </Container>

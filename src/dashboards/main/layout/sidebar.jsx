@@ -9,6 +9,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, role, i
   const { documents } = useDocuments();
   const { currentUser } = useUser();
 
+  const streamlitUrl = 'https://dmsanalyticsfinalepy-jucq3wyqghj5iwgpyxwgkz.streamlit.app';
+
   // Detect action-required docs (for faculty visibility)
   const facultyRequestCount = useMemo(() => {
     const isActionRequiredDoc = (doc) => {
@@ -185,7 +187,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, role, i
                   padding: sidebarOpen ? '12px 20px' : '12px 0',
                   justifyContent: sidebarOpen ? 'flex-start' : 'center',
                 }}
-                onClick={() => setActiveTab(item.key)}
+                onClick={() => {
+                  if (item.key === 'reports') {
+                    const proceed = window.confirm('You are about to open the Analytics (Streamlit) in a new tab. Continue?');
+                    if (proceed) {
+                      window.open(streamlitUrl, '_blank', 'noopener,noreferrer');
+                    }
+                    return;
+                  }
+                  setActiveTab(item.key);
+                }}
               >
                 {React.cloneElement(item.icon, {
                   className: 'nav-icon',
