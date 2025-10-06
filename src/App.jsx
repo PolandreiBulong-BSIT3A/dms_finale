@@ -1,10 +1,11 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Login from './login_system/login.jsx'
 import Dashboard from './dashboards/Dashboard.jsx'
 import Request from './dashboards/components/Request.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import MaintenanceNotification from './components/MaintenanceNotification.jsx'
+import MaintenancePage from './components/MaintenancePage.jsx'
 import { DocumentProvider } from './contexts/DocumentContext.jsx'
 import { NotificationProvider } from './contexts/NotificationContext.jsx'
 import { UserProvider } from './contexts/UserContext.jsx'
@@ -12,6 +13,8 @@ import { buildUrl, fetchJson } from './lib/api/frontend/client.js'
 import './App.css'
 
 function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
@@ -85,6 +88,42 @@ function App() {
     };
   }, []);
 
+  // Redirect to maintenance page when maintenance mode is enabled
+  useEffect(() => {
+    if (loading) return; // Don't redirect while loading
+    
+    const isAdmin = userRole && (userRole.toLowerCase() === 'admin' || userRole.toLowerCase() === 'dean');
+    
+    console.log('Maintenance redirect check:', {
+      maintenanceMode,
+      userRole,
+      isAdmin,
+      currentPath: location.pathname,
+      search: location.search
+    });
+    
+    // Check if maintenance mode is active
+    if (maintenanceMode) {
+      // Allow admins/deans to access
+      if (isAdmin) {
+        console.log('Admin/Dean detected - allowing access');
+        return;
+      }
+      
+      // Redirect non-admins to maintenance page
+      if (location.pathname !== '/maintenance') {
+        console.log('Redirecting to maintenance page...');
+        navigate('/maintenance', { replace: true });
+      }
+    } else {
+      // Maintenance is off - redirect away from maintenance page
+      if (location.pathname === '/maintenance') {
+        console.log('Redirecting back from maintenance...');
+        navigate('/', { replace: true });
+      }
+    }
+  }, [maintenanceMode, userRole, location.pathname, location.search, navigate, loading]);
+
   // Show loading while checking maintenance status
   if (loading) {
     return (
@@ -105,8 +144,6 @@ function App() {
   console.log('Debug - userRole:', userRole);
   console.log('Debug - loading:', loading);
 
-  // Maintenance mode UX now handled inside Login.jsx; do not redirect to a separate page
-
   return (
     <UserProvider>
       <DocumentProvider>
@@ -123,6 +160,9 @@ function App() {
             <Routes>
               {/* Default route redirects to /login */}
               <Route path="/" element={<Navigate to="/login" replace />} />
+              
+              {/* Maintenance route */}
+              <Route path="/maintenance" element={<MaintenancePage />} />
               
               {/* Login route */}
               <Route path="/login" element={<Login />} />

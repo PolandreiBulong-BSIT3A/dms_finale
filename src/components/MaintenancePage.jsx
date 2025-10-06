@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { buildUrl } from '../lib/api/frontend/client.js';
-import { FaTools, FaCog, FaServer, FaRedo, FaUserShield, FaEnvelope, FaPhone, FaSignOutAlt } from 'react-icons/fa';
+import { FaFacebook, FaTwitter, FaInstagram } from 'react-icons/fa';
+import Logo from '../assets/logos/logo.png';
 
 const MaintenancePage = ({ isAdminView = false }) => {
   const [userRole, setUserRole] = useState(null);
@@ -9,6 +10,12 @@ const MaintenancePage = ({ isAdminView = false }) => {
     message: 'We\'re currently performing scheduled maintenance to improve your experience',
     endTime: null,
     estimatedDuration: '30-60 minutes'
+  });
+  const [contactInfo, setContactInfo] = useState({
+    email: 'support@ispsc.edu.ph',
+    facebook: 'https://facebook.com/ispsc',
+    twitter: 'https://twitter.com/ispsc',
+    instagram: 'https://instagram.com/ispsc'
   });
 
   const handleLogout = async () => {
@@ -72,8 +79,38 @@ const MaintenancePage = ({ isAdminView = false }) => {
       }
     };
 
+    const fetchContactInfo = async () => {
+      try {
+        const response = await fetch(buildUrl('others/INFO'));
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.items) {
+            const newContactInfo = { ...contactInfo };
+            
+            data.items.forEach(item => {
+              const name = item.other_name.toLowerCase();
+              if (name.includes('email') || name.includes('contact')) {
+                newContactInfo.email = item.link;
+              } else if (name.includes('facebook')) {
+                newContactInfo.facebook = item.link;
+              } else if (name.includes('twitter')) {
+                newContactInfo.twitter = item.link;
+              } else if (name.includes('instagram')) {
+                newContactInfo.instagram = item.link;
+              }
+            });
+            
+            setContactInfo(newContactInfo);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching contact info:', error);
+      }
+    };
+
     checkUserRole();
     fetchMaintenanceInfo();
+    fetchContactInfo();
   }, []);
 
   const calculateDuration = (endTime) => {
@@ -118,147 +155,54 @@ const MaintenancePage = ({ isAdminView = false }) => {
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-        {/* Header Section */}
-        <div style={styles.header}>
-          <div style={styles.iconContainer}>
-            <FaTools size={64} color="#f59e0b" />
-          </div>
-          <h1 style={styles.title}>System Under Maintenance</h1>
-          {(userRole === 'admin' || userRole === 'dean') ? (
-            <div style={styles.adminNotice}>
-              <FaUserShield size={20} color="#10b981" />
-              <p style={styles.adminText}>
-                Administrator Access: You can continue using the system during maintenance
-              </p>
-            </div>
-          ) : (
-            <p style={styles.subtitle}>
-              {maintenanceInfo.message}
-            </p>
-          )}
+        {/* Logo */}
+        <div style={styles.logoContainer}>
+          <img src={Logo} alt="ISPSc Logo" style={styles.logo} />
         </div>
 
-        {/* Status Section */}
-        <div style={styles.statusCard}>
-          <div style={styles.statusHeader}>
-            <FaCog size={24} color="#6b7280" />
-            <h3 style={styles.statusTitle}>Current Status</h3>
-          </div>
-          <div style={styles.statusContent}>
-            <div style={styles.statusItem}>
-              <span style={styles.statusLabel}>System Status:</span>
-              <span style={styles.statusValue}>Under Maintenance</span>
-            </div>
-            <div style={styles.statusItem}>
-              <span style={styles.statusLabel}>Current Time:</span>
-              <span style={styles.statusValue}>{formatTime(currentTime)}</span>
-            </div>
-            <div style={styles.statusItem}>
-              <span style={styles.statusLabel}>Estimated Duration:</span>
-              <span style={styles.statusValue}>{maintenanceInfo.estimatedDuration}</span>
-            </div>
-            {maintenanceInfo.endTime && (
-              <div style={styles.statusItem}>
-                <span style={styles.statusLabel}>Expected Completion:</span>
-                <span style={styles.statusValue}>
-                  {new Date(maintenanceInfo.endTime).toLocaleString()}
-                </span>
-              </div>
+        {/* Main Message */}
+        <h1 style={styles.title}>
+          Sorry! We're under<br />construction maintenance!
+        </h1>
+        
+        <p style={styles.subtitle}>
+          {maintenanceInfo.message || 'Our website is currently undergoing scheduled maintenance, we will be back soon! Thank you for being so patient.'}
+        </p>
+
+        {maintenanceInfo.endTime && (
+          <p style={styles.eta}>
+            Expected completion: {new Date(maintenanceInfo.endTime).toLocaleString()}
+          </p>
+        )}
+
+        {/* Follow Us Section */}
+        <div style={styles.followSection}>
+          <p style={styles.followText}>Follow us</p>
+          <div style={styles.socialIcons}>
+            {contactInfo.facebook && (
+              <a href={contactInfo.facebook} target="_blank" rel="noopener noreferrer" style={styles.socialIcon}>
+                <FaFacebook size={20} />
+              </a>
+            )}
+            {contactInfo.twitter && (
+              <a href={contactInfo.twitter} target="_blank" rel="noopener noreferrer" style={styles.socialIcon}>
+                <FaTwitter size={20} />
+              </a>
+            )}
+            {contactInfo.instagram && (
+              <a href={contactInfo.instagram} target="_blank" rel="noopener noreferrer" style={styles.socialIcon}>
+                <FaInstagram size={20} />
+              </a>
             )}
           </div>
         </div>
 
-        {/* Information Section */}
-        <div style={styles.infoGrid}>
-          <div style={styles.infoCard}>
-            <h4 style={styles.infoTitle}>What's Being Updated?</h4>
-            <ul style={styles.infoList}>
-              <li>Database optimization and backup procedures</li>
-              <li>Security enhancements and updates</li>
-              <li>Performance improvements</li>
-              <li>Bug fixes and system stability</li>
-            </ul>
-          </div>
-
-          <div style={styles.infoCard}>
-            <h4 style={styles.infoTitle}>What to Expect</h4>
-            <ul style={styles.infoList}>
-              <li>All services will be temporarily unavailable</li>
-              <li>Your data is safe and secure</li>
-              <li>No action is required from your side</li>
-              <li>System will automatically resume when complete</li>
-            </ul>
-          </div>
+        {/* Contact Email */}
+        <div style={styles.contactSection}>
+          <a href={`mailto:${contactInfo.email}`} style={styles.emailLink}>
+            {contactInfo.email}
+          </a>
         </div>
-
-        {/* Contact Section */}
-        <div style={styles.contactCard}>
-          <h4 style={styles.contactTitle}>Need Immediate Assistance?</h4>
-          <p style={styles.contactDescription}>
-            If you have urgent matters that cannot wait, please contact our support team:
-          </p>
-          <div style={styles.contactMethods}>
-            <div style={styles.contactMethod}>
-              <FaEnvelope size={20} color="#3b82f6" />
-              <span style={styles.contactText}>support@ispsc.edu.ph</span>
-            </div>
-            <div style={styles.contactMethod}>
-              <FaPhone size={20} color="#3b82f6" />
-              <span style={styles.contactText}>+63 (077) 722-2324</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Section */}
-        <div style={styles.actionSection}>
-          <div style={styles.buttonGroup}>
-            <button 
-              style={styles.refreshButton}
-              onClick={() => window.location.reload()}
-            >
-              <FaRedo size={20} />
-              <span style={styles.refreshText}>Check Status</span>
-            </button>
-            
-            <button 
-              style={styles.logoutButton}
-              onClick={handleLogout}
-            >
-              <FaSignOutAlt size={20} />
-              <span style={styles.logoutText}>Logout</span>
-            </button>
-          </div>
-          <p style={styles.actionNote}>
-            Check if maintenance is complete or logout to try a different account
-          </p>
-        </div>
-
-        {/* Footer */}
-        <div style={styles.footer}>
-          <p style={styles.footerText}>
-            ISPSc Document Management System
-          </p>
-          <p style={styles.footerSubtext}>
-            Thank you for your patience while we improve our services
-          </p>
-        </div>
-      </div>
-
-      {/* Background Animation */}
-      <div style={styles.backgroundAnimation}>
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            style={{
-              ...styles.floatingIcon,
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 10}s`,
-              animationDuration: `${10 + Math.random() * 10}s`
-            }}
-          >
-            <FaTools size={16} color="rgba(245, 158, 11, 0.1)" />
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -267,47 +211,87 @@ const MaintenancePage = ({ isAdminView = false }) => {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #ff9a9e 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '20px',
-    position: 'relative',
-    overflow: 'hidden',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
   },
   content: {
-    maxWidth: '800px',
+    maxWidth: '600px',
     width: '100%',
-    background: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: '20px',
-    padding: '40px',
-    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    position: 'relative',
-    zIndex: 1
-  },
-  header: {
     textAlign: 'center',
+    padding: '40px 20px'
+  },
+  logoContainer: {
     marginBottom: '40px'
   },
-  iconContainer: {
-    marginBottom: '20px'
+  logo: {
+    width: '120px',
+    height: 'auto'
   },
   title: {
-    fontSize: '36px',
+    fontSize: '32px',
     fontWeight: '700',
-    color: '#1f2937',
-    margin: '0 0 16px 0'
+    color: '#1a1a1a',
+    margin: '0 0 20px 0',
+    lineHeight: '1.3'
   },
   subtitle: {
-    fontSize: '18px',
-    color: '#6b7280',
-    margin: 0,
-    lineHeight: '1.6'
+    fontSize: '15px',
+    color: '#4a4a4a',
+    margin: '0 0 10px 0',
+    lineHeight: '1.6',
+    maxWidth: '500px',
+    marginLeft: 'auto',
+    marginRight: 'auto'
   },
-  statusCard: {
+  eta: {
+    fontSize: '13px',
+    color: '#666',
+    margin: '0 0 30px 0',
+    fontStyle: 'italic'
+  },
+  followSection: {
+    marginTop: '40px',
+    marginBottom: '20px'
+  },
+  followText: {
+    fontSize: '14px',
+    color: '#1a1a1a',
+    margin: '0 0 15px 0',
+    fontWeight: '500'
+  },
+  socialIcons: {
+    display: 'flex',
+    gap: '15px',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  socialIcon: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    backgroundColor: '#1a1a1a',
+    color: 'white',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textDecoration: 'none',
+    transition: 'transform 0.2s, background-color 0.2s',
+    cursor: 'pointer'
+  },
+  contactSection: {
+    marginTop: '20px'
+  },
+  emailLink: {
+    fontSize: '14px',
+    color: '#1a1a1a',
+    textDecoration: 'none',
+    fontWeight: '500'
+  },
+  oldStatusCard: {
     background: '#f8fafc',
     borderRadius: '12px',
     padding: '24px',
@@ -482,67 +466,6 @@ const styles = {
     color: '#6b7280',
     margin: 0
   },
-  adminNotice: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    backgroundColor: '#d1fae5',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    border: '1px solid #10b981',
-    marginTop: '16px'
-  },
-  adminText: {
-    fontSize: '16px',
-    color: '#065f46',
-    margin: 0,
-    fontWeight: '500'
-  },
-  backgroundAnimation: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    pointerEvents: 'none',
-    overflow: 'hidden'
-  },
-  floatingIcon: {
-    position: 'absolute',
-    animation: 'float 15s infinite linear'
-  }
 };
-
-// Add CSS animation
-const styleSheet = document.createElement('style');
-styleSheet.type = 'text/css';
-styleSheet.innerText = `
-  @keyframes float {
-    0% {
-      transform: translateY(100vh) rotate(0deg);
-      opacity: 0;
-    }
-    10% {
-      opacity: 1;
-    }
-    90% {
-      opacity: 1;
-    }
-    100% {
-      transform: translateY(-100px) rotate(360deg);
-      opacity: 0;
-    }
-  }
-  
-  @media (max-width: 768px) {
-    .maintenance-content {
-      padding: 20px !important;
-    }
-    .maintenance-grid {
-      grid-template-columns: 1fr !important;
-    }
-  }
-`;
-document.head.appendChild(styleSheet);
 
 export default MaintenancePage;

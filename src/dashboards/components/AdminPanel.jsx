@@ -260,18 +260,37 @@ const AdminPanel = ({ role }) => {
       alert('Failed to clear cache');
     }
   };
-
   const handleCreateBackup = async () => {
     setLoadingBackup(true);
     try {
       const data = await fetchJson(buildUrl('system/backup'), { method: 'POST' });
-      alert(`Backup initiated: ${data.backupName || 'OK'}`);
-      await fetchBackupHistory();
+      if (data.success) {
+        alert('Backup created successfully!');
+        await fetchBackupHistory();
+      } else {
+        alert(data.message || 'Failed to create backup');
+      }
     } catch (error) {
-      console.error('Error creating backup:', error);
       alert('Failed to create backup');
     } finally {
       setLoadingBackup(false);
+    }
+  };
+
+  const handleDownloadBackup = async (filename) => {
+    try {
+      // Create a link and trigger download
+      const downloadUrl = buildUrl(`system/backups/download/${filename}`);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading backup:', error);
+      alert('Failed to download backup');
     }
   };
 
@@ -279,7 +298,6 @@ const AdminPanel = ({ role }) => {
     // Open modal to configure maintenance settings
     setShowMaintenanceModal(true);
   };
-
   const handleSaveMaintenanceMode = async () => {
     setSavingMaintenance(true);
     setValidationError('');
@@ -1831,6 +1849,14 @@ const AdminPanel = ({ role }) => {
                       }}>
                         {backup.status}
                       </span>
+                      <button
+                        style={styles.downloadBtn}
+                        onClick={() => handleDownloadBackup(backup.name)}
+                        title="Download backup"
+                      >
+                        <FiDownload size={16} />
+                        Download
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -2643,6 +2669,21 @@ const styles = {
   backupSize: {
     fontSize: '12px',
     color: '#666',
+  },
+  downloadBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 12px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    marginLeft: '8px'
   },
   logsContainer: {
     background: 'white',
