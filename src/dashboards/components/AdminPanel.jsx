@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { fetchWithRetry } from '../../lib/api/frontend/http.js';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
+import OthersManagement from './OthersManagement.jsx';
 import { 
   FiUsers, 
   FiSettings, 
@@ -95,6 +96,18 @@ const AdminPanel = ({ role }) => {
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [loadingBackup, setLoadingBackup] = useState(false);
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+
+  // Others (Icons, Manuals, etc.) state
+  const [others, setOthers] = useState([]);
+  const [loadingOthers, setLoadingOthers] = useState(false);
+  const [showOthersModal, setShowOthersModal] = useState(false);
+  const [editingOther, setEditingOther] = useState(null);
+  const [otherForm, setOtherForm] = useState({ 
+    other_name: '', 
+    category: 'ICON', 
+    link: '' 
+  });
+  const [othersCategoryFilter, setOthersCategoryFilter] = useState('ALL');
 
   // Fetch functions
   const fetchDepartments = async () => {
@@ -1970,6 +1983,9 @@ const AdminPanel = ({ role }) => {
           </div>
         </div>
       </div>
+
+      {/* Others Management (Icons, Manuals, Policies, etc.) */}
+      <OthersManagement styles={styles} />
     </div>
 
     {/* Maintenance Mode Configuration Modal */}

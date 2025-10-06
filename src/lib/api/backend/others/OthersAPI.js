@@ -72,4 +72,111 @@ router.get('/others/:category/:name', async (req, res) => {
   }
 });
 
+// POST /others - Create new resource
+router.post('/others', async (req, res) => {
+  try {
+    const { other_name, category, link } = req.body;
+    
+    if (!other_name || !category) {
+      return res.status(400).json({ success: false, message: 'Name and category are required' });
+    }
+
+    // Check if already exists
+    const [existing] = await db.promise().execute(
+      'SELECT other_id FROM others WHERE category = ? AND other_name = ?',
+      [category, other_name]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: 'Resource with this name already exists in this category' });
+    }
+
+    const [result] = await db.promise().execute(
+      'INSERT INTO others (other_name, category, link) VALUES (?, ?, ?)',
+      [other_name, category, link || null]
+    );
+
+    const [newItem] = await db.promise().execute(
+      'SELECT other_id, other_name, category, link, created_at FROM others WHERE other_id = ?',
+      [result.insertId]
+    );
+
+    return res.json({ success: true, message: 'Resource created successfully', item: newItem[0] });
+  } catch (error) {
+    console.error('Error creating resource:', error);
+    return res.status(500).json({ success: false, message: 'Failed to create resource' });
+  }
+});
+
+// PUT /others/:id - Update resource
+router.put('/others/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { other_name, category, link } = req.body;
+
+    if (!other_name || !category) {
+      return res.status(400).json({ success: false, message: 'Name and category are required' });
+    }
+
+    // Check if exists
+    const [existing] = await db.promise().execute(
+      'SELECT other_id FROM others WHERE other_id = ?',
+      [id]
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: 'Resource not found' });
+    }
+
+    // Check for duplicate name in same category (excluding current item)
+    const [duplicate] = await db.promise().execute(
+      'SELECT other_id FROM others WHERE category = ? AND other_name = ? AND other_id != ?',
+      [category, other_name, id]
+    );
+
+    if (duplicate.length > 0) {
+      return res.status(400).json({ success: false, message: 'Resource with this name already exists in this category' });
+    }
+
+    await db.promise().execute(
+      'UPDATE others SET other_name = ?, category = ?, link = ? WHERE other_id = ?',
+      [other_name, category, link || null, id]
+    );
+
+    const [updated] = await db.promise().execute(
+      'SELECT other_id, other_name, category, link, updated_at FROM others WHERE other_id = ?',
+      [id]
+    );
+
+    return res.json({ success: true, message: 'Resource updated successfully', item: updated[0] });
+  } catch (error) {
+    console.error('Error updating resource:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update resource' });
+  }
+});
+
+// DELETE /others/:id - Delete resource
+router.delete('/others/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if exists
+    const [existing] = await db.promise().execute(
+      'SELECT other_id FROM others WHERE other_id = ?',
+      [id]
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: 'Resource not found' });
+    }
+
+    await db.promise().execute('DELETE FROM others WHERE other_id = ?', [id]);
+
+    return res.json({ success: true, message: 'Resource deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting resource:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete resource' });
+  }
+});
+
 export default router;

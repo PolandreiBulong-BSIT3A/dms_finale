@@ -85,10 +85,15 @@ const Profile = () => {
       setDepartmentsLoading(true);
       const data = await fetchJson(buildUrl('departments'));
       if (data.success && data.departments) {
-        setDepartmentOptions(data.departments);
+        // Transform to { value, label } format
+        const options = data.departments.map(dept => ({
+          value: dept.department_id,
+          label: dept.name
+        }));
+        setDepartmentOptions(options);
       }
     } catch (error) {
-      // swallow
+      console.error('Error fetching departments:', error);
     } finally {
       setDepartmentsLoading(false);
     }
@@ -122,13 +127,37 @@ const Profile = () => {
     fetchProfileIcons();
   }, []);
 
+  // Convert image links to proper format
+  const convertImageLink = (url) => {
+    if (!url) return url;
+    
+    // If it's Imgur or other direct image hosting, return as-is
+    if (url.includes('imgur.com') || url.includes('imgbb.com') || url.startsWith('/icons/')) {
+      return url;
+    }
+    
+    // Handle Google Drive URLs
+    const match = url.match(/\/file\/d\/([^\/]+)/);
+    if (match && match[1]) {
+      // Use Google Drive thumbnail API
+      return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`;
+    }
+    
+    return url;
+  };
+
   // Fetch profile icons from others table
   const fetchProfileIcons = async () => {
     try {
       setIconsLoading(true);
       const data = await fetchJson(buildUrl('others/ICON'));
       if (data.success && Array.isArray(data.items)) {
-        setAvailableIcons(data.items);
+        // Convert all image links to proper format
+        const icons = data.items.map(icon => ({
+          ...icon,
+          link: convertImageLink(icon.link)
+        }));
+        setAvailableIcons(icons);
       }
     } catch (error) {
       console.error('Error fetching profile icons:', error);
