@@ -92,37 +92,44 @@ function App() {
   useEffect(() => {
     if (loading) return; // Don't redirect while loading
     
-    const isAdmin = userRole && (userRole.toLowerCase() === 'admin' || userRole.toLowerCase() === 'dean');
+    const isAdmin = userRole && userRole.toLowerCase() === 'admin'; // ONLY ADMIN, not dean
+    const isOnMaintenancePage = location.pathname === '/maintenance';
     
-    console.log('Maintenance redirect check:', {
+    console.log('Maintenance check:', {
       maintenanceMode,
       userRole,
       isAdmin,
       currentPath: location.pathname,
-      search: location.search
+      isOnMaintenancePage
     });
     
-    // Check if maintenance mode is active
+    // If maintenance is ON
     if (maintenanceMode) {
-      // Allow admins/deans to access
+      // ONLY Admins can access everything during maintenance
       if (isAdmin) {
-        console.log('Admin/Dean detected - allowing access');
+        // If admin is on maintenance page, redirect them to dashboard
+        if (isOnMaintenancePage) {
+          console.log('Admin on maintenance page - redirecting to dashboard');
+          navigate('/dashboard', { replace: true });
+        }
         return;
       }
       
-      // Redirect non-admins to maintenance page
-      if (location.pathname !== '/maintenance') {
-        console.log('Redirecting to maintenance page...');
+      // Everyone else (including Dean): redirect to maintenance page
+      if (!isOnMaintenancePage) {
+        console.log('Maintenance ON - redirecting to maintenance page');
         navigate('/maintenance', { replace: true });
       }
-    } else {
-      // Maintenance is off - redirect away from maintenance page
-      if (location.pathname === '/maintenance') {
-        console.log('Redirecting back from maintenance...');
-        navigate('/', { replace: true });
+    } 
+    // If maintenance is OFF
+    else {
+      // If someone is on maintenance page, redirect to login
+      if (isOnMaintenancePage) {
+        console.log('Maintenance OFF - redirecting from maintenance page to login');
+        navigate('/login', { replace: true });
       }
     }
-  }, [maintenanceMode, userRole, location.pathname, location.search, navigate, loading]);
+  }, [maintenanceMode, userRole, location.pathname, navigate, loading]);
 
   // Show loading while checking maintenance status
   if (loading) {
