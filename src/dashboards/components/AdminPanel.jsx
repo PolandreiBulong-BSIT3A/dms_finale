@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AdminPanel.css';
-import { Modal, Button, Form } from 'react-bootstrap';
-import { fetchWithRetry } from '../../lib/api/frontend/http.js';
+// Removed react-bootstrap modal/components
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import OthersManagement from './OthersManagement.jsx';
 import { 
@@ -90,15 +89,18 @@ const AdminPanel = ({ role }) => {
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
   const [maintenanceStartTime, setMaintenanceStartTime] = useState(''); // datetime-local value
   const [maintenanceEndTime, setMaintenanceEndTime] = useState(''); // datetime-local value
+  // Drafts used while editing to avoid background overwrites
+  const [draftMaintenanceMessage, setDraftMaintenanceMessage] = useState('');
+  const [draftMaintenanceStartTime, setDraftMaintenanceStartTime] = useState('');
+  const [draftMaintenanceEndTime, setDraftMaintenanceEndTime] = useState('');
   const [savingMaintenance, setSavingMaintenance] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [previewText, setPreviewText] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  // const [successMessage, setSuccessMessage] = useState(''); // removed, no modal feedback
   const [isEditingMaintenance, setIsEditingMaintenance] = useState(false);
   const [systemStats, setSystemStats] = useState({});
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [loadingBackup, setLoadingBackup] = useState(false);
-  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
 
   // Others (Icons, Manuals, etc.) state
   const [others, setOthers] = useState([]);
@@ -216,7 +218,7 @@ const AdminPanel = ({ role }) => {
 
   const fetchMaintenanceSettings = async () => {
     // Do not overwrite fields while user is editing in modal
-    if (showMaintenanceModal || isEditingMaintenance) return;
+    if (isEditingMaintenance) return;
     try {
       const data = await fetchJson(buildUrl('maintenance/status'));
       const msg = data.maintenanceMessage || '';
@@ -242,6 +244,10 @@ const AdminPanel = ({ role }) => {
         setMaintenanceMessage(msg);
         setMaintenanceStartTime(startLocal);
         setMaintenanceEndTime(endLocal);
+        // Keep drafts in sync when not editing
+        setDraftMaintenanceMessage(msg);
+        setDraftMaintenanceStartTime(startLocal);
+        setDraftMaintenanceEndTime(endLocal);
     } catch (error) {
       console.error('Error fetching maintenance settings:', error);
     }
@@ -299,64 +305,21 @@ const AdminPanel = ({ role }) => {
     }
   };
 
-  const handleToggleMaintenanceMode = () => {
-    // Open modal to configure maintenance settings
-    setIsEditingMaintenance(true);
-    setShowMaintenanceModal(true);
-  };
-  const handleSaveMaintenanceMode = async () => {
-    setSavingMaintenance(true);
-    setValidationError('');
-    setSuccessMessage('');
-    try {
-      const disabling = maintenanceMode === true; // current state
-      const data = await fetchJson(buildUrl('system/maintenance'), {
-        method: 'POST',
-        body: JSON.stringify({ 
-          enabled: !maintenanceMode,
-          maintenanceMessage,
-          maintenanceStartTime: disabling ? null : (maintenanceStartTime ? new Date(maintenanceStartTime).toISOString() : null),
-          maintenanceEndTime: disabling ? null : (maintenanceEndTime ? new Date(maintenanceEndTime).toISOString() : null)
-        })
-      });
-      setMaintenanceMode(data.maintenanceMode);
-      if (typeof data.maintenanceMessage === 'string') setMaintenanceMessage(data.maintenanceMessage);
-      if (data.maintenanceEndTime) {
-          // convert back to datetime-local
-          const d = new Date(data.maintenanceEndTime);
-          if (!isNaN(d.getTime())) {
-            const pad = (n) => String(n).padStart(2, '0');
-            setMaintenanceEndTime(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
-          }
-        }
-      setSuccessMessage(data.message || 'Maintenance mode updated');
-      // Auto-close the modal shortly after success to avoid disruptive alerts
-      setTimeout(() => {
-        setShowMaintenanceModal(false);
-        setSuccessMessage('');
-        setIsEditingMaintenance(false);
-      }, 1200);
-    } catch (error) {
-      console.error('Error toggling maintenance mode:', error);
-      setValidationError(error.message || 'Failed to toggle maintenance mode');
-    } finally {
-      setSavingMaintenance(false);
-    }
-  };
+  // Removed modal-based toggle. Maintenance is controlled in the Maintenance tab only.
 
   const handleSaveMaintenanceSettings = async () => {
     // Validate before submit
     const now = Date.now();
     let error = '';
     const toMs = (val) => (val ? new Date(val).getTime() : null);
-    const startLocalMs = toMs(maintenanceStartTime);
-    const endLocalMs = toMs(maintenanceEndTime);
+    const startLocalMs = toMs(draftMaintenanceStartTime);
+    const endLocalMs = toMs(draftMaintenanceEndTime);
 
-    if (maintenanceStartTime && (!startLocalMs || isNaN(startLocalMs))) error = 'Invalid start time.';
-    if (!error && maintenanceEndTime && (!endLocalMs || isNaN(endLocalMs))) error = 'Invalid end time.';
-    if (!error && maintenanceStartTime && startLocalMs <= now) error = 'Start time must be in the future.';
-    if (!error && maintenanceEndTime && endLocalMs <= now) error = 'End time must be in the future.';
-    if (!error && maintenanceStartTime && maintenanceEndTime && endLocalMs <= startLocalMs) error = 'End time must be later than start time.';
+    if (draftMaintenanceStartTime && (!startLocalMs || isNaN(startLocalMs))) error = 'Invalid start time.';
+    if (!error && draftMaintenanceEndTime && (!endLocalMs || isNaN(endLocalMs))) error = 'Invalid end time.';
+    if (!error && draftMaintenanceStartTime && startLocalMs <= now) error = 'Start time must be in the future.';
+    if (!error && draftMaintenanceEndTime && endLocalMs <= now) error = 'End time must be in the future.';
+    if (!error && draftMaintenanceStartTime && draftMaintenanceEndTime && endLocalMs <= startLocalMs) error = 'End time must be later than start time.';
 
     setValidationError(error);
     if (error) return;
@@ -367,19 +330,46 @@ const AdminPanel = ({ role }) => {
         method: 'POST',
         body: JSON.stringify({
           enabled: maintenanceMode,
-          maintenanceMessage,
-          maintenanceStartTime: maintenanceStartTime ? new Date(maintenanceStartTime).toISOString() : null,
-          maintenanceEndTime: maintenanceEndTime ? new Date(maintenanceEndTime).toISOString() : null
+          maintenanceMessage: draftMaintenanceMessage,
+          maintenanceStartTime: draftMaintenanceStartTime ? new Date(draftMaintenanceStartTime).toISOString() : null,
+          maintenanceEndTime: draftMaintenanceEndTime ? new Date(draftMaintenanceEndTime).toISOString() : null
         })
       });
-      setSuccessMessage('Maintenance settings saved');
-      setTimeout(() => {
-        setShowMaintenanceModal(false);
-        setSuccessMessage('');
-      }, 1200);
+      // Refresh local view
+      await fetchMaintenanceMode();
+      await fetchMaintenanceSettings();
+      // Sync canonical from drafts and exit editing
+      setMaintenanceMessage(draftMaintenanceMessage);
+      setMaintenanceStartTime(draftMaintenanceStartTime);
+      setMaintenanceEndTime(draftMaintenanceEndTime);
+      setIsEditingMaintenance(false);
     } catch (error) {
       console.error('Error saving maintenance settings:', error);
       setValidationError('Failed to save maintenance settings');
+    } finally {
+      setSavingMaintenance(false);
+    }
+  };
+
+  const handleToggleMaintenance = async () => {
+    setSavingMaintenance(true);
+    setValidationError('');
+    try {
+      const enabling = !maintenanceMode;
+      await fetchJson(buildUrl('system/maintenance'), {
+        method: 'POST',
+        body: JSON.stringify({
+          enabled: enabling,
+          maintenanceMessage: draftMaintenanceMessage || maintenanceMessage,
+          maintenanceStartTime: enabling && (draftMaintenanceStartTime || maintenanceStartTime) ? new Date(draftMaintenanceStartTime || maintenanceStartTime).toISOString() : null,
+          maintenanceEndTime: enabling && (draftMaintenanceEndTime || maintenanceEndTime) ? new Date(draftMaintenanceEndTime || maintenanceEndTime).toISOString() : null
+        })
+      });
+      await fetchMaintenanceMode();
+      await fetchMaintenanceSettings();
+    } catch (error) {
+      console.error('Error toggling maintenance:', error);
+      setValidationError(error.message || 'Failed to toggle maintenance');
     } finally {
       setSavingMaintenance(false);
     }
@@ -1168,17 +1158,32 @@ const AdminPanel = ({ role }) => {
     <div style={styles.tabContent}>
         <div style={styles.subsectionHeader}>
           <h3 style={styles.subsectionTitle}>Maintenance Controls</h3>
+          <button 
+            style={{
+              ...styles.secondaryBtn,
+              background: maintenanceMode ? '#fee2e2' : '#dcfce7',
+              color: maintenanceMode ? '#b91c1c' : '#166534',
+              borderColor: maintenanceMode ? '#fecaca' : '#bbf7d0'
+            }}
+            onClick={handleToggleMaintenance}
+            disabled={savingMaintenance}
+            title={maintenanceMode ? 'Disable maintenance now' : 'Enable maintenance now'}
+          >
+            {savingMaintenance ? 'Working…' : (maintenanceMode ? 'Disable Maintenance' : 'Enable Maintenance')}
+          </button>
         </div>
 
         <div style={styles.section}>
           <div style={styles.formGroup}>
             <label style={styles.label}>Maintenance Message (optional)</label>
             <textarea
-              style={{...styles.input, minHeight: 80, resize: 'vertical'}}
-              placeholder="Short note users will see on the maintenance screen"
-              value={maintenanceMessage}
-              onChange={(e)=>setMaintenanceMessage(e.target.value)}
-            />
+            style={{...styles.input, minHeight: 80, resize: 'vertical'}}
+            placeholder="Short note users will see on the maintenance screen"
+            value={maintenanceMessage}
+            onChange={(e)=>{ setMaintenanceMessage(e.target.value); }}
+            onFocus={()=> setIsEditingMaintenance(true)}
+            onBlur={()=> setIsEditingMaintenance(false)}
+          />
           </div>
 
         <div style={styles.formGroup}>
@@ -1188,6 +1193,8 @@ const AdminPanel = ({ role }) => {
             style={styles.input}
             value={maintenanceStartTime}
             onChange={(e)=>{ setMaintenanceStartTime(e.target.value); setValidationError(''); }}
+            onFocus={()=> setIsEditingMaintenance(true)}
+            onBlur={()=> setIsEditingMaintenance(false)}
           />
         </div>
 
@@ -1198,6 +1205,8 @@ const AdminPanel = ({ role }) => {
             style={styles.input}
             value={maintenanceEndTime}
             onChange={(e)=>{ setMaintenanceEndTime(e.target.value); setValidationError(''); }}
+            onFocus={()=> setIsEditingMaintenance(true)}
+            onBlur={()=> setIsEditingMaintenance(false)}
           />
           <div style={{fontSize: 12, color: '#6b7280', marginTop: 6}}>Users will see a live countdown when an end time is set.</div>
         </div>
@@ -1951,36 +1960,17 @@ const AdminPanel = ({ role }) => {
           )}
           
           <div style={{display: 'flex', gap: '8px'}}>
-            <button 
-              style={{
-                ...styles.actionButton,
-                backgroundColor: maintenanceMode ? '#ef4444' : '#10b981',
-                color: 'white',
-                flex: 1,
-                padding: '12px 20px',
-                fontSize: '15px',
-                fontWeight: '500'
-              }}
-              onClick={handleToggleMaintenanceMode}
-            >
-              Configure/Enable
-            </button>
             <button
               style={{
                 ...styles.actionButton,
                 backgroundColor: '#f3f4f6',
                 color: '#374151',
-                padding: '12px 16px',
-                opacity: showMaintenanceModal ? 0.5 : 1,
-                cursor: showMaintenanceModal ? 'not-allowed' : 'pointer'
+                padding: '12px 16px'
               }}
               onClick={() => {
-                if (!showMaintenanceModal) {
-                  fetchMaintenanceMode();
-                  fetchMaintenanceSettings();
-                }
+                fetchMaintenanceMode();
+                fetchMaintenanceSettings();
               }}
-              disabled={showMaintenanceModal}
               title="Refresh status"
             >
               <FiRefreshCw size={18} />
@@ -2028,89 +2018,6 @@ const AdminPanel = ({ role }) => {
       <OthersManagement styles={styles} />
     </div>
 
-    {/* Maintenance Mode Configuration Modal */}
-    <Modal show={showMaintenanceModal} onHide={() => setShowMaintenanceModal(false)} centered size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>{maintenanceMode ? 'Disable' : 'Enable'} Maintenance Mode</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {validationError && (
-          <div style={{ padding: '12px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '6px', marginBottom: '16px' }}>
-            {validationError}
-          </div>
-        )}
-        
-        <Form.Group className="mb-3">
-          <Form.Label>Maintenance Message</Form.Label>
-          <Form.Control
-            as="textarea"
-            rows={3}
-            placeholder="Enter a message to display to users (optional)"
-            value={maintenanceMessage}
-            onChange={(e) => { setMaintenanceMessage(e.target.value); setIsEditingMaintenance(true); }}
-          />
-          <Form.Text className="text-muted">
-            This message appears on the Login maintenance screen for non-admin users.
-          </Form.Text>
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Label>Start Time (optional)</Form.Label>
-          <Form.Control
-            type="datetime-local"
-            value={maintenanceStartTime}
-            onChange={(e) => { setMaintenanceStartTime(e.target.value); setIsEditingMaintenance(true); }}
-          />
-          <Form.Text className="text-muted">
-            When maintenance begins. Leave empty to start immediately.
-          </Form.Text>
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Label>End Time (optional)</Form.Label>
-          <Form.Control
-            type="datetime-local"
-            value={maintenanceEndTime}
-            onChange={(e) => { setMaintenanceEndTime(e.target.value); setIsEditingMaintenance(true); }}
-          />
-          <Form.Text className="text-muted">
-            When maintenance ends. Leave empty to run until you disable it.
-          </Form.Text>
-        </Form.Group>
-
-        {/* Live preview of how it will look on the Login maintenance screen */}
-        <div style={{ padding: '12px', border: '1px dashed #d1d5db', borderRadius: '8px', background: '#f9fafb', marginTop: '16px' }}>
-          <div style={{ fontWeight: 600, fontSize: '14px', color: '#374151', marginBottom: '8px' }}>Preview (Login screen):</div>
-          <div style={{ fontSize: '14px', color: '#111827' }}>
-            {maintenanceMessage ? `"${maintenanceMessage}"` : 'No message set'}
-          </div>
-          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
-            {previewText || 'No schedule set'}
-          </div>
-          <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '8px' }}>
-            Changes appear on the login screen within ~60s, or immediately after users refresh.
-          </div>
-        </div>
-
-        <div style={{ padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '6px', marginTop: '16px' }}>
-          <p style={{ margin: 0, fontSize: '14px', color: '#374151' }}>
-            <strong>Note:</strong> {maintenanceMode ? 'Disabling' : 'Enabling'} maintenance mode will {maintenanceMode ? 'allow all users to access the system' : 'restrict access to administrators only'}.
-          </p>
-        </div>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => setShowMaintenanceModal(false)} disabled={savingMaintenance}>
-          Cancel
-        </Button>
-        <Button 
-          variant={maintenanceMode ? 'danger' : 'success'}
-          onClick={handleSaveMaintenanceMode}
-          disabled={savingMaintenance}
-        >
-          {savingMaintenance ? 'Saving...' : (maintenanceMode ? 'Disable' : 'Enable')}
-        </Button>
-      </Modal.Footer>
-    </Modal>
     </>
   );
 

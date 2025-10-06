@@ -15,8 +15,9 @@ router.get('/users', requireAuth, async (req, res) => {
     const filters = [];
     const values = [];
 
-    // Dean restriction: only own department
-    if (isDean && current.department_id) {
+    // Dean restriction: only own department, except when filtering for ADMIN roles
+    const requestedRole = (role || '').toString().toLowerCase();
+    if (isDean && current.department_id && !(requestedRole === 'admin' || requestedRole === 'administrator')) {
       filters.push('u.department_id = ?');
       values.push(current.department_id);
     } else if (department) {
@@ -34,13 +35,19 @@ router.get('/users', requireAuth, async (req, res) => {
       values.push(role);
     }
 
-    // default to active if not specified
+    // Status filter: default visibility includes 'active'
+    // If no explicit status is provided, allow DEAN and FACULTY to also see 'pending' users
     if (status) {
       filters.push('u.status = ?');
       values.push(status);
     } else {
-      filters.push('u.status = ?');
-      values.push('active');
+      const viewerRole = (current.role || '').toString().toLowerCase();
+      if (viewerRole === 'dean' || viewerRole === 'faculty') {
+        filters.push("u.status IN ('active','pending')");
+      } else {
+        filters.push('u.status = ?');
+        values.push('active');
+      }
     }
 
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';

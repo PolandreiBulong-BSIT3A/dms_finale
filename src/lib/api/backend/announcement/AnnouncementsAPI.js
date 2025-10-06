@@ -133,6 +133,20 @@ router.post('/announcements', (req, res) => {
       scopedIsPublic = false;
       scopedTargetDepts = userDept != null ? [userDept] : [];
     }
+    // If not public, ensure at least one target exists (dept/role/user)
+    const requestedTargets = Array.isArray(target_departments) ? target_departments : [];
+    const requestedRoles = Array.isArray(target_roles) ? target_roles : [];
+    const requestedUsers = Array.isArray(target_users) ? target_users : [];
+    if (!scopedIsPublic) {
+      const hasTargets = (role === 'DEAN' && deriveUserDept(req.user) != null) ||
+                        (requestedTargets && requestedTargets.length) ||
+                        (requestedRoles && requestedRoles.length) ||
+                        (requestedUsers && requestedUsers.length);
+      if (!hasTargets) {
+        return res.status(400).json({ success: false, message: 'Targeted announcement must include at least one department, role, or user.' });
+      }
+    }
+
     const sql = `INSERT INTO announcements (title, body, visible_to_all, status, publish_at, expire_at, created_by_name, created_at)
                  VALUES (?, ?, ?, 'published', COALESCE(?, NOW()), ?, ?, NOW())`;
     const params = [String(title).trim(), String(message).trim(), scopedIsPublic ? 1 : 0, publish_at || null, expire_at || null, createdBy];
@@ -142,8 +156,8 @@ router.post('/announcements', (req, res) => {
 
       // Insert targets if not public
       const tDepts = scopedTargetDepts;
-      const tRoles = Array.isArray(target_roles) ? target_roles : [];
-      const tUsers = Array.isArray(target_users) ? target_users : [];
+      const tRoles = requestedRoles;
+      const tUsers = requestedUsers;
 
       const tasks = [];
       if (!scopedIsPublic && tDepts.length > 0) {

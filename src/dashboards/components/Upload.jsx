@@ -172,14 +172,35 @@ const Upload = ({ role, onNavigateToDocuments }) => {
   const fetchUsers = async () => {
     try {
       setUsersLoading(true);
+      // 1) Fetch default users (scoped by backend based on viewer role)
       const data = await fetchJson(buildUrl('users'));
-      const list = Array.isArray(data)
-        ? data
-        : Array.isArray(data.users)
-          ? data.users
-          : [];
+      const baseList = Array.isArray(data) ? data : (Array.isArray(data.users) ? data.users : []);
+
+      // 2) If current user is Dean, fetch Admins across departments and merge
+      let adminList = [];
+      if (role?.toLowerCase() === 'dean') {
+        try {
+          const adminsResp = await fetchJson(buildUrl('users?role=ADMIN'));
+          adminList = Array.isArray(adminsResp) ? adminsResp : (Array.isArray(adminsResp.users) ? adminsResp.users : []);
+        } catch (e) {
+          console.warn('Failed to fetch cross-department admins:', e?.message || e);
+        }
+      }
+
+      const mergeUnique = (arr) => {
+        const byId = new Map();
+        for (const u of arr) {
+          const id = u.user_id ?? u.id ?? u.userId;
+          if (!id) continue;
+          if (!byId.has(id)) byId.set(id, u);
+        }
+        return Array.from(byId.values());
+      };
+
+      const combined = mergeUnique([...(baseList || []), ...(adminList || [])]);
+
       // Normalize user data with department info
-      let normalized = list.map(u => ({
+      let normalized = combined.map(u => ({
         user_id: u.user_id ?? u.id ?? u.userId,
         firstname: u.firstname ?? u.first_name ?? u.firstName,
         lastname: u.lastname ?? u.last_name ?? u.lastName,
@@ -189,7 +210,7 @@ const Upload = ({ role, onNavigateToDocuments }) => {
         email: u.user_email ?? u.email,
         full_name: `${(u.firstname ?? u.first_name ?? u.firstName) || ''} ${(u.lastname ?? u.last_name ?? u.lastName) || ''}`.trim()
       })).filter(u => u.user_id && u.firstname && u.lastname);
-      
+
       // Sort by name
       normalized = normalized.sort((a, b) => a.full_name.localeCompare(b.full_name));
       setUsers(normalized);

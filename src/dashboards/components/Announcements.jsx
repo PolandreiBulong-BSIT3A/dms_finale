@@ -131,6 +131,15 @@ const Announcements = ({ role, setActiveTab }) => {
         return;
       }
     }
+    // If NOT public, require at least one target department (Dean auto-scoped)
+    if (!formIsPublic && !isDean) {
+      const entered = parseDeptIds(deptInput);
+      const targets = (selectedDeptIds && selectedDeptIds.length ? selectedDeptIds : entered);
+      if (!targets || targets.length === 0) {
+        setError('Please select at least one department for a targeted announcement.');
+        return;
+      }
+    }
     
     setCreating(true);
     try {

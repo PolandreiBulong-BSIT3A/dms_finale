@@ -27,6 +27,11 @@ const Request = ({ onNavigateToUpload }) => {
   const [allUsers, setAllUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  // Admin/Dean filters
+  const [filterAssignedUserId, setFilterAssignedUserId] = useState('');
+  const [filterAssignedDeptId, setFilterAssignedDeptId] = useState('');
+  const [filterAssignedRole, setFilterAssignedRole] = useState('');
+  const [departments, setDepartments] = useState([]); // {department_id, name}
 
   useEffect(() => {
     const onResize = () => {
@@ -104,6 +109,26 @@ const Request = ({ onNavigateToUpload }) => {
       }
     };
     loadUsers();
+  }, []);
+
+  // Load departments for filtering (admin/dean)
+  React.useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const resp = await fetchJson(buildUrl('departments'));
+        let raw = [];
+        if (Array.isArray(resp?.departments)) raw = resp.departments;
+        else if (Array.isArray(resp)) raw = resp;
+        const normalized = raw.map(d => ({
+          department_id: Number(d.department_id ?? d.value ?? d.id),
+          name: d.name ?? d.label ?? d.code
+        })).filter(d => Number.isFinite(d.department_id) && d.name);
+        setDepartments(normalized);
+      } catch (_) {
+        setDepartments([]);
+      }
+    };
+    loadDepartments();
   }, []);
 
   const findUserByName = (createdByName) => {
@@ -216,10 +241,20 @@ const Request = ({ onNavigateToUpload }) => {
         (d.completed_by_name || '').toLowerCase().includes(q)
       );
     }
+    // Admin/Dean filters by assignment
+    if (filterAssignedUserId) {
+      list = list.filter(d => Array.isArray(d.assigned_user_ids) && d.assigned_user_ids.map(String).includes(String(filterAssignedUserId)));
+    }
+    if (filterAssignedDeptId) {
+      list = list.filter(d => Array.isArray(d.assigned_department_ids) && d.assigned_department_ids.map(String).includes(String(filterAssignedDeptId)));
+    }
+    if (filterAssignedRole) {
+      list = list.filter(d => Array.isArray(d.assigned_roles) && d.assigned_roles.map(r => String(r).toUpperCase()).includes(String(filterAssignedRole).toUpperCase()));
+    }
     
     // Apply sorting
     return sortItems(list, sortField, sortDirection);
-  }, [requestDocs, documents, search, viewMode, answeredDocs, sortField, sortDirection]);
+  }, [requestDocs, documents, search, viewMode, answeredDocs, sortField, sortDirection, filterAssignedUserId, filterAssignedDeptId, filterAssignedRole]);
 
   const handleSort = (field) => {
     if (sortField === field) {

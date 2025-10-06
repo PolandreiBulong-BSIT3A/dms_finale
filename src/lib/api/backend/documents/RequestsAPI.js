@@ -69,6 +69,9 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
         da.completed_at,
         da.completed_by_user_id,
         CONCAT(completed_user.firstname, ' ', completed_user.lastname) AS completed_by_name,
+        GROUP_CONCAT(DISTINCT da.assigned_to_user_id) AS assigned_user_ids,
+        GROUP_CONCAT(DISTINCT da.assigned_to_role) AS assigned_roles,
+        GROUP_CONCAT(DISTINCT da.assigned_to_department_id) AS assigned_department_ids,
         reply_doc.doc_id AS reply_doc_id,
         reply_doc.title AS reply_title,
         reply_doc.description AS reply_description,
@@ -98,13 +101,16 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
           )`;
         params.push(deptId, roleUpper, deptId);
       } else {
-        // Assigned-only view (default)
+        // Assigned-only view (default). Also include public items and items created by the current user
+        // so creators (e.g., Dean) can see their own requests even if not explicitly assigned back.
         sql += ` AND (
             (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
             OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
             OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
+            OR (d.visible_to_all = 1)
+            OR (d.created_by_user_id = ?)
           )`;
-        params.push(userId, deptId, roleUpper);
+        params.push(userId, deptId, roleUpper, userId);
       }
     }
 
@@ -130,6 +136,9 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
       completed_at: r.completed_at,
       completed_by_user_id: r.completed_by_user_id,
       completed_by_name: r.completed_by_name,
+      assigned_user_ids: (r.assigned_user_ids ? String(r.assigned_user_ids).split(',').filter(Boolean).map(x => Number(x)).filter(n => !Number.isNaN(n)) : []),
+      assigned_roles: (r.assigned_roles ? String(r.assigned_roles).split(',').filter(Boolean).map(s => String(s).toUpperCase()) : []),
+      assigned_department_ids: (r.assigned_department_ids ? String(r.assigned_department_ids).split(',').filter(Boolean).map(x => Number(x)).filter(n => !Number.isNaN(n)) : []),
       reply_title: r.reply_title,
       reply_description: r.reply_description,
       reply_google_drive_link: r.reply_google_drive_link,

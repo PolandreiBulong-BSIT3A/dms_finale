@@ -995,6 +995,8 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
 
   // Folder management functions
   const openAddFolderModal = () => {
+    // Prevent FACULTY from opening the add folder modal
+    if (isUser) return;
     setFolderModalMode('add');
     setFolderForm({ name: '', description: '' });
     setEditingFolder(null);
@@ -1002,6 +1004,8 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   };
 
   const openEditFolderModal = (folder) => {
+    // Prevent FACULTY from opening the edit folder modal
+    if (isUser) return;
     setFolderModalMode('edit');
     setFolderForm({ name: folder.name, description: folder.description || '' });
     setEditingFolder(folder);
