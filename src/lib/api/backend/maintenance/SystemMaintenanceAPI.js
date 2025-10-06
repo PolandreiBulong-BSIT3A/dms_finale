@@ -123,74 +123,76 @@ router.post('/system/backup', requireAuth, async (req, res) => {
     
     console.log(`Database backup initiated: ${backupName}`);
     
-    // Database connection details from connection.js
+    // Database connection details from environment or defaults
     const dbConfig = {
-      host: 'localhost',
-      user: 'root',
-      password: '',
-      database: 'ispsc_tagudin_dms_2'
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'ispsc_tagudin_dms_2'
     };
     
-    // Create mysqldump command
-    const mysqldumpPath = 'C:\\xampp\\mysql\\bin\\mysqldump.exe';
-    let command = `"${mysqldumpPath}" --host=${dbConfig.host} --user=${dbConfig.user}`;
+    // Try multiple mysqldump paths
+    const mysqldumpPaths = [
+      'C:\\xampp\\mysql\\bin\\mysqldump.exe',
+      'C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe',
+      'C:\\Program Files\\MySQL\\MySQL Server 5.7\\bin\\mysqldump.exe',
+      'mysqldump' // System PATH
+    ];
     
-    if (dbConfig.password) {
-      command += ` --password="${dbConfig.password}"`;
-    }
+    let backupSuccess = false;
+    let lastError = null;
     
-    command += ` --single-transaction --routines --triggers ${dbConfig.database} > "${backupPath}"`;
-    
-    try {
-      // Execute mysqldump
-      await execAsync(command);
-      
-      // Check if backup file was created and get its size
-      const stats = fs.statSync(backupPath);
-      const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
-      
-      console.log(`Backup completed: ${backupName} (${fileSizeInMB} MB)`);
-      
-      res.json({ 
-        success: true, 
-        message: 'Database backup completed successfully',
-        backupName,
-        size: `${fileSizeInMB} MB`,
-        path: backupPath,
-        timestamp: new Date().toISOString()
-      });
-    } catch (execError) {
-      console.error('Mysqldump error:', execError);
-      
-      // Fallback: Try alternative mysqldump path
-      const altMysqldumpPath = 'mysqldump';
-      let altCommand = `${altMysqldumpPath} --host=${dbConfig.host} --user=${dbConfig.user}`;
-      
-      if (dbConfig.password) {
-        altCommand += ` --password="${dbConfig.password}"`;
-      }
-      
-      altCommand += ` --single-transaction --routines --triggers ${dbConfig.database} > "${backupPath}"`;
-      
+    for (const mysqldumpPath of mysqldumpPaths) {
       try {
-        await execAsync(altCommand);
-        const stats = fs.statSync(backupPath);
-        const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+        let command = `"${mysqldumpPath}" --host=${dbConfig.host} --user=${dbConfig.user}`;
         
-        console.log(`Backup completed with alternative path: ${backupName} (${fileSizeInMB} MB)`);
+        if (dbConfig.password) {
+          command += ` --password="${dbConfig.password}"`;
+        }
         
-        res.json({ 
-          success: true, 
-          message: 'Database backup completed successfully',
-          backupName,
-          size: `${fileSizeInMB} MB`,
-          path: backupPath,
-          timestamp: new Date().toISOString()
-        });
-      } catch (altError) {
-        throw new Error(`Mysqldump failed: ${altError.message}. Please ensure MySQL is installed and accessible.`);
+        command += ` --single-transaction --routines --triggers --add-drop-table ${dbConfig.database} > "${backupPath}"`;
+        
+        console.log(`Trying mysqldump path: ${mysqldumpPath}`);
+        await execAsync(command);
+        
+        // Check if backup file was created and has content
+        if (fs.existsSync(backupPath)) {
+          const stats = fs.statSync(backupPath);
+          
+          if (stats.size > 0) {
+            const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+            console.log(`Backup completed: ${backupName} (${fileSizeInMB} MB)`);
+            
+            backupSuccess = true;
+            return res.json({ 
+              success: true, 
+              message: 'Database backup completed successfully',
+              backupName,
+              size: `${fileSizeInMB} MB`,
+              path: backupPath,
+              timestamp: new Date().toISOString()
+            });
+          } else {
+            // Empty file, try next path
+            fs.unlinkSync(backupPath);
+            lastError = 'Backup file was empty';
+            continue;
+          }
+        } else {
+          lastError = 'Backup file was not created';
+          continue;
+        }
+      } catch (execError) {
+        console.error(`Failed with ${mysqldumpPath}:`, execError.message);
+        lastError = execError.message;
+        // Try next path
+        continue;
       }
     }
+    
+    // If we get here, all paths failed
+    throw new Error(`All mysqldump paths failed. Last error: ${lastError}. Please ensure MySQL/XAMPP is running and mysqldump is accessible.`);
+    
   } catch (error) {
     console.error('Error creating backup:', error);
     res.status(500).json({ 
