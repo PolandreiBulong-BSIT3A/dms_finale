@@ -17,16 +17,8 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotificationSession, refreshNotificationsImmediately } = useNotifications();
   const { user, logout } = useUser();
 
-  // Debug: Log notifications whenever they change
-  useEffect(() => {
-    console.log('Navbar notifications updated:', notifications);
-    console.log('Notifications length:', notifications.length);
-    console.log('Notifications array:', notifications);
-  }, [notifications]);
-
   // Set department name from user context
   useEffect(() => {
-    console.log('Navbar user object:', user);
     if (user?.department_name) {
       setDepartmentName(user.department_name);
     } else {
@@ -95,7 +87,9 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
       const body = encodeURIComponent(
         `Describe the issue:\n\nSteps to reproduce:\n1. \n2. \n3. \n\nExpected result:\n\nActual result:\n\nScreenshots/Attachments (if any):\n\nBrowser/OS:`
       );
-      window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+      // Open Gmail compose directly
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${subject}&body=${body}`;
+      window.open(gmailUrl, '_blank', 'noopener');
     } catch (e) {
       console.error('handleReportBug error:', e);
     }
@@ -248,10 +242,7 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
                       )}
                       <button 
                         className="refresh-btn"
-                        onClick={() => {
-                          refreshNotificationsImmediately();
-                          console.log('Refreshing notifications...');
-                        }}
+                        onClick={refreshNotificationsImmediately}
                         title="Refresh notifications"
                       >
                         <FiRefreshCw size={14} />

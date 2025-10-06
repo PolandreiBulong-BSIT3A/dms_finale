@@ -52,6 +52,11 @@ const Profile = () => {
     updatedAt: ''
   });
 
+  // Profile icon picker state
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [availableIcons, setAvailableIcons] = useState([]);
+  const [iconsLoading, setIconsLoading] = useState(false);
+
 
   // Department options - will be fetched from API
   const [departmentOptions, setDepartmentOptions] = useState([]);
@@ -111,17 +116,51 @@ const Profile = () => {
     }
   }, [contextUser]);
 
-  // Fetch departments on component mount
+  // Fetch departments and icons on component mount
   useEffect(() => {
     fetchDepartments();
+    fetchProfileIcons();
   }, []);
 
-  // Debug effect to log department options changes
-  useEffect(() => {}, [departmentOptions]);
+  // Fetch profile icons from others table
+  const fetchProfileIcons = async () => {
+    try {
+      setIconsLoading(true);
+      const data = await fetchJson(buildUrl('others/ICON'));
+      if (data.success && Array.isArray(data.items)) {
+        setAvailableIcons(data.items);
+      }
+    } catch (error) {
+      console.error('Error fetching profile icons:', error);
+    } finally {
+      setIconsLoading(false);
+    }
+  };
 
+  // Handle profile icon selection
+  const handleIconSelect = async (iconUrl) => {
+    try {
+      setFormData(prev => ({ ...prev, profilePic: iconUrl }));
+      
+      // Save to backend immediately
+      const data = await fetchJson(buildUrl('users/update-profile-picture'), {
+        method: 'PUT',
+        body: JSON.stringify({ profilePic: iconUrl })
+      });
+      
+      if (data.success) {
+        updateUser({ ...contextUser, profilePic: iconUrl });
+        setMessage({ text: 'Profile icon updated!', type: 'success', show: true });
+        setShowIconPicker(false);
+      } else {
+        setMessage({ text: data.message || 'Failed to update icon', type: 'danger', show: true });
+      }
+    } catch (error) {
+      console.error('Error updating profile icon:', error);
+      setMessage({ text: 'Failed to update icon', type: 'danger', show: true });
+    }
+  };
 
-  // Debug effect to log formData changes
-  useEffect(() => {}, [formData]);
 
   const handleInputChange = (field, value) => {
     // Special validation for contact number
@@ -362,60 +401,42 @@ const Profile = () => {
 
   // Get department display name
 const getDepartmentDisplayName = (departmentId) => {
-  console.log('Getting department display name for:', departmentId);
-  console.log('Available department options:', departmentOptions);
-
   if (!departmentId) return 'Not assigned';
 
   const opts = Array.isArray(departmentOptions) ? departmentOptions : [];
-  const idStr = String(departmentId ?? '').toLowerCase();
+  
+  // Convert departmentId to number for comparison
+  const idNum = Number(departmentId);
+  
+  // Try to find by numeric value match
+  let dept = opts.find(opt => Number(opt?.value) === idNum);
 
-  // Try to find by exact value match first
-  let dept = opts.find(opt => opt?.value === departmentId);
-
-  // If not found, try a safe string comparison on value
+  // If not found, try string comparison
   if (!dept) {
-    dept = opts.find(opt => String(opt?.value ?? '').toLowerCase() === idStr);
+    const idStr = String(departmentId);
+    dept = opts.find(opt => String(opt?.value) === idStr);
   }
-
-  // If still not found, try to find by label (case-insensitive, includes)
-  if (!dept) {
-    const labelMatch = opts.find(opt => String(opt?.label ?? '').toLowerCase().includes(idStr));
-    if (labelMatch) dept = labelMatch;
-  }
-
-  console.log('Found department:', dept);
 
   if (dept?.label) {
     return dept.label;
   }
-  // For debugging: show both the ID and available options
-  console.warn(`Department ID ${departmentId} not found in options:`, opts);
+  
   return `Department ID: ${departmentId} (Name not found)`;
 };
 
   // Get current department name for display
   const getCurrentDepartmentName = () => {
-    console.log('Getting current department name...');
-    console.log('Department options count:', departmentOptions.length);
-    console.log('Form data department:', formData.department);
-    console.log('Context user department_name:', contextUser?.department_name);
-    
     // If departments haven't loaded yet, try to show from context
     if (departmentOptions.length === 0 && contextUser?.department_name) {
-      console.log('Using department_name from context:', contextUser.department_name);
       return contextUser.department_name;
     }
     
     // If we have department options, use the lookup function
     if (departmentOptions.length > 0) {
-      const result = getDepartmentDisplayName(formData.department);
-      console.log('Lookup result:', result);
-      return result;
+      return getDepartmentDisplayName(formData.department);
     }
     
     // Fallback: show the raw value
-    console.log('Using fallback value:', formData.department || 'Loading departments...');
     return formData.department || 'Loading departments...';
   };
 
@@ -497,25 +518,55 @@ const getDepartmentDisplayName = (departmentId) => {
                       height: isMobile ? '72px' : '80px', 
                       objectFit: 'cover',
                       border: '3px solid #ffffff',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      cursor: 'pointer'
                     }}
+                    onClick={() => setShowIconPicker(true)}
+                    title="Click to change profile icon"
                   />
                 ) : (
-                  <div style={{
-                    width: isMobile ? '72px' : '80px',
-                    height: isMobile ? '72px' : '80px',
-                    borderRadius: '50%',
-                    backgroundColor: '#e9ecef',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '3px solid #ffffff',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                  }}>
+                  <div 
+                    style={{
+                      width: isMobile ? '72px' : '80px',
+                      height: isMobile ? '72px' : '80px',
+                      borderRadius: '50%',
+                      backgroundColor: '#e9ecef',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '3px solid #ffffff',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setShowIconPicker(true)}
+                    title="Click to choose profile icon"
+                  >
                     <FiUser size={32} color="#6c757d" />
                   </div>
                 )}
                 
+                {/* Edit icon overlay */}
+                <div 
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    backgroundColor: '#007bff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    border: '2px solid #ffffff'
+                  }}
+                  onClick={() => setShowIconPicker(true)}
+                  title="Change profile icon"
+                >
+                  <FiEdit3 size={14} color="#ffffff" />
+                </div>
               </div>
 
               {/* User Info */}
@@ -1028,6 +1079,121 @@ const getDepartmentDisplayName = (departmentId) => {
             </Row>
           </Form>
         </div>
+
+        {/* Profile Icon Picker Modal */}
+        {showIconPicker && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1050,
+            padding: '20px'
+          }}>
+            <div style={{
+              backgroundColor: '#ffffff',
+              padding: '2rem',
+              borderRadius: '25px',
+              maxWidth: '600px',
+              width: '100%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.15)'
+            }}>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h4 style={{ margin: 0, fontWeight: 600 }}>Choose Profile Icon</h4>
+                <button
+                  onClick={() => setShowIconPicker(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '1.5rem',
+                    cursor: 'pointer',
+                    color: '#6c757d',
+                    padding: 0,
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                >
+                  ×
+                </button>
+              </div>
+
+              {iconsLoading ? (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading icons...</span>
+                  </div>
+                  <p className="mt-3 text-muted">Loading icons...</p>
+                </div>
+              ) : availableIcons.length === 0 ? (
+                <div className="text-center py-5">
+                  <p className="text-muted">No icons available</p>
+                </div>
+              ) : (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+                  gap: '1rem'
+                }}>
+                  {availableIcons.map((icon) => (
+                    <div
+                      key={icon.other_id}
+                      onClick={() => handleIconSelect(icon.link)}
+                      style={{
+                        cursor: 'pointer',
+                        borderRadius: '12px',
+                        padding: '8px',
+                        border: formData.profilePic === icon.link ? '3px solid #007bff' : '2px solid #e9ecef',
+                        transition: 'all 0.2s',
+                        backgroundColor: formData.profilePic === icon.link ? '#f0f8ff' : '#ffffff'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (formData.profilePic !== icon.link) {
+                          e.currentTarget.style.borderColor = '#007bff';
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (formData.profilePic !== icon.link) {
+                          e.currentTarget.style.borderColor = '#e9ecef';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }
+                      }}
+                    >
+                      <img
+                        src={icon.link}
+                        alt={icon.other_name}
+                        style={{
+                          width: '100%',
+                          height: '64px',
+                          objectFit: 'cover',
+                          borderRadius: '8px'
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:64px;color:#6c757d;">❌</div>';
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Delete Account Confirmation Modal */}
         {showDeleteModal && (

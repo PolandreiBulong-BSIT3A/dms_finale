@@ -322,6 +322,32 @@ router.put('/users/update-profile', requireAuth, async (req, res) => {
   }
 });
 
+// PUT /api/users/update-profile-picture
+router.put('/users/update-profile-picture', requireAuth, async (req, res) => {
+  try {
+    const { profilePic } = req.body;
+    const user = req.currentUser || req.user;
+    
+    if (!user || !user.email) {
+      return res.status(401).json({ success: false, message: 'User not authenticated.' });
+    }
+    
+    if (!profilePic) {
+      return res.status(400).json({ success: false, message: 'Profile picture URL is required.' });
+    }
+
+    await db.promise().query(
+      'UPDATE dms_user SET profile_pic = ? WHERE user_email = ?',
+      [profilePic, user.email]
+    );
+
+    res.json({ success: true, message: 'Profile picture updated successfully.' });
+  } catch (error) {
+    console.error('Error updating profile picture:', error);
+    res.status(500).json({ success: false, message: 'Database error.' });
+  }
+});
+
 // PUT /api/users/:id
 router.put('/users/:id', requireAuth, async (req, res) => {
   try {
