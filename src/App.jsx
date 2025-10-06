@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Login from './login_system/login.jsx'
 import Dashboard from './dashboards/Dashboard.jsx'
@@ -13,8 +13,6 @@ import { buildUrl, fetchJson } from './lib/api/frontend/client.js'
 import './App.css'
 
 function App() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
@@ -88,49 +86,6 @@ function App() {
     };
   }, []);
 
-  // Redirect to maintenance page when maintenance mode is enabled
-  useEffect(() => {
-    if (loading) return; // Don't redirect while loading
-    
-    const isAdmin = userRole && userRole.toLowerCase() === 'admin'; // ONLY ADMIN, not dean
-    const isOnMaintenancePage = location.pathname === '/maintenance';
-    
-    console.log('Maintenance check:', {
-      maintenanceMode,
-      userRole,
-      isAdmin,
-      currentPath: location.pathname,
-      isOnMaintenancePage
-    });
-    
-    // If maintenance is ON
-    if (maintenanceMode) {
-      // ONLY Admins can access everything during maintenance
-      if (isAdmin) {
-        // If admin is on maintenance page, redirect them to dashboard
-        if (isOnMaintenancePage) {
-          console.log('Admin on maintenance page - redirecting to dashboard');
-          navigate('/dashboard', { replace: true });
-        }
-        return;
-      }
-      
-      // Everyone else (including Dean): redirect to maintenance page
-      if (!isOnMaintenancePage) {
-        console.log('Maintenance ON - redirecting to maintenance page');
-        navigate('/maintenance', { replace: true });
-      }
-    } 
-    // If maintenance is OFF
-    else {
-      // If someone is on maintenance page, redirect to login
-      if (isOnMaintenancePage) {
-        console.log('Maintenance OFF - redirecting from maintenance page to login');
-        navigate('/login', { replace: true });
-      }
-    }
-  }, [maintenanceMode, userRole, location.pathname, navigate, loading]);
-
   // Show loading while checking maintenance status
   if (loading) {
     return (
@@ -150,6 +105,13 @@ function App() {
   console.log('Debug - maintenanceMode:', maintenanceMode);
   console.log('Debug - userRole:', userRole);
   console.log('Debug - loading:', loading);
+
+  // If maintenance mode is active and user is NOT admin/dean, show maintenance page
+  const isAdmin = userRole && (userRole.toLowerCase() === 'admin' || userRole.toLowerCase() === 'dean');
+  
+  if (maintenanceMode && !isAdmin) {
+    return <MaintenancePage />;
+  }
 
   return (
     <UserProvider>
