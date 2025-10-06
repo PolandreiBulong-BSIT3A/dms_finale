@@ -5,6 +5,11 @@ import { FaTools, FaCog, FaServer, FaRedo, FaUserShield, FaEnvelope, FaPhone, Fa
 const MaintenancePage = ({ isAdminView = false }) => {
   const [userRole, setUserRole] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [maintenanceInfo, setMaintenanceInfo] = useState({
+    message: 'We\'re currently performing scheduled maintenance to improve your experience',
+    endTime: null,
+    estimatedDuration: '30-60 minutes'
+  });
 
   const handleLogout = async () => {
     try {
@@ -47,8 +52,48 @@ const MaintenancePage = ({ isAdminView = false }) => {
       }
     };
 
+    const fetchMaintenanceInfo = async () => {
+      try {
+        const response = await fetch(buildUrl('system/maintenance-settings'), {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setMaintenanceInfo({
+              message: data.maintenanceMessage || 'We\'re currently performing scheduled maintenance to improve your experience',
+              endTime: data.maintenanceEndTime,
+              estimatedDuration: calculateDuration(data.maintenanceEndTime)
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching maintenance info:', error);
+      }
+    };
+
     checkUserRole();
+    fetchMaintenanceInfo();
   }, []);
+
+  const calculateDuration = (endTime) => {
+    if (!endTime) return '30-60 minutes';
+    
+    const end = new Date(endTime);
+    const now = new Date();
+    const diffMs = end - now;
+    
+    if (diffMs <= 0) return 'Almost ready';
+    
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    
+    if (diffHours > 0) {
+      const mins = diffMins % 60;
+      return `${diffHours} hour${diffHours > 1 ? 's' : ''}${mins > 0 ? ` ${mins} min` : ''}`;
+    }
+    return `${diffMins} minute${diffMins !== 1 ? 's' : ''}`;
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -88,7 +133,7 @@ const MaintenancePage = ({ isAdminView = false }) => {
             </div>
           ) : (
             <p style={styles.subtitle}>
-              We're currently performing scheduled maintenance to improve your experience
+              {maintenanceInfo.message}
             </p>
           )}
         </div>
@@ -110,8 +155,16 @@ const MaintenancePage = ({ isAdminView = false }) => {
             </div>
             <div style={styles.statusItem}>
               <span style={styles.statusLabel}>Estimated Duration:</span>
-              <span style={styles.statusValue}>30-60 minutes</span>
+              <span style={styles.statusValue}>{maintenanceInfo.estimatedDuration}</span>
             </div>
+            {maintenanceInfo.endTime && (
+              <div style={styles.statusItem}>
+                <span style={styles.statusLabel}>Expected Completion:</span>
+                <span style={styles.statusValue}>
+                  {new Date(maintenanceInfo.endTime).toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

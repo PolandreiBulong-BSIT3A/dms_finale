@@ -108,7 +108,7 @@ router.post('/system/cache/clear', requireAuth, async (req, res) => {
   }
 });
 
-// Database backup
+// Database backup - Pure JavaScript (no mysqldump needed)
 router.post('/system/backup', requireAuth, async (req, res) => {
   try {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -123,75 +123,66 @@ router.post('/system/backup', requireAuth, async (req, res) => {
     
     console.log(`Database backup initiated: ${backupName}`);
     
-    // Database connection details from environment or defaults
-    const dbConfig = {
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'ispsc_tagudin_dms_2'
-    };
+    let sqlContent = `-- Database Backup\n`;
+    sqlContent += `-- Generated: ${new Date().toISOString()}\n`;
+    sqlContent += `-- Database: ${process.env.DB_NAME || 'ispsc_tagudin_dms_2'}\n\n`;
+    sqlContent += `SET FOREIGN_KEY_CHECKS=0;\n\n`;
     
-    // Try multiple mysqldump paths
-    const mysqldumpPaths = [
-      'C:\\xampp\\mysql\\bin\\mysqldump.exe',
-      'C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe',
-      'C:\\Program Files\\MySQL\\MySQL Server 5.7\\bin\\mysqldump.exe',
-      'mysqldump' // System PATH
-    ];
+    // Get all tables
+    const [tables] = await db.promise().query('SHOW TABLES');
+    const tableKey = Object.keys(tables[0])[0];
     
-    let backupSuccess = false;
-    let lastError = null;
-    
-    for (const mysqldumpPath of mysqldumpPaths) {
-      try {
-        let command = `"${mysqldumpPath}" --host=${dbConfig.host} --user=${dbConfig.user}`;
+    for (const tableRow of tables) {
+      const tableName = tableRow[tableKey];
+      
+      // Get CREATE TABLE statement
+      const [createTable] = await db.promise().query(`SHOW CREATE TABLE \`${tableName}\``);
+      sqlContent += `-- Table: ${tableName}\n`;
+      sqlContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
+      sqlContent += `${createTable[0]['Create Table']};\n\n`;
+      
+      // Get table data
+      const [rows] = await db.promise().query(`SELECT * FROM \`${tableName}\``);
+      
+      if (rows.length > 0) {
+        sqlContent += `-- Data for table: ${tableName}\n`;
         
-        if (dbConfig.password) {
-          command += ` --password="${dbConfig.password}"`;
-        }
-        
-        command += ` --single-transaction --routines --triggers --add-drop-table ${dbConfig.database} > "${backupPath}"`;
-        
-        console.log(`Trying mysqldump path: ${mysqldumpPath}`);
-        await execAsync(command);
-        
-        // Check if backup file was created and has content
-        if (fs.existsSync(backupPath)) {
-          const stats = fs.statSync(backupPath);
+        for (const row of rows) {
+          const columns = Object.keys(row);
+          const values = columns.map(col => {
+            const val = row[col];
+            if (val === null) return 'NULL';
+            if (typeof val === 'number') return val;
+            if (val instanceof Date) return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
+            // Escape single quotes and backslashes
+            const escaped = String(val).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `'${escaped}'`;
+          });
           
-          if (stats.size > 0) {
-            const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
-            console.log(`Backup completed: ${backupName} (${fileSizeInMB} MB)`);
-            
-            backupSuccess = true;
-            return res.json({ 
-              success: true, 
-              message: 'Database backup completed successfully',
-              backupName,
-              size: `${fileSizeInMB} MB`,
-              path: backupPath,
-              timestamp: new Date().toISOString()
-            });
-          } else {
-            // Empty file, try next path
-            fs.unlinkSync(backupPath);
-            lastError = 'Backup file was empty';
-            continue;
-          }
-        } else {
-          lastError = 'Backup file was not created';
-          continue;
+          sqlContent += `INSERT INTO \`${tableName}\` (\`${columns.join('`, `')}\`) VALUES (${values.join(', ')});\n`;
         }
-      } catch (execError) {
-        console.error(`Failed with ${mysqldumpPath}:`, execError.message);
-        lastError = execError.message;
-        // Try next path
-        continue;
+        sqlContent += `\n`;
       }
     }
     
-    // If we get here, all paths failed
-    throw new Error(`All mysqldump paths failed. Last error: ${lastError}. Please ensure MySQL/XAMPP is running and mysqldump is accessible.`);
+    sqlContent += `SET FOREIGN_KEY_CHECKS=1;\n`;
+    
+    // Write to file
+    fs.writeFileSync(backupPath, sqlContent, 'utf8');
+    
+    const stats = fs.statSync(backupPath);
+    const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+    
+    console.log(`Backup completed: ${backupName} (${fileSizeInMB} MB)`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Database backup completed successfully',
+      backupName,
+      size: `${fileSizeInMB} MB`,
+      path: backupPath,
+      timestamp: new Date().toISOString()
+    });
     
   } catch (error) {
     console.error('Error creating backup:', error);
