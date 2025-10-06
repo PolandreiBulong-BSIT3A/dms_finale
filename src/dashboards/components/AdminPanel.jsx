@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './AdminPanel.css';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { fetchWithRetry } from '../../lib/api/frontend/http.js';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
@@ -92,6 +93,8 @@ const AdminPanel = ({ role }) => {
   const [savingMaintenance, setSavingMaintenance] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [previewText, setPreviewText] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isEditingMaintenance, setIsEditingMaintenance] = useState(false);
   const [systemStats, setSystemStats] = useState({});
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [loadingBackup, setLoadingBackup] = useState(false);
@@ -212,6 +215,8 @@ const AdminPanel = ({ role }) => {
   };
 
   const fetchMaintenanceSettings = async () => {
+    // Do not overwrite fields while user is editing in modal
+    if (showMaintenanceModal || isEditingMaintenance) return;
     try {
       const data = await fetchJson(buildUrl('maintenance/status'));
       const msg = data.maintenanceMessage || '';
@@ -296,19 +301,22 @@ const AdminPanel = ({ role }) => {
 
   const handleToggleMaintenanceMode = () => {
     // Open modal to configure maintenance settings
+    setIsEditingMaintenance(true);
     setShowMaintenanceModal(true);
   };
   const handleSaveMaintenanceMode = async () => {
     setSavingMaintenance(true);
     setValidationError('');
+    setSuccessMessage('');
     try {
+      const disabling = maintenanceMode === true; // current state
       const data = await fetchJson(buildUrl('system/maintenance'), {
         method: 'POST',
         body: JSON.stringify({ 
           enabled: !maintenanceMode,
           maintenanceMessage,
-          maintenanceStartTime: maintenanceStartTime ? new Date(maintenanceStartTime).toISOString() : null,
-          maintenanceEndTime: maintenanceEndTime ? new Date(maintenanceEndTime).toISOString() : null
+          maintenanceStartTime: disabling ? null : (maintenanceStartTime ? new Date(maintenanceStartTime).toISOString() : null),
+          maintenanceEndTime: disabling ? null : (maintenanceEndTime ? new Date(maintenanceEndTime).toISOString() : null)
         })
       });
       setMaintenanceMode(data.maintenanceMode);
@@ -321,8 +329,13 @@ const AdminPanel = ({ role }) => {
             setMaintenanceEndTime(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
           }
         }
-      alert(data.message || 'Maintenance mode updated');
-      setShowMaintenanceModal(false);
+      setSuccessMessage(data.message || 'Maintenance mode updated');
+      // Auto-close the modal shortly after success to avoid disruptive alerts
+      setTimeout(() => {
+        setShowMaintenanceModal(false);
+        setSuccessMessage('');
+        setIsEditingMaintenance(false);
+      }, 1200);
     } catch (error) {
       console.error('Error toggling maintenance mode:', error);
       setValidationError(error.message || 'Failed to toggle maintenance mode');
@@ -359,10 +372,14 @@ const AdminPanel = ({ role }) => {
           maintenanceEndTime: maintenanceEndTime ? new Date(maintenanceEndTime).toISOString() : null
         })
       });
-      alert('Maintenance settings saved');
+      setSuccessMessage('Maintenance settings saved');
+      setTimeout(() => {
+        setShowMaintenanceModal(false);
+        setSuccessMessage('');
+      }, 1200);
     } catch (error) {
       console.error('Error saving maintenance settings:', error);
-      alert('Failed to save maintenance settings');
+      setValidationError('Failed to save maintenance settings');
     } finally {
       setSavingMaintenance(false);
     }
@@ -742,7 +759,7 @@ const AdminPanel = ({ role }) => {
   const tabs = getTabsForRole(role);
 
   const StatCard = ({ title, value, icon: Icon, color, trend }) => (
-    <div style={styles.statCard}>
+    <div style={styles.statCard} className="ap-card">
       <div style={styles.statIcon}>
         <Icon size={24} color={color} />
       </div>
@@ -778,7 +795,7 @@ const AdminPanel = ({ role }) => {
   const DocumentsTab = () => (
     <div style={styles.tabContent}>
       {/* Document Types Section */}
-      <div style={styles.section}>
+      <div style={styles.section} className="ap-form">
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Document Types</h2>
           <button style={styles.primaryBtn} onClick={handleAddDocumentType}>
@@ -787,7 +804,7 @@ const AdminPanel = ({ role }) => {
           </button>
         </div>
         
-        <div style={styles.tableContainer}>
+        <div style={styles.tableContainer} className="ap-table-wrap">
           <table style={styles.table}>
             <thead>
               <tr style={styles.tableHeader}>
@@ -847,7 +864,7 @@ const AdminPanel = ({ role }) => {
                       </td>
                       <td style={styles.td}>{docType.created_at ? new Date(docType.created_at).toLocaleDateString() : 'N/A'}</td>
                       <td style={styles.td}>
-                        <div style={styles.actionButtons}>
+                        <div style={styles.actionButtons} className="ap-actions">
                           <button 
                             style={styles.editBtn} 
                             onClick={() => handleEditDocumentType(docType)}
@@ -924,7 +941,7 @@ const AdminPanel = ({ role }) => {
           </button>
         </div>
         
-        <div style={styles.tableContainer}>
+        <div style={styles.tableContainer} className="ap-table-wrap">
           <table style={styles.table}>
             <thead>
               <tr style={styles.tableHeader}>
@@ -986,7 +1003,7 @@ const AdminPanel = ({ role }) => {
                       <td style={styles.td}>{new Date(folder.created_at).toLocaleDateString()}</td>
                       <td style={styles.td}>{new Date(folder.updated_at).toLocaleDateString()}</td>
                       <td style={styles.td}>
-                        <div style={styles.actionButtons}>
+                        <div style={styles.actionButtons} className="ap-actions">
                           <button 
                             style={styles.editBtn} 
                             onClick={() => handleEditFolder(folder)}
@@ -1149,34 +1166,20 @@ const AdminPanel = ({ role }) => {
 
   const MaintenanceTab = () => (
     <div style={styles.tabContent}>
-      <div style={styles.sectionHeader}>
-        <h2 style={styles.sectionTitle}>Maintenance Controls</h2>
-      </div>
-
-      <div style={styles.section}>
         <div style={styles.subsectionHeader}>
-          <h3 style={styles.subsectionTitle}>Mode</h3>
-          <div>
-            <label style={{marginRight: 8}}>Status:</label>
-            <button 
-              style={{...styles.secondaryBtn, backgroundColor: maintenanceMode ? '#fee2e2' : '#e5e7eb', color: maintenanceMode ? '#b91c1c' : '#111827'}} 
-              onClick={handleToggleMaintenanceMode}
-              title={maintenanceMode ? 'Disable Maintenance' : 'Enable Maintenance'}
-            >
-              {maintenanceMode ? 'Disable' : 'Enable'}
-            </button>
-          </div>
+          <h3 style={styles.subsectionTitle}>Maintenance Controls</h3>
         </div>
 
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Maintenance Message (optional)</label>
-          <textarea
-            style={{...styles.input, minHeight: 80, resize: 'vertical'}}
-            placeholder="Short note users will see on the maintenance screen"
-            value={maintenanceMessage}
-            onChange={(e)=>setMaintenanceMessage(e.target.value)}
-          />
-        </div>
+        <div style={styles.section}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Maintenance Message (optional)</label>
+            <textarea
+              style={{...styles.input, minHeight: 80, resize: 'vertical'}}
+              placeholder="Short note users will see on the maintenance screen"
+              value={maintenanceMessage}
+              onChange={(e)=>setMaintenanceMessage(e.target.value)}
+            />
+          </div>
 
         <div style={styles.formGroup}>
           <label style={styles.label}>Maintenance Start Time (optional)</label>
@@ -1281,7 +1284,7 @@ const AdminPanel = ({ role }) => {
           Add Action
         </button>
       </div>
-      <div style={styles.tableContainer}>
+      <div style={styles.tableContainer} className="ap-table-wrap">
         <table style={styles.table}>
           <thead>
             <tr style={styles.tableHeader}>
@@ -1915,61 +1918,72 @@ const AdminPanel = ({ role }) => {
           </button>
         </div>
 
-        <div style={{...styles.actionCard, minHeight: '220px'}}>
-          <div style={styles.actionHeader}>
-            <FiAlertTriangle size={24} color={maintenanceMode ? '#ef4444' : '#10b981'} />
-            <h4 style={styles.actionTitle}>Maintenance Mode</h4>
+        <div style={{...styles.actionCard, border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px'}}>
+          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px'}}>
+            <FiAlertTriangle size={32} color={maintenanceMode ? '#ef4444' : '#10b981'} />
           </div>
           
-          <div style={{marginBottom: '12px'}}>
-            <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px'}}>
-              <span style={{fontSize: '14px', fontWeight: '500', color: '#374151'}}>Status:</span>
-              <span style={{
-                ...styles.statusBadge,
-                backgroundColor: maintenanceMode ? '#fee2e2' : '#dcfce7',
-                color: maintenanceMode ? '#dc2626' : '#166534'
-              }}>
-                {maintenanceMode ? 'ACTIVE' : 'INACTIVE'}
-              </span>
-            </div>
-            {maintenanceMessage && (
-              <p style={{fontSize: '13px', color: '#6b7280', margin: '4px 0', fontStyle: 'italic'}}>
-                "{maintenanceMessage}"
-              </p>
-            )}
-            {maintenanceEndTime && (
-              <p style={{fontSize: '12px', color: '#9ca3af', margin: '4px 0'}}>
-                Ends: {new Date(maintenanceEndTime).toLocaleString()}
-              </p>
-            )}
+          <h4 style={{...styles.actionTitle, textAlign: 'center', marginBottom: '16px', fontSize: '18px'}}>Maintenance Mode</h4>
+          
+          <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '20px'}}>
+            <span style={{fontSize: '14px', fontWeight: '500', color: '#6b7280'}}>Status:</span>
+            <span style={{
+              padding: '6px 16px',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: '600',
+              backgroundColor: maintenanceMode ? '#fee2e2' : '#dcfce7',
+              color: maintenanceMode ? '#dc2626' : '#059669'
+            }}>
+              {maintenanceMode ? 'ACTIVE' : 'INACTIVE'}
+            </span>
           </div>
           
-          <div style={{display: 'flex', gap: '8px', marginTop: 'auto'}}>
+          {maintenanceMessage && (
+            <p style={{fontSize: '13px', color: '#6b7280', margin: '0 0 12px 0', fontStyle: 'italic', textAlign: 'center'}}>
+              "{maintenanceMessage}"
+            </p>
+          )}
+          {maintenanceEndTime && (
+            <p style={{fontSize: '12px', color: '#9ca3af', margin: '0 0 16px 0', textAlign: 'center'}}>
+              Ends: {new Date(maintenanceEndTime).toLocaleString()}
+            </p>
+          )}
+          
+          <div style={{display: 'flex', gap: '8px'}}>
             <button 
               style={{
                 ...styles.actionButton,
                 backgroundColor: maintenanceMode ? '#ef4444' : '#10b981',
                 color: 'white',
-                flex: 1
+                flex: 1,
+                padding: '12px 20px',
+                fontSize: '15px',
+                fontWeight: '500'
               }}
               onClick={handleToggleMaintenanceMode}
             >
-              {maintenanceMode ? 'Configure/Disable' : 'Configure/Enable'}
+              Configure/Enable
             </button>
             <button
               style={{
                 ...styles.actionButton,
                 backgroundColor: '#f3f4f6',
                 color: '#374151',
-                padding: '10px 16px'
+                padding: '12px 16px',
+                opacity: showMaintenanceModal ? 0.5 : 1,
+                cursor: showMaintenanceModal ? 'not-allowed' : 'pointer'
               }}
               onClick={() => {
-                fetchMaintenanceMode();
-                fetchMaintenanceSettings();
+                if (!showMaintenanceModal) {
+                  fetchMaintenanceMode();
+                  fetchMaintenanceSettings();
+                }
               }}
+              disabled={showMaintenanceModal}
               title="Refresh status"
             >
-              <FiRefreshCw size={16} />
+              <FiRefreshCw size={18} />
             </button>
           </div>
         </div>
@@ -2033,10 +2047,10 @@ const AdminPanel = ({ role }) => {
             rows={3}
             placeholder="Enter a message to display to users (optional)"
             value={maintenanceMessage}
-            onChange={(e) => setMaintenanceMessage(e.target.value)}
+            onChange={(e) => { setMaintenanceMessage(e.target.value); setIsEditingMaintenance(true); }}
           />
           <Form.Text className="text-muted">
-            This message will be shown on the maintenance page.
+            This message appears on the Login maintenance screen for non-admin users.
           </Form.Text>
         </Form.Group>
 
@@ -2045,10 +2059,10 @@ const AdminPanel = ({ role }) => {
           <Form.Control
             type="datetime-local"
             value={maintenanceStartTime}
-            onChange={(e) => setMaintenanceStartTime(e.target.value)}
+            onChange={(e) => { setMaintenanceStartTime(e.target.value); setIsEditingMaintenance(true); }}
           />
           <Form.Text className="text-muted">
-            When maintenance begins. Leave empty for immediate.
+            When maintenance begins. Leave empty to start immediately.
           </Form.Text>
         </Form.Group>
 
@@ -2057,12 +2071,26 @@ const AdminPanel = ({ role }) => {
           <Form.Control
             type="datetime-local"
             value={maintenanceEndTime}
-            onChange={(e) => setMaintenanceEndTime(e.target.value)}
+            onChange={(e) => { setMaintenanceEndTime(e.target.value); setIsEditingMaintenance(true); }}
           />
           <Form.Text className="text-muted">
-            When maintenance ends. Leave empty for indefinite.
+            When maintenance ends. Leave empty to run until you disable it.
           </Form.Text>
         </Form.Group>
+
+        {/* Live preview of how it will look on the Login maintenance screen */}
+        <div style={{ padding: '12px', border: '1px dashed #d1d5db', borderRadius: '8px', background: '#f9fafb', marginTop: '16px' }}>
+          <div style={{ fontWeight: 600, fontSize: '14px', color: '#374151', marginBottom: '8px' }}>Preview (Login screen):</div>
+          <div style={{ fontSize: '14px', color: '#111827' }}>
+            {maintenanceMessage ? `"${maintenanceMessage}"` : 'No message set'}
+          </div>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+            {previewText || 'No schedule set'}
+          </div>
+          <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '8px' }}>
+            Changes appear on the login screen within ~60s, or immediately after users refresh.
+          </div>
+        </div>
 
         <div style={{ padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '6px', marginTop: '16px' }}>
           <p style={{ margin: 0, fontSize: '14px', color: '#374151' }}>

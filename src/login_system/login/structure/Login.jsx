@@ -1128,7 +1128,7 @@ const Login = () => {
                 <span>Your beloved site will be available soon.</span>
               )}
             </div>
-            {/* Social links removed per request */}
+            {/* Social links removed per request */}  
             <div className="contact">
               <div><FaEnvelope/> support@ispsc-dms.local</div>
               <div><FaPhone/> +63 900 000 0000</div>

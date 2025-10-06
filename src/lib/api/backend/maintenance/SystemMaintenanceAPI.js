@@ -387,14 +387,35 @@ router.get('/maintenance/status', async (req, res) => {
     const maintenanceEndTime = dbRow.maintenance_end_time ? new Date(dbRow.maintenance_end_time).toISOString() : null;
     const maintenanceMessage = dbRow.maintenance_message || null;
 
-    // Compute active state based on schedule OR explicit flag
+    // Compute active state: schedule only applies when flag is enabled
     const now = Date.now();
     const startMs = maintenanceStartTime ? new Date(maintenanceStartTime).getTime() : null;
     const endMs = maintenanceEndTime ? new Date(maintenanceEndTime).getTime() : null;
-    const scheduledActive = (startMs !== null && now >= startMs) && (endMs === null || now < endMs);
-    const isActive = maintenanceMode || scheduledActive;
+    const withinWindow = (startMs === null || now >= startMs) && (endMs === null || now < endMs);
+    const isActive = maintenanceMode && withinWindow;
 
-    res.json({ success: true, maintenanceMode: isActive, maintenanceStartTime, maintenanceEndTime, maintenanceMessage });
+    // Debug log
+    console.log('[GET /maintenance/status]', {
+      row: dbRow,
+      maintenanceModeFlag: maintenanceMode,
+      maintenanceStartTime,
+      maintenanceEndTime,
+      withinWindow,
+      isActive,
+      nowIso: new Date().toISOString()
+    });
+
+    res.json({ 
+      success: true, 
+      maintenanceMode: isActive, 
+      maintenanceStartTime, 
+      maintenanceEndTime, 
+      maintenanceMessage,
+      // Debug fields
+      maintenanceModeFlag: maintenanceMode,
+      withinWindow,
+      nowIso: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error fetching maintenance status:', error);
     res.json({ success: true, maintenanceMode: false, maintenanceEndTime: null, maintenanceMessage: null });
@@ -465,12 +486,25 @@ router.post('/system/maintenance', requireAuth, async (req, res) => {
     
     console.log(`Maintenance mode ${maintenanceMode ? 'enabled' : 'disabled'} by admin`);
     
-    // Return computed isActive as well
+    // Return computed isActive: schedule only counts when enabled
     const now = Date.now();
     const startMs = startTimeMySQL ? new Date(startTimeMySQL).getTime() : null;
     const endMs = endTimeMySQL ? new Date(endTimeMySQL).getTime() : null;
-    const scheduledActive = (startMs !== null && now >= startMs) && (endMs === null || now < endMs);
-    const isActive = maintenanceMode || scheduledActive;
+    const withinWindow = (startMs === null || now >= startMs) && (endMs === null || now < endMs);
+    const isActive = maintenanceMode && withinWindow;
+
+    // Debug log
+    console.log('[POST /system/maintenance]', {
+      body: req.body,
+      write: {
+        maintenanceModeFlag: maintenanceMode,
+        maintenanceMessage: messageVal,
+        maintenanceStartTime: startTimeMySQL,
+        maintenanceEndTime: endTimeMySQL
+      },
+      computed: { withinWindow, isActive },
+      nowIso: new Date().toISOString()
+    });
 
     res.json({ 
       success: true, 
@@ -478,8 +512,12 @@ router.post('/system/maintenance', requireAuth, async (req, res) => {
       maintenanceMessage: messageVal,
       maintenanceStartTime: startTimeMySQL,
       maintenanceEndTime: endTimeMySQL,
-      message: `Maintenance settings ${maintenanceMode ? 'enabled' : 'updated'}`,
-      timestamp: new Date().toISOString()
+      message: `Maintenance settings ${maintenanceMode ? 'enabled' : 'disabled'}`,
+      timestamp: new Date().toISOString(),
+      // Debug fields
+      maintenanceModeFlag: maintenanceMode,
+      withinWindow,
+      nowIso: new Date().toISOString()
     });
   } catch (error) {
     console.error('Error updating maintenance mode:', error);
