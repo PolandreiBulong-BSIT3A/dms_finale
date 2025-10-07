@@ -90,28 +90,30 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
 
     const params = [];
 
-    if (!isAdmin) {
-      if (scope === 'dept') {
-        // Department overview: include items tied to their department, their role, or in their department, or public
-        sql += ` AND (
-            (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-            OR (dd.department_id IS NOT NULL AND dd.department_id = ?)
-            OR (d.visible_to_all = 1)
-          )`;
-        params.push(deptId, roleUpper, deptId);
-      } else {
-        // Assigned-only view (default). Also include public items and items created by the current user
-        // so creators (e.g., Dean) can see their own requests even if not explicitly assigned back.
-        sql += ` AND (
-            (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
-            OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-            OR (d.visible_to_all = 1)
-            OR (d.created_by_user_id = ?)
-          )`;
-        params.push(userId, deptId, roleUpper, userId);
-      }
+    // Apply filtering for all roles (Admin, Dean, Faculty) - no special Admin privilege
+    // Exclude self-created requests from normal view (they appear only in 'My Requests' client-side)
+    if (scope === 'dept') {
+      // Department overview: include items tied to their department, their role, or in their department, or public
+      // Exclude self-created to avoid confusion
+      sql += ` AND (
+          (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+          OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
+          OR (dd.department_id IS NOT NULL AND dd.department_id = ?)
+          OR (d.visible_to_all = 1)
+        )
+        AND (d.created_by_user_id IS NULL OR d.created_by_user_id != ?)`;
+      params.push(deptId, roleUpper, deptId, userId);
+    } else {
+      // Assigned-only view (default): show only items assigned to user/department/role or public
+      // Exclude self-created to avoid replying to own requests
+      sql += ` AND (
+          (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
+          OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+          OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
+          OR (d.visible_to_all = 1)
+        )
+        AND (d.created_by_user_id IS NULL OR d.created_by_user_id != ?)`;
+      params.push(userId, deptId, roleUpper, userId);
     }
 
     sql += `
@@ -364,16 +366,17 @@ router.get('/documents/answered', requireAuth, async (req, res) => {
 
     const params = [];
 
-    if (!isAdmin) {
-      // For non-admins, show only documents they completed or were assigned to them
-      sql += ` AND (
-          (da.completed_by_user_id IS NOT NULL AND da.completed_by_user_id = ?)
-          OR (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
-          OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-          OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-        )`;
-      params.push(userId, userId, deptId, roleUpper);
-    }
+    // Apply filtering for all roles (Admin, Dean, Faculty) - no special Admin privilege
+    // Show only documents they completed or were assigned to them
+    // Exclude self-created to avoid confusion (they appear in 'My Requests' client-side)
+    sql += ` AND (
+        (da.completed_by_user_id IS NOT NULL AND da.completed_by_user_id = ?)
+        OR (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
+        OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+        OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
+      )
+      AND (d.created_by_user_id IS NULL OR d.created_by_user_id != ?)`;
+    params.push(userId, userId, deptId, roleUpper, userId);
 
     sql += `
       GROUP BY d.doc_id, reply_doc.doc_id
