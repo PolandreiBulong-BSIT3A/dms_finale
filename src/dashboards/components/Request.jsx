@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { fetchWithRetry } from '../../lib/api/frontend/http.js';
-import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
+import { buildUrl } from '../../lib/api/frontend/client.js';
 import { FiExternalLink, FiEye, FiMessageSquare, FiUpload, FiDownload, FiPlus, FiMoreVertical, FiEdit3, FiTrash2, FiBookmark, FiInfo, FiAlertTriangle, FiSearch } from 'react-icons/fi';
 import { ArrowDownUp, ArrowUp, ArrowDown } from 'react-bootstrap-icons';
 import { useDocuments } from '../../contexts/DocumentContext.jsx';
@@ -11,7 +11,6 @@ const Request = ({ onNavigateToUpload }) => {
   const { user: currentUser } = useUser();
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('pending'); // 'pending' or 'answered'
-  const [showOnlyMyRequests, setShowOnlyMyRequests] = useState(false);
   const [answeredDocs, setAnsweredDocs] = useState([]);
   const [answeredLoading, setAnsweredLoading] = useState(false);
   const [reqScope, setReqScope] = useState('assigned'); // 'assigned' | 'dept'
@@ -52,9 +51,12 @@ const Request = ({ onNavigateToUpload }) => {
     (async () => {
       try {
         const scopeParam = (reqScope ? `?scope=${encodeURIComponent(reqScope)}` : '');
-        const data = await fetchJson(buildUrl(`documents/requests${scopeParam}`));
-        const list = data?.documents || [];
-        setRequestDocs(list);
+        const res = await fetchWithRetry(buildUrl(`documents/requests${scopeParam}`), { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          const list = data?.documents || [];
+          setRequestDocs(list);
+        }
       } catch (e) {
         console.error('Failed to fetch requests:', e);
       }
@@ -65,9 +67,15 @@ const Request = ({ onNavigateToUpload }) => {
   const fetchAnsweredDocuments = async () => {
     setAnsweredLoading(true);
     try {
-      const data = await fetchJson(buildUrl('documents/answered'));
-      if (data.success) {
-        setAnsweredDocs(data.documents || []);
+      const response = await fetchWithRetry(buildUrl('documents/answered'), {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setAnsweredDocs(data.documents || []);
+        }
       }
     } catch (error) {
       console.error('Error fetching answered documents:', error);
@@ -88,18 +96,21 @@ const Request = ({ onNavigateToUpload }) => {
     const loadUsers = async () => {
       try {
         setUsersLoading(true);
-        const data = await fetchJson(buildUrl('users'));
-        const list = Array.isArray(data) ? data : (data.users || []);
-        const normalized = list.map(u => ({
-          id: u.user_id ?? u.id,
-          firstname: u.firstname ?? u.first_name,
-          lastname: u.lastname ?? u.last_name,
-          full_name: `${(u.firstname ?? u.first_name) || ''} ${(u.lastname ?? u.last_name) || ''}`.trim(),
-          username: u.Username || u.username || '',
-          email: u.email || u.user_email || '',
-          profilePic: u.profile_pic || u.profilePic || ''
-        }));
-        setAllUsers(normalized);
+        const res = await fetchWithRetry(buildUrl('users'), { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (data.users || []);
+          const normalized = list.map(u => ({
+            id: u.user_id ?? u.id,
+            firstname: u.firstname ?? u.first_name,
+            lastname: u.lastname ?? u.last_name,
+            full_name: `${(u.firstname ?? u.first_name) || ''} ${(u.lastname ?? u.last_name) || ''}`.trim(),
+            username: u.Username || u.username || '',
+            email: u.email || u.user_email || '',
+            profilePic: u.profile_pic || u.profilePic || ''
+          }));
+          setAllUsers(normalized);
+        }
       } finally {
         setUsersLoading(false);
       }
@@ -200,122 +211,9 @@ const Request = ({ onNavigateToUpload }) => {
   const items = useMemo(() => {
     let list;
     if (viewMode === 'answered') {
-      // Base answered list from API
-      const baseAnswered = answeredDocs;
-      // If "My Requests" is ON, union with local completed action-required items
-      if (showOnlyMyRequests) {
-        const localCompleted = documents.filter(d => {
-          const hasAR = isActionRequiredDoc(d);
-          const isCompleted = d.action_status === 'completed' || d.completed_at;
-          return hasAR && isCompleted;
-        });
-        const byId = new Map();
-        for (const d of baseAnswered) {
-          const key = String(d.id ?? d.doc_id ?? JSON.stringify(d));
-          if (!byId.has(key)) byId.set(key, d);
-        }
-        for (const d of localCompleted) {
-          const key = String(d.id ?? d.doc_id ?? JSON.stringify(d));
-          if (!byId.has(key)) byId.set(key, d);
-        }
-        list = Array.from(byId.values());
-      } else {
-        list = baseAnswered;
-      }
+      list = answeredDocs;
     } else {
-      // Base pending list from API scope or local fallback
-      const basePending = requestDocs.length > 0 ? requestDocs : documents.filter(isActionRequiredDoc);
-      // If "My Requests" is ON, union with the full local action-required pool to avoid API scope omissions
-      if (showOnlyMyRequests) {
-        const localAR = documents.filter(isActionRequiredDoc);
-        const byId = new Map();
-        for (const d of basePending) {
-          const key = String(d.id ?? d.doc_id ?? JSON.stringify(d));
-          if (!byId.has(key)) byId.set(key, d);
-        }
-        for (const d of localAR) {
-          const key = String(d.id ?? d.doc_id ?? JSON.stringify(d));
-          if (!byId.has(key)) byId.set(key, d);
-        }
-        list = Array.from(byId.values());
-      } else {
-        list = basePending;
-      }
-    }
-
-    // Optional client-side filter: show only requests created by current user
-    if (showOnlyMyRequests && currentUser) {
-      try {
-        const myId = currentUser?.id || currentUser?.user_id;
-        const myEmailLower = String(currentUser?.email || currentUser?.user_email || '').trim().toLowerCase();
-        const myUsernameLower = String(currentUser?.username || currentUser?.Username || '').trim().toLowerCase();
-        const myNameLower = ([currentUser?.firstname || currentUser?.first_name, currentUser?.lastname || currentUser?.last_name]
-          .filter(Boolean).join(' ') || currentUser?.name || currentUser?.full_name || currentUser?.username || '')
-          .toString().trim().toLowerCase();
-        const names = new Set([myNameLower].concat(myNameLower.split(' ').length === 2 ? [myNameLower.split(' ').reverse().join(' ')] : []));
-        
-        console.log('[My Requests] Before filter - list size:', list.length);
-        console.log('[My Requests] Current user:', {
-          id: currentUser?.id,
-          user_id: currentUser?.user_id,
-          email: currentUser?.email,
-          username: currentUser?.username,
-          firstname: currentUser?.firstname,
-          lastname: currentUser?.lastname,
-          name: currentUser?.name
-        });
-        if (list.length > 0) {
-          console.log('[My Requests] Sample document creator fields:', {
-            title: list[0].title,
-            created_by_name: list[0].created_by_name,
-            created_by_user_id: list[0].created_by_user_id,
-            created_by_id: list[0].created_by_id,
-            requested_by_name: list[0].requested_by_name,
-            from_field: list[0].from_field
-          });
-          console.log('[My Requests] Matching against:', {
-            myId: myId,
-            myNameLower: myNameLower,
-            myUsernameLower: myUsernameLower,
-            myEmailLower: myEmailLower
-          });
-        }
-
-        const isCreatedByMe = (d) => {
-          const creatorName = String(d.created_by_name || d.requested_by_name || d.reply_created_by_name || '').trim().toLowerCase();
-          const fromField = String(d.from_field || '').trim().toLowerCase();
-          const creatorEmail = String(d.created_by_email || d.requested_by_email || d.email || '').trim().toLowerCase();
-          const creatorUsername = String(d.created_by_username || d.username || '').trim().toLowerCase();
-          const creatorId = d.created_by_id || d.created_by_user_id || d.user_id || d.owner_id;
-          
-          // Match by ID (most reliable)
-          if (myId && creatorId && String(myId) === String(creatorId)) return true;
-          
-          // Match by email
-          if (myEmailLower && creatorEmail && myEmailLower === creatorEmail) return true;
-          
-          // Match by username
-          if (myUsernameLower && creatorUsername && myUsernameLower === creatorUsername) return true;
-          
-          // Match by name in created_by_name, requested_by_name, or reply_created_by_name
-          if (creatorName && (names.has(creatorName) || creatorName.includes(myNameLower) || myNameLower.includes(creatorName))) return true;
-          
-          // Match by name in from_field (for requests where user is the sender)
-          if (fromField && (names.has(fromField) || fromField.includes(myNameLower) || myNameLower.includes(fromField))) return true;
-          
-          // Fallback: if username matches from_field exactly
-          if (myUsernameLower && fromField && myUsernameLower === fromField) return true;
-          
-          return false;
-        };
-        list = list.filter(isCreatedByMe);
-        console.log('[My Requests] Filtered to', list.length, 'items created by me');
-        if (list.length > 0) {
-          console.log('[My Requests] Sample item:', { title: list[0].title, created_by_name: list[0].created_by_name, created_by_user_id: list[0].created_by_user_id });
-        }
-      } catch (e) {
-        console.error('[My Requests] Filter error:', e);
-      }
+      list = requestDocs.length > 0 ? requestDocs : documents.filter(isActionRequiredDoc);
     }
     
     if (search.trim()) {
@@ -333,7 +231,7 @@ const Request = ({ onNavigateToUpload }) => {
     
     // Apply sorting
     return sortItems(list, sortField, sortDirection);
-  }, [requestDocs, documents, search, viewMode, answeredDocs, sortField, sortDirection, showOnlyMyRequests, currentUser]);
+  }, [requestDocs, documents, search, viewMode, answeredDocs, sortField, sortDirection]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -363,7 +261,7 @@ const Request = ({ onNavigateToUpload }) => {
     if (!confirmDelete) return;
     try {
       for (const id of selectedIds) {
-        await fetchJson(buildUrl(`documents/${id}`), { method: 'DELETE' });
+        await fetch(buildUrl(`documents/${id}`), { method: 'DELETE', credentials: 'include' });
       }
       // Remove from local lists
       setSelectedIds([]);
@@ -608,16 +506,6 @@ const Request = ({ onNavigateToUpload }) => {
               />
             </div>
 
-            {/* My Requests (mobile) */}
-            <button
-              className={`btn ${showOnlyMyRequests ? 'btn-success' : 'btn-light'} border rounded-pill px-3`}
-              onClick={() => setShowOnlyMyRequests(v => !v)}
-              style={{ width: '100%' }}
-              title="Show only requests I created"
-            >
-              My Requests
-            </button>
-
             {/* Add Document (mobile, only in answered) */}
             {viewMode === 'answered' && (
               <button
@@ -702,13 +590,6 @@ const Request = ({ onNavigateToUpload }) => {
             placeholder={viewMode === 'pending' ? "Search title, action, status..." : "Search title, reply, action..."}
             style={{ padding: '8px 12px', borderRadius: 20, border: '1px solid #d1d5db', minWidth: 260 }}
           />
-          <button
-            className={`btn ${showOnlyMyRequests ? 'btn-success' : 'btn-light'} border rounded-pill px-3`}
-            onClick={() => setShowOnlyMyRequests(v => !v)}
-            title="Show only requests I created"
-          >
-            My Requests
-          </button>
           {viewMode === 'answered' && (
             <button
               className="btn btn-primary border rounded-pill px-3"

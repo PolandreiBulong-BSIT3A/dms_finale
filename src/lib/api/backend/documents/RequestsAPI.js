@@ -69,9 +69,6 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
         da.completed_at,
         da.completed_by_user_id,
         CONCAT(completed_user.firstname, ' ', completed_user.lastname) AS completed_by_name,
-        GROUP_CONCAT(DISTINCT da.assigned_to_user_id) AS assigned_user_ids,
-        GROUP_CONCAT(DISTINCT da.assigned_to_role) AS assigned_roles,
-        GROUP_CONCAT(DISTINCT da.assigned_to_department_id) AS assigned_department_ids,
         reply_doc.doc_id AS reply_doc_id,
         reply_doc.title AS reply_title,
         reply_doc.description AS reply_description,
@@ -90,30 +87,25 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
 
     const params = [];
 
-    // Apply filtering for all roles (Admin, Dean, Faculty) - no special Admin privilege
-    // Exclude self-created requests from normal view (they appear only in 'My Requests' client-side)
-    if (scope === 'dept') {
-      // Department overview: include items tied to their department, their role, or in their department, or public
-      // Exclude self-created to avoid confusion
-      sql += ` AND (
-          (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-          OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-          OR (dd.department_id IS NOT NULL AND dd.department_id = ?)
-          OR (d.visible_to_all = 1)
-        )
-        AND (d.created_by_user_id IS NULL OR d.created_by_user_id != ?)`;
-      params.push(deptId, roleUpper, deptId, userId);
-    } else {
-      // Assigned-only view (default): show only items assigned to user/department/role or public
-      // Exclude self-created to avoid replying to own requests
-      sql += ` AND (
-          (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
-          OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-          OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-          OR (d.visible_to_all = 1)
-        )
-        AND (d.created_by_user_id IS NULL OR d.created_by_user_id != ?)`;
-      params.push(userId, deptId, roleUpper, userId);
+    if (!isAdmin) {
+      if (scope === 'dept') {
+        // Department overview: include items tied to their department, their role, or in their department, or public
+        sql += ` AND (
+            (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
+            OR (dd.department_id IS NOT NULL AND dd.department_id = ?)
+            OR (d.visible_to_all = 1)
+          )`;
+        params.push(deptId, roleUpper, deptId);
+      } else {
+        // Assigned-only view (default)
+        sql += ` AND (
+            (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
+            OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
+          )`;
+        params.push(userId, deptId, roleUpper);
+      }
     }
 
     sql += `
@@ -138,9 +130,6 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
       completed_at: r.completed_at,
       completed_by_user_id: r.completed_by_user_id,
       completed_by_name: r.completed_by_name,
-      assigned_user_ids: (r.assigned_user_ids ? String(r.assigned_user_ids).split(',').filter(Boolean).map(x => Number(x)).filter(n => !Number.isNaN(n)) : []),
-      assigned_roles: (r.assigned_roles ? String(r.assigned_roles).split(',').filter(Boolean).map(s => String(s).toUpperCase()) : []),
-      assigned_department_ids: (r.assigned_department_ids ? String(r.assigned_department_ids).split(',').filter(Boolean).map(x => Number(x)).filter(n => !Number.isNaN(n)) : []),
       reply_title: r.reply_title,
       reply_description: r.reply_description,
       reply_google_drive_link: r.reply_google_drive_link,
@@ -366,17 +355,16 @@ router.get('/documents/answered', requireAuth, async (req, res) => {
 
     const params = [];
 
-    // Apply filtering for all roles (Admin, Dean, Faculty) - no special Admin privilege
-    // Show only documents they completed or were assigned to them
-    // Exclude self-created to avoid confusion (they appear in 'My Requests' client-side)
-    sql += ` AND (
-        (da.completed_by_user_id IS NOT NULL AND da.completed_by_user_id = ?)
-        OR (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
-        OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-        OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-      )
-      AND (d.created_by_user_id IS NULL OR d.created_by_user_id != ?)`;
-    params.push(userId, userId, deptId, roleUpper, userId);
+    if (!isAdmin) {
+      // For non-admins, show only documents they completed or were assigned to them
+      sql += ` AND (
+          (da.completed_by_user_id IS NOT NULL AND da.completed_by_user_id = ?)
+          OR (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
+          OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+          OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
+        )`;
+      params.push(userId, userId, deptId, roleUpper);
+    }
 
     sql += `
       GROUP BY d.doc_id, reply_doc.doc_id
