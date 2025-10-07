@@ -27,7 +27,6 @@ const Request = ({ onNavigateToUpload }) => {
   const [allUsers, setAllUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [showOnlyMyRequests, setShowOnlyMyRequests] = useState(false);
 
   useEffect(() => {
     const onResize = () => {
@@ -216,37 +215,6 @@ const Request = ({ onNavigateToUpload }) => {
     } else {
       list = requestDocs.length > 0 ? requestDocs : documents.filter(isActionRequiredDoc);
     }
-    // Apply "My Requests" filter similar to Document.jsx's My Documents
-    if (showOnlyMyRequests && currentUser) {
-      const myIdStr = (currentUser?.id || currentUser?.user_id)?.toString();
-      const variants = new Set([
-        (currentUser?.username || '').toString().trim(),
-        ((currentUser?.firstname || '') + ' ' + (currentUser?.lastname || '')).trim(),
-        (currentUser?.email || '').toString().trim(),
-        (currentUser?.Username || '').toString().trim(),
-        (currentUser?.firstname || '').toString().trim(),
-        (currentUser?.lastname || '').toString().trim(),
-        (currentUser?.name || '').toString().trim(),
-        (currentUser?.full_name || '').toString().trim(),
-        (currentUser?.display_name || '').toString().trim(),
-        (currentUser?.user_name || '').toString().trim(),
-        (currentUser?.user_id != null ? String(currentUser.user_id) : ''),
-        (currentUser?.id != null ? String(currentUser.id) : '')
-      ].filter(Boolean));
-
-      list = list.filter(d => {
-        // ID check (if backend now sets created_by_user_id)
-        const creatorId = d.created_by_id || d.created_by_user_id || d.user_id || d.owner_id;
-        if (myIdStr && creatorId && String(creatorId) === myIdStr) return true;
-        // Primary: requested_by_name strict equality with any user variant
-        const reqBy = (d.requested_by_name || '').toString().trim();
-        if (reqBy && variants.has(reqBy)) return true;
-        // Fallback: created_by_name strict equality
-        const createdBy = (d.created_by_name || '').toString().trim();
-        if (createdBy && variants.has(createdBy)) return true;
-        return false;
-      });
-    }
     
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -263,7 +231,7 @@ const Request = ({ onNavigateToUpload }) => {
     
     // Apply sorting
     return sortItems(list, sortField, sortDirection);
-  }, [requestDocs, documents, search, viewMode, answeredDocs, sortField, sortDirection, showOnlyMyRequests, currentUser]);
+  }, [requestDocs, documents, search, viewMode, answeredDocs, sortField, sortDirection]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -622,19 +590,6 @@ const Request = ({ onNavigateToUpload }) => {
             placeholder={viewMode === 'pending' ? "Search title, action, status..." : "Search title, reply, action..."}
             style={{ padding: '8px 12px', borderRadius: 20, border: '1px solid #d1d5db', minWidth: 260 }}
           />
-          <button
-            className="btn btn-light btn-sm border rounded-pill px-4 py-2"
-            onClick={() => setShowOnlyMyRequests(!showOnlyMyRequests)}
-            title={showOnlyMyRequests ? 'Show all requests' : 'Show only requests you created'}
-            style={{ 
-              fontSize: '14px',
-              backgroundColor: showOnlyMyRequests ? '#e3f2fd' : '#fff',
-              color: showOnlyMyRequests ? '#1976d2' : '#333',
-              borderColor: showOnlyMyRequests ? '#1976d2' : '#dee2e6'
-            }}
-          >
-            {showOnlyMyRequests ? 'Show All' : 'My Requests'} {showOnlyMyRequests ? '←' : '→'}
-          </button>
           {viewMode === 'answered' && (
             <button
               className="btn btn-primary border rounded-pill px-3"
