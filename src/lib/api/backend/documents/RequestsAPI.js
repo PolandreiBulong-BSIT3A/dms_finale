@@ -87,25 +87,24 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
 
     const params = [];
 
-    if (!isAdmin) {
-      if (scope === 'dept') {
-        // Department overview: include items tied to their department, their role, or in their department, or public
-        sql += ` AND (
-            (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-            OR (dd.department_id IS NOT NULL AND dd.department_id = ?)
-            OR (d.visible_to_all = 1)
-          )`;
-        params.push(deptId, roleUpper, deptId);
-      } else {
-        // Assigned-only view (default)
-        sql += ` AND (
-            (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
-            OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-          )`;
-        params.push(userId, deptId, roleUpper);
-      }
+    // Apply scope filters for all roles (including admins)
+    if (scope === 'dept') {
+      // Department overview: include items tied to their department, their role, or in their department, or public
+      sql += ` AND (
+          (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+          OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
+          OR (dd.department_id IS NOT NULL AND dd.department_id = ?)
+          OR (d.visible_to_all = 1)
+        )`;
+      params.push(deptId, roleUpper, deptId);
+    } else {
+      // Assigned-only view (default)
+      sql += ` AND (
+          (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
+          OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+          OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
+        )`;
+      params.push(userId, deptId, roleUpper);
     }
 
     sql += `
@@ -236,9 +235,6 @@ router.post('/documents/reply', requireAuth, async (req, res) => {
       // Build audience from original doc creator and all assignments
       const audience = { users: [], roles: [], departments: [] };
       
-      // Always include ADMIN role for reply notifications
-      audience.roles.push('ADMIN');
-      
       try {
         const [origDocRows] = await db.promise().query(
           `SELECT d.created_by_user_id, d.created_by_name, dd.department_id
@@ -355,16 +351,14 @@ router.get('/documents/answered', requireAuth, async (req, res) => {
 
     const params = [];
 
-    if (!isAdmin) {
-      // For non-admins, show only documents they completed or were assigned to them
-      sql += ` AND (
-          (da.completed_by_user_id IS NOT NULL AND da.completed_by_user_id = ?)
-          OR (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
-          OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-          OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-        )`;
-      params.push(userId, userId, deptId, roleUpper);
-    }
+    // Apply answered visibility filters for all roles (including admins)
+    sql += ` AND (
+        (da.completed_by_user_id IS NOT NULL AND da.completed_by_user_id = ?)
+        OR (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
+        OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+        OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
+      )`;
+    params.push(userId, userId, deptId, roleUpper);
 
     sql += `
       GROUP BY d.doc_id, reply_doc.doc_id
