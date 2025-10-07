@@ -2528,7 +2528,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
               <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
             </svg>
             <span>Folders</span>
-            {isMobile && (
+            {isMobile && !isUser && (
               <button 
                 className="btn btn-light btn-sm border rounded-pill px-3" 
                 onClick={openAddFolderModal}
@@ -2539,7 +2539,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
               </button>
             )}
             <span style={{ marginLeft: isMobile ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
-              {!isMobile && (
+              {!isMobile && !isUser && (
                 <button 
                   className="btn btn-light btn-sm border rounded-pill px-3" 
                   onClick={openAddFolderModal}
@@ -2660,25 +2660,27 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                       {docCount} document{docCount !== 1 ? 's' : ''}
                     </div>
                   </div>
-                  {/* Folder Management Buttons */}
-                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => openEditFolderModal(folder)}
-                      className="btn btn-sm btn-light"
-                      style={{ padding: '4px 8px', fontSize: 12 }}
-                      title="Edit Folder"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteFolder(folder)}
-                      className="btn btn-sm btn-light text-danger"
-                      style={{ padding: '4px 8px', fontSize: 12 }}
-                      title="Delete Folder"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
+                  {/* Folder Management Buttons - hidden for FACULTY */}
+                  {!isUser && (
+                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => openEditFolderModal(folder)}
+                        className="btn btn-sm btn-light"
+                        style={{ padding: '4px 8px', fontSize: 12 }}
+                        title="Edit Folder"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFolder(folder)}
+                        className="btn btn-sm btn-light text-danger"
+                        style={{ padding: '4px 8px', fontSize: 12 }}
+                        title="Delete Folder"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  )}
                   {isDragOver && draggedDocument && (
                     <div style={{
                       position: 'absolute',
@@ -2901,47 +2903,49 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                               <span style={styles.menuLabel}>Properties</span>
                             </li>
                             <li style={styles.menuDivider} />
-                            <li
-                              style={styles.menuItem}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setAddFolderDocId(doc.id);
-                                setAddFolderOpen(v => !v || addFolderDocId !== doc.id);
-                              }}
-                            >
-                              <span style={styles.menuIcon}>📁</span>
-                              <span style={styles.menuLabel}>Add to Folder</span>
-                            </li>
-                            {addFolderOpen && addFolderDocId === doc.id && (
-                              <li style={{ padding: 8 }} onClick={(e) => e.stopPropagation()}>
-                                <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 8, background: '#fff', width: 240 }}>
-                                  <input
-                                    type="text"
-                                    value={addFolderSearch}
-                                    onChange={(e) => setAddFolderSearch(e.target.value)}
-                                    placeholder="Search folders..."
-                                    style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, marginBottom: 8 }}
-                                  />
-                                  <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    {(folders || [])
-                                      .filter(f => (f.name || '').toLowerCase().includes((addFolderSearch || '').toLowerCase()))
-                                      .map(f => (
-                                        <button
-                                          key={`add-folder-${doc.id}-${f.folder_id}`}
-                                          type="button"
-                                          onClick={() => appendFolderToDocument(doc, f.folder_id)}
-                                          style={{
-                                            width: '100%', textAlign: 'left', padding: '6px 8px',
-                                            border: '1px solid #e5e7eb', background: '#fff', borderRadius: 6, cursor: 'pointer'
-                                          }}
-                                        >
-                                          {f.name}
-                                        </button>
-                                      ))}
-                                  </div>
-                                </div>
+                            {!isUser && (<>
+                              <li
+                                style={styles.menuItem}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAddFolderDocId(doc.id);
+                                  setAddFolderOpen(v => !v || addFolderDocId !== doc.id);
+                                }}
+                              >
+                                <span style={styles.menuIcon}>📁</span>
+                                <span style={styles.menuLabel}>Add to Folder</span>
                               </li>
-                            )}
+                              {addFolderOpen && addFolderDocId === doc.id && (
+                                <li style={{ padding: 8 }} onClick={(e) => e.stopPropagation()}>
+                                  <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 8, background: '#fff', width: 240 }}>
+                                    <input
+                                      type="text"
+                                      value={addFolderSearch}
+                                      onChange={(e) => setAddFolderSearch(e.target.value)}
+                                      placeholder="Search folders..."
+                                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, marginBottom: 8 }}
+                                    />
+                                    <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                      {(folders || [])
+                                        .filter(f => (f.name || '').toLowerCase().includes((addFolderSearch || '').toLowerCase()))
+                                        .map(f => (
+                                          <button
+                                            key={`add-folder-${doc.id}-${f.folder_id}`}
+                                            type="button"
+                                            onClick={() => appendFolderToDocument(doc, f.folder_id)}
+                                            style={{
+                                              width: '100%', textAlign: 'left', padding: '6px 8px',
+                                              border: '1px solid #e5e7eb', background: '#fff', borderRadius: 6, cursor: 'pointer'
+                                            }}
+                                          >
+                                            {f.name}
+                                          </button>
+                                        ))}
+                                    </div>
+                                  </div>
+                                </li>
+                              )}
+                            </>)}
                             {hasAdminPrivileges(role) && (
                               <>
                                 <li style={styles.menuDivider} />

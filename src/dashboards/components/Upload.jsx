@@ -934,17 +934,25 @@ const Upload = ({ role, onNavigateToDocuments }) => {
   // Filter users based on selected filters
   const getFilteredUsers = () => {
     let filtered = users;
-    // If Dean, restrict to own department users
-    if (role?.toLowerCase() === 'dean' && currentUser?.department_id) {
-      filtered = filtered.filter(user => Number(user.department_id) === Number(currentUser.department_id));
+    const isDean = role?.toLowerCase() === 'dean';
+    const deanDeptId = currentUser?.department_id ? Number(currentUser.department_id) : null;
+
+    const isAdminRole = (r) => {
+      const v = String(r || '').toUpperCase();
+      return v === 'ADMIN' || v === 'ADMINISTRATOR';
+    };
+
+    // Dean view: include ALL admins regardless of department; others restricted to dean's department
+    if (isDean && deanDeptId) {
+      filtered = filtered.filter(u => isAdminRole(u.role) || Number(u.department_id) === deanDeptId);
     }
     
     if (userFilterDept) {
-      filtered = filtered.filter(user => user.department_id == userFilterDept);
+      filtered = filtered.filter(user => String(user.department_id) === String(userFilterDept));
     }
     
     if (userFilterRole) {
-      filtered = filtered.filter(user => user.role === userFilterRole);
+      filtered = filtered.filter(user => String(user.role).toUpperCase() === String(userFilterRole).toUpperCase());
     }
     
     return filtered;
@@ -1570,7 +1578,7 @@ const Upload = ({ role, onNavigateToDocuments }) => {
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
                               <button
                                 type="button"
-                                onClick={() => setDeptDropdownOpen(false)}
+                                onClick={() => setUserDropdownOpen(false)}
                                 style={{
                                   padding: '6px 10px',
                                   border: '1px solid #e5e7eb',
@@ -1691,12 +1699,23 @@ const Upload = ({ role, onNavigateToDocuments }) => {
                               (() => {
                                 const base = getFilteredUsers();
                                 const q = userSearch.trim().toLowerCase();
-                                const list = q
+                                let list = q
                                   ? base.filter(u =>
                                       (u.email || '').toLowerCase().includes(q) ||
                                       (u.full_name || '').toLowerCase().includes(q)
                                     )
                                   : base;
+                                // Sort: Admins first, then by name
+                                const isAdminRole = (r) => {
+                                  const v = String(r || '').toUpperCase();
+                                  return v === 'ADMIN' || v === 'ADMINISTRATOR';
+                                };
+                                list = [...list].sort((a, b) => {
+                                  const aAdmin = isAdminRole(a.role) ? 1 : 0;
+                                  const bAdmin = isAdminRole(b.role) ? 1 : 0;
+                                  if (aAdmin !== bAdmin) return bAdmin - aAdmin; // admins first
+                                  return (a.full_name || '').localeCompare(b.full_name || '');
+                                });
                                 if (list.length === 0) {
                                   return <div style={{ padding: 8, color: '#6b7280' }}>No users match the current filters.</div>;
                                 }
@@ -1704,6 +1723,7 @@ const Upload = ({ role, onNavigateToDocuments }) => {
                                   <div>
                                     {list.map(user => {
                                       const checked = selectedUsers.includes(user.user_id);
+                                      const admin = isAdminRole(user.role);
                                       return (
                                         <label
                                           key={user.user_id}
@@ -1731,7 +1751,20 @@ const Upload = ({ role, onNavigateToDocuments }) => {
                                           />
                                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                                             <span style={{ fontSize: 14, color: '#111827' }}>{user.email || '—'}</span>
-                                            <span style={{ fontSize: 12, color: '#6b7280' }}>{user.full_name} ({user.role})</span>
+                                            <span style={{ fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                              {user.full_name} ({String(user.role || '').toUpperCase()})
+                                              {admin && (
+                                                <span style={{
+                                                  display: 'inline-block',
+                                                  background: '#10b981',
+                                                  color: 'white',
+                                                  padding: '1px 6px',
+                                                  borderRadius: '9999px',
+                                                  fontSize: 10,
+                                                  fontWeight: 700
+                                                }}>[ADMIN]</span>
+                                              )}
+                                            </span>
                                           </div>
                                         </label>
                                       );

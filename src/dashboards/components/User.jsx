@@ -155,9 +155,12 @@ const User = ({ role }) => {
       
       if (selectedRole) params.append('role', selectedRole);
 
-      const data = await fetchJson(buildUrl(`users?${params.toString()}`), { method: 'GET' });
-      const rows = Array.isArray(data.users) ? data.users : (Array.isArray(data.data) ? data.data : []);
-      const mapped = rows.map(normalizeUser);
+      // For Deans, fetch unscoped list to avoid backend param mismatches; filter locally below
+      const deanWantsUnscoped = effectiveIsDean === true;
+      const endpoint = deanWantsUnscoped ? 'users' : `users?${params.toString()}`;
+      const data = await fetchJson(buildUrl(endpoint), { method: 'GET' });
+      let rows = Array.isArray(data.users) ? data.users : (Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
+      let mapped = rows.map(normalizeUser);
 
       // Set users based on role
       if (isAdmin) {
@@ -177,6 +180,14 @@ const User = ({ role }) => {
                               currentUser?.unit ||
                               currentUser?.unit_name ||
                               '';
+        if ((deanDeptId || deanDept) && mapped.length === 0) {
+          // Fallback: fetch all, then filter locally
+          try {
+            const allResp = await fetchJson(buildUrl('users'));
+            const allRows = Array.isArray(allResp?.users) ? allResp.users : (Array.isArray(allResp) ? allResp : (Array.isArray(allResp?.data) ? allResp.data : []));
+            mapped = allRows.map(normalizeUser);
+          } catch (_) { /* ignore and keep mapped */ }
+        }
         if (deanDeptId || deanDept) {
           // Filter users by department on the frontend as a security measure
           const filteredMapped = mapped.filter(user => {
@@ -185,7 +196,7 @@ const User = ({ role }) => {
             
             // First try to match by department_id
             if (deanDeptId && userDeptId) {
-              if (deanDeptId === userDeptId) {
+              if (String(deanDeptId) === String(userDeptId)) {
                 return true;
               }
             }
@@ -424,9 +435,9 @@ const fetchDepartments = async () => {
   const roles = useMemo(() => [...new Set(users.map(u => u.role).filter(Boolean))], [users]);
 
   const filteredUsers = users.filter(user => {
-    // Exclude admin users
+    // Exclude admin users only for non-admin, non-dean viewers
     const userIsAdmin = user.role?.toUpperCase() === 'ADMIN' || user.position?.toUpperCase() === 'ADMIN';
-    if (userIsAdmin) return false;
+    if (userIsAdmin && !isAdmin && !effectiveIsDean) return false;
     
     // Apply search filter
     const matchesSearch = (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||

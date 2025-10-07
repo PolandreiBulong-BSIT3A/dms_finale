@@ -11,6 +11,7 @@ const Request = ({ onNavigateToUpload }) => {
   const { user: currentUser } = useUser();
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('pending'); // 'pending' or 'answered'
+  const [showOnlyMyRequests, setShowOnlyMyRequests] = useState(false);
   const [answeredDocs, setAnsweredDocs] = useState([]);
   const [answeredLoading, setAnsweredLoading] = useState(false);
   const [reqScope, setReqScope] = useState('assigned'); // 'assigned' | 'dept'
@@ -27,11 +28,6 @@ const Request = ({ onNavigateToUpload }) => {
   const [allUsers, setAllUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  // Admin/Dean filters
-  const [filterAssignedUserId, setFilterAssignedUserId] = useState('');
-  const [filterAssignedDeptId, setFilterAssignedDeptId] = useState('');
-  const [filterAssignedRole, setFilterAssignedRole] = useState('');
-  const [departments, setDepartments] = useState([]); // {department_id, name}
 
   useEffect(() => {
     const onResize = () => {
@@ -109,26 +105,6 @@ const Request = ({ onNavigateToUpload }) => {
       }
     };
     loadUsers();
-  }, []);
-
-  // Load departments for filtering (admin/dean)
-  React.useEffect(() => {
-    const loadDepartments = async () => {
-      try {
-        const resp = await fetchJson(buildUrl('departments'));
-        let raw = [];
-        if (Array.isArray(resp?.departments)) raw = resp.departments;
-        else if (Array.isArray(resp)) raw = resp;
-        const normalized = raw.map(d => ({
-          department_id: Number(d.department_id ?? d.value ?? d.id),
-          name: d.name ?? d.label ?? d.code
-        })).filter(d => Number.isFinite(d.department_id) && d.name);
-        setDepartments(normalized);
-      } catch (_) {
-        setDepartments([]);
-      }
-    };
-    loadDepartments();
   }, []);
 
   const findUserByName = (createdByName) => {
@@ -226,7 +202,50 @@ const Request = ({ onNavigateToUpload }) => {
     if (viewMode === 'answered') {
       list = answeredDocs;
     } else {
-      list = requestDocs.length > 0 ? requestDocs : documents.filter(isActionRequiredDoc);
+      // Base pending list from API scope or local fallback
+      const basePending = requestDocs.length > 0 ? requestDocs : documents.filter(isActionRequiredDoc);
+      // If "My Requests" is ON, union with the full local action-required pool to avoid API scope omissions
+      if (showOnlyMyRequests) {
+        const localAR = documents.filter(isActionRequiredDoc);
+        const byId = new Map();
+        for (const d of basePending) {
+          const key = String(d.id ?? d.doc_id ?? JSON.stringify(d));
+          if (!byId.has(key)) byId.set(key, d);
+        }
+        for (const d of localAR) {
+          const key = String(d.id ?? d.doc_id ?? JSON.stringify(d));
+          if (!byId.has(key)) byId.set(key, d);
+        }
+        list = Array.from(byId.values());
+      } else {
+        list = basePending;
+      }
+    }
+
+    // Optional client-side filter: show only requests created by current user
+    if (showOnlyMyRequests && currentUser) {
+      try {
+        const myId = currentUser?.id || currentUser?.user_id;
+        const myEmailLower = String(currentUser?.email || currentUser?.user_email || '').trim().toLowerCase();
+        const myUsernameLower = String(currentUser?.username || currentUser?.Username || '').trim().toLowerCase();
+        const myNameLower = ([currentUser?.firstname || currentUser?.first_name, currentUser?.lastname || currentUser?.last_name]
+          .filter(Boolean).join(' ') || currentUser?.name || currentUser?.full_name || currentUser?.username || '')
+          .toString().trim().toLowerCase();
+        const names = new Set([myNameLower].concat(myNameLower.split(' ').length === 2 ? [myNameLower.split(' ').reverse().join(' ')] : []));
+
+        const isCreatedByMe = (d) => {
+          const creatorName = String(d.created_by_name || d.requested_by_name || d.reply_created_by_name || d.from_field || '').trim().toLowerCase();
+          const creatorEmail = String(d.created_by_email || d.requested_by_email || d.email || '').trim().toLowerCase();
+          const creatorUsername = String(d.created_by_username || d.username || '').trim().toLowerCase();
+          const creatorId = d.created_by_id || d.created_by_user_id || d.user_id || d.owner_id;
+          if (myId && creatorId && String(myId) === String(creatorId)) return true;
+          if (myEmailLower && creatorEmail && myEmailLower === creatorEmail) return true;
+          if (myUsernameLower && creatorUsername && myUsernameLower === creatorUsername) return true;
+          if (creatorName && (names.has(creatorName) || creatorName.includes(myNameLower) || myNameLower.includes(creatorName))) return true;
+          return false;
+        };
+        list = list.filter(isCreatedByMe);
+      } catch (_) {}
     }
     
     if (search.trim()) {
@@ -241,20 +260,10 @@ const Request = ({ onNavigateToUpload }) => {
         (d.completed_by_name || '').toLowerCase().includes(q)
       );
     }
-    // Admin/Dean filters by assignment
-    if (filterAssignedUserId) {
-      list = list.filter(d => Array.isArray(d.assigned_user_ids) && d.assigned_user_ids.map(String).includes(String(filterAssignedUserId)));
-    }
-    if (filterAssignedDeptId) {
-      list = list.filter(d => Array.isArray(d.assigned_department_ids) && d.assigned_department_ids.map(String).includes(String(filterAssignedDeptId)));
-    }
-    if (filterAssignedRole) {
-      list = list.filter(d => Array.isArray(d.assigned_roles) && d.assigned_roles.map(r => String(r).toUpperCase()).includes(String(filterAssignedRole).toUpperCase()));
-    }
     
     // Apply sorting
     return sortItems(list, sortField, sortDirection);
-  }, [requestDocs, documents, search, viewMode, answeredDocs, sortField, sortDirection, filterAssignedUserId, filterAssignedDeptId, filterAssignedRole]);
+  }, [requestDocs, documents, search, viewMode, answeredDocs, sortField, sortDirection, showOnlyMyRequests, currentUser]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -529,6 +538,16 @@ const Request = ({ onNavigateToUpload }) => {
               />
             </div>
 
+            {/* My Requests (mobile) */}
+            <button
+              className={`btn ${showOnlyMyRequests ? 'btn-success' : 'btn-light'} border rounded-pill px-3`}
+              onClick={() => setShowOnlyMyRequests(v => !v)}
+              style={{ width: '100%' }}
+              title="Show only requests I created"
+            >
+              My Requests
+            </button>
+
             {/* Add Document (mobile, only in answered) */}
             {viewMode === 'answered' && (
               <button
@@ -613,6 +632,13 @@ const Request = ({ onNavigateToUpload }) => {
             placeholder={viewMode === 'pending' ? "Search title, action, status..." : "Search title, reply, action..."}
             style={{ padding: '8px 12px', borderRadius: 20, border: '1px solid #d1d5db', minWidth: 260 }}
           />
+          <button
+            className={`btn ${showOnlyMyRequests ? 'btn-success' : 'btn-light'} border rounded-pill px-3`}
+            onClick={() => setShowOnlyMyRequests(v => !v)}
+            title="Show only requests I created"
+          >
+            My Requests
+          </button>
           {viewMode === 'answered' && (
             <button
               className="btn btn-primary border rounded-pill px-3"

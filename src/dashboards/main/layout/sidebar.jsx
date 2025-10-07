@@ -73,8 +73,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, role, i
       const isDean = normalizedRole === 'dean';
       const isUser = normalizedRole === 'faculty';
   let menu;
-  if (isAdmin || isDean) {
+  if (isAdmin) {
     menu = adminDeanMenu;
+  } else if (isDean) {
+    // Dean: same as Admin/Dean menu but without Analytics/Reports
+    menu = adminDeanMenu.filter(item => item.key !== 'reports' && item.key !== 'analytics-section');
   } else if (isUser) {
     menu = userMenu;
   } else {
