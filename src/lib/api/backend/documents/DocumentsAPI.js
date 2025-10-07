@@ -550,8 +550,8 @@ router.post('/documents', requireAuth, async (req, res) => {
 
     const insertDoc = async (docTypeId, folderId) => {
       const sql = `INSERT INTO dms_documents 
-        (doc_type, folder_id, reference, title, revision, rev_date, from_field, to_field, date_received, google_drive_link, description, available_copy, visible_to_all, allowed_user_ids, allowed_roles, created_by_name, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        (doc_type, folder_id, reference, title, revision, rev_date, from_field, to_field, date_received, google_drive_link, description, available_copy, visible_to_all, allowed_user_ids, allowed_roles, created_by_user_id, created_by_name, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         docTypeId || null,
         folderId || null,
@@ -568,6 +568,7 @@ router.post('/documents', requireAuth, async (req, res) => {
         visibleToAll,
         allowedUserIdsCsv || null,
         allowedRolesCsv || null,
+        req.currentUser?.id || req.currentUser?.user_id || req.user?.id || req.user?.user_id || null,
         deriveUserName(req.user) || deriveUserName(req.currentUser) || 'System',
         'active'
       ];

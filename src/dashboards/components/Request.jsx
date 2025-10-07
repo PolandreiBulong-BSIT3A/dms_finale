@@ -200,7 +200,28 @@ const Request = ({ onNavigateToUpload }) => {
   const items = useMemo(() => {
     let list;
     if (viewMode === 'answered') {
-      list = answeredDocs;
+      // Base answered list from API
+      const baseAnswered = answeredDocs;
+      // If "My Requests" is ON, union with local completed action-required items
+      if (showOnlyMyRequests) {
+        const localCompleted = documents.filter(d => {
+          const hasAR = isActionRequiredDoc(d);
+          const isCompleted = d.action_status === 'completed' || d.completed_at;
+          return hasAR && isCompleted;
+        });
+        const byId = new Map();
+        for (const d of baseAnswered) {
+          const key = String(d.id ?? d.doc_id ?? JSON.stringify(d));
+          if (!byId.has(key)) byId.set(key, d);
+        }
+        for (const d of localCompleted) {
+          const key = String(d.id ?? d.doc_id ?? JSON.stringify(d));
+          if (!byId.has(key)) byId.set(key, d);
+        }
+        list = Array.from(byId.values());
+      } else {
+        list = baseAnswered;
+      }
     } else {
       // Base pending list from API scope or local fallback
       const basePending = requestDocs.length > 0 ? requestDocs : documents.filter(isActionRequiredDoc);
@@ -232,20 +253,69 @@ const Request = ({ onNavigateToUpload }) => {
           .filter(Boolean).join(' ') || currentUser?.name || currentUser?.full_name || currentUser?.username || '')
           .toString().trim().toLowerCase();
         const names = new Set([myNameLower].concat(myNameLower.split(' ').length === 2 ? [myNameLower.split(' ').reverse().join(' ')] : []));
+        
+        console.log('[My Requests] Before filter - list size:', list.length);
+        console.log('[My Requests] Current user:', {
+          id: currentUser?.id,
+          user_id: currentUser?.user_id,
+          email: currentUser?.email,
+          username: currentUser?.username,
+          firstname: currentUser?.firstname,
+          lastname: currentUser?.lastname,
+          name: currentUser?.name
+        });
+        if (list.length > 0) {
+          console.log('[My Requests] Sample document creator fields:', {
+            title: list[0].title,
+            created_by_name: list[0].created_by_name,
+            created_by_user_id: list[0].created_by_user_id,
+            created_by_id: list[0].created_by_id,
+            requested_by_name: list[0].requested_by_name,
+            from_field: list[0].from_field
+          });
+          console.log('[My Requests] Matching against:', {
+            myId: myId,
+            myNameLower: myNameLower,
+            myUsernameLower: myUsernameLower,
+            myEmailLower: myEmailLower
+          });
+        }
 
         const isCreatedByMe = (d) => {
-          const creatorName = String(d.created_by_name || d.requested_by_name || d.reply_created_by_name || d.from_field || '').trim().toLowerCase();
+          const creatorName = String(d.created_by_name || d.requested_by_name || d.reply_created_by_name || '').trim().toLowerCase();
+          const fromField = String(d.from_field || '').trim().toLowerCase();
           const creatorEmail = String(d.created_by_email || d.requested_by_email || d.email || '').trim().toLowerCase();
           const creatorUsername = String(d.created_by_username || d.username || '').trim().toLowerCase();
           const creatorId = d.created_by_id || d.created_by_user_id || d.user_id || d.owner_id;
+          
+          // Match by ID (most reliable)
           if (myId && creatorId && String(myId) === String(creatorId)) return true;
+          
+          // Match by email
           if (myEmailLower && creatorEmail && myEmailLower === creatorEmail) return true;
+          
+          // Match by username
           if (myUsernameLower && creatorUsername && myUsernameLower === creatorUsername) return true;
+          
+          // Match by name in created_by_name, requested_by_name, or reply_created_by_name
           if (creatorName && (names.has(creatorName) || creatorName.includes(myNameLower) || myNameLower.includes(creatorName))) return true;
+          
+          // Match by name in from_field (for requests where user is the sender)
+          if (fromField && (names.has(fromField) || fromField.includes(myNameLower) || myNameLower.includes(fromField))) return true;
+          
+          // Fallback: if username matches from_field exactly
+          if (myUsernameLower && fromField && myUsernameLower === fromField) return true;
+          
           return false;
         };
         list = list.filter(isCreatedByMe);
-      } catch (_) {}
+        console.log('[My Requests] Filtered to', list.length, 'items created by me');
+        if (list.length > 0) {
+          console.log('[My Requests] Sample item:', { title: list[0].title, created_by_name: list[0].created_by_name, created_by_user_id: list[0].created_by_user_id });
+        }
+      } catch (e) {
+        console.error('[My Requests] Filter error:', e);
+      }
     }
     
     if (search.trim()) {
