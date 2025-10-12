@@ -9,13 +9,30 @@ export const API_BASE_URL = (() => {
     console.log('[API Client] Using VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
     return import.meta.env.VITE_API_BASE_URL;
   }
-  // 2) Next, prefer current origin + '/api' when running in a browser without env
+  
+  // 1.5) Check build-time defined variable
+  if (typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__) {
+    console.log('[API Client] Using build-time API_BASE_URL:', __API_BASE_URL__);
+    return __API_BASE_URL__;
+  }
+  
+  // 2) Check for production environment indicators
+  const isProduction = typeof window !== 'undefined' && (
+    window.location.hostname !== 'localhost' && 
+    window.location.hostname !== '127.0.0.1' &&
+    !window.location.hostname.includes('localhost')
+  );
+  
+  // 3) Use current origin + '/api' when running in a browser
   if (typeof window !== 'undefined' && window.location && window.location.origin) {
     const url = `${window.location.origin}/api`;
     console.log('[API Client] Using window.location.origin:', url);
+    console.log('[API Client] Production mode:', isProduction);
+    console.log('[API Client] Hostname:', window.location.hostname);
     return url;
   }
-  // 3) Last resort: localhost (useful for Node/test contexts)
+  
+  // 4) Last resort: localhost (useful for Node/test contexts)
   console.log('[API Client] Falling back to localhost');
   return 'http://localhost:5000/api';
 })();

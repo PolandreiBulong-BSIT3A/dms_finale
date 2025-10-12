@@ -644,7 +644,6 @@ const Reply = ({ onNavigateToDocuments }) => {
               </div>
             </form>
           </div>
-        </div>
         {showPreviewPanel && (
           <div style={styles.previewCol}>
             <div style={styles.previewHeader}>
