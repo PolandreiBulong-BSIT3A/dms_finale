@@ -124,18 +124,23 @@ const Login = () => {
   const fetchMaintenanceStatus = async () => {
     setCheckingMaintenance(true);
     try {
-      const res = await fetch(buildUrl('maintenance/status'));
+      const url = buildUrl('maintenance/status');
+      console.log('[Maintenance] Fetching status from:', url);
+      const res = await fetch(url);
+      console.log('[Maintenance] Response status:', res.status, res.ok);
       if (res.ok) {
         const data = await res.json();
+        console.log('[Maintenance] Response data:', data);
         const on = !!data.maintenanceMode;
         setMaintenanceMode(on);
         setMaintenanceStartTime(data.maintenanceStartTime || null);
         setMaintenanceEndTime(data.maintenanceEndTime || null);
         setMaintenanceMessage(data.maintenanceMessage || null);
         if (!on) setAdminBypass(false);
+        console.log('[Maintenance] Mode set to:', on);
       }
     } catch (e) {
-      // ignore network errors
+      console.error('[Maintenance] Fetch error:', e);
     } finally {
       setCheckingMaintenance(false);
     }

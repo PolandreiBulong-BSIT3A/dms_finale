@@ -6,13 +6,17 @@ import { fetchWithRetry } from './http.js';
 export const API_BASE_URL = (() => {
   // 1) Prefer Vite env var in builds
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
+    console.log('[API Client] Using VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
     return import.meta.env.VITE_API_BASE_URL;
   }
   // 2) Next, prefer current origin + '/api' when running in a browser without env
   if (typeof window !== 'undefined' && window.location && window.location.origin) {
-    return `${window.location.origin}/api`;
+    const url = `${window.location.origin}/api`;
+    console.log('[API Client] Using window.location.origin:', url);
+    return url;
   }
   // 3) Last resort: localhost (useful for Node/test contexts)
+  console.log('[API Client] Falling back to localhost');
   return 'http://localhost:5000/api';
 })();
 
