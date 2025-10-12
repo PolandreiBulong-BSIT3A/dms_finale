@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FiCheck, FiAlertCircle, FiMaximize2 } from 'react-icons/fi';
+import { FiCheck, FiAlertCircle, FiMaximize2, FiExternalLink } from 'react-icons/fi';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 
 const Reply = ({ onNavigateToDocuments }) => {
@@ -109,7 +109,7 @@ const Reply = ({ onNavigateToDocuments }) => {
     setShowPreviewPanel(isValidDriveLink(replyLink) && !!previewUrl);
   }, [replyLink, previewUrl]);
 
-  // Styles object matching Upload.jsx design
+  // Styles matching Upload.jsx design system
   const styles = {
     outerWrap: {
       minHeight: '100vh',
@@ -122,7 +122,7 @@ const Reply = ({ onNavigateToDocuments }) => {
     },
     flexCard: {
       display: 'flex',
-      flexDirection: 'row',
+      flexDirection: isMobile ? 'column' : 'row',
       alignItems: 'stretch',
       width: '100%',
       maxWidth: 1200,
@@ -143,21 +143,16 @@ const Reply = ({ onNavigateToDocuments }) => {
       alignSelf: 'stretch',
       margin: 0,
     },
-    formInner: {
-      padding: isMobile ? '16px' : '32px',
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%',
-    },
     previewCol: {
       flex: 1,
-      borderLeft: '1px solid #eee',
+      borderLeft: isMobile ? 'none' : '1px solid #eee',
+      borderTop: isMobile ? '1px solid #eee' : 'none',
       background: '#fafafa',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'stretch',
-      padding: 32,
+      justifyContent: 'flex-start',
+      padding: isMobile ? '16px' : '32px',
       minWidth: 0,
       height: 'auto',
       alignSelf: 'stretch',
@@ -166,17 +161,19 @@ const Reply = ({ onNavigateToDocuments }) => {
       fontSize: 'clamp(20px, 4vw, 28px)',
       fontWeight: 700,
       color: '#111',
-      margin: '0 0 24px 0',
+      margin: 0,
       letterSpacing: '-0.02em',
       textAlign: 'left',
     },
     section: {
-      marginBottom: 0,
+      marginBottom: 20,
     },
     inputRow: {
       display: 'flex',
       gap: 18,
       marginBottom: 0,
+      flexDirection: isMobile ? 'column' : 'row',
+      alignItems: isMobile ? 'flex-start' : 'center',
     },
     inputLabel: {
       fontWeight: 400,
@@ -184,6 +181,7 @@ const Reply = ({ onNavigateToDocuments }) => {
       color: '#333',
       fontSize: 'clamp(12px, 2vw, 13px)',
       textAlign: 'left',
+      minWidth: isMobile ? 'auto' : '120px',
     },
     input: {
       width: '100%',
@@ -196,7 +194,7 @@ const Reply = ({ onNavigateToDocuments }) => {
       padding: '6px 0 4px 0',
       marginBottom: 10,
       outline: 'none',
-      transition: 'none',
+      transition: 'border-bottom-color 0.2s',
       fontFamily: 'inherit',
     },
     textarea: {
@@ -210,19 +208,15 @@ const Reply = ({ onNavigateToDocuments }) => {
       padding: '6px 0 4px 0',
       marginBottom: 10,
       outline: 'none',
-      transition: 'none',
+      transition: 'border-bottom-color 0.2s',
       fontFamily: 'inherit',
       resize: 'vertical',
       minHeight: 60,
     },
     error: {
-      color: '#b91c1c',
-      fontSize: 12,
-      marginTop: 6,
-    },
-    success: {
-      color: '#065f46',
-      fontSize: 12,
+      color: '#c00',
+      fontSize: 'clamp(11px, 2vw, 12px)',
+      fontWeight: 400,
       marginTop: 6,
     },
     buttonRow: {
@@ -319,7 +313,7 @@ const Reply = ({ onNavigateToDocuments }) => {
       padding: '6px 0 4px 0',
       marginBottom: 10,
       outline: 'none',
-      transition: 'none',
+      transition: 'border-bottom-color 0.2s',
       fontFamily: 'inherit',
     },
     openButton: {
@@ -334,22 +328,44 @@ const Reply = ({ onNavigateToDocuments }) => {
       transition: 'all 0.2s',
       whiteSpace: 'nowrap',
       flex: '0 0 auto',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4,
     },
-    previewPanel: {
+    previewHeader: {
+      fontWeight: 600,
+      fontSize: 18,
+      color: '#111',
+      marginBottom: 16,
+      alignSelf: 'flex-start',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+    },
+    previewIframe: {
+      width: '100%',
+      height: '100%',
+      minHeight: isMobile ? 300 : 500,
       flex: 1,
-      minWidth: isMobile ? 0 : 280,
-      width: isMobile ? '100%' : 'auto',
+      border: '1.5px solid #111',
+      borderRadius: 8,
+      background: '#fff',
+      overflow: 'auto',
     },
-    previewContent: {
-      border: '1px solid #e5e7eb',
-      borderRadius: 10,
-      padding: 20,
+    previewPlaceholder: {
+      width: '100%',
+      minHeight: isMobile ? 200 : 300,
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 200,
-      backgroundColor: '#f9fafb',
+      color: '#888',
+      border: '1.5px dashed #bbb',
+      borderRadius: 8,
+      background: '#fff',
+      fontSize: 14,
+      padding: 20,
+      textAlign: 'center',
     },
     previewIcon: {
       width: 64,
@@ -359,19 +375,6 @@ const Reply = ({ onNavigateToDocuments }) => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 16,
-    },
-    previewTitle: {
-      fontSize: 14,
-      fontWeight: 500,
-      color: '#374151',
-      marginBottom: 4,
-      textAlign: 'center',
-    },
-    previewSubtitle: {
-      fontSize: 12,
-      color: '#6b7280',
-      textAlign: 'center',
       marginBottom: 16,
     },
     previewButton: {
@@ -386,6 +389,7 @@ const Reply = ({ onNavigateToDocuments }) => {
       display: 'flex',
       alignItems: 'center',
       gap: 6,
+      transition: 'all 0.2s',
     },
   };
 
@@ -511,18 +515,17 @@ const Reply = ({ onNavigateToDocuments }) => {
             </div>
           </div>
 
-          <div style={styles.formInner}>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {!!error && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: 6, marginBottom: 12 }}>
-                  <FiAlertCircle /> {error}
-                </div>
-              )}
-              {!!success && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#065f46', background: '#d1fae5', border: '1px solid #a7f3d0', padding: '8px 12px', borderRadius: 6, marginBottom: 12 }}>
-                  <FiCheck /> {success}
-                </div>
-              )}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 24 }}>
+            {!!error && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecaca', padding: '10px 14px', borderRadius: 8, fontSize: 14 }}>
+                <FiAlertCircle size={16} /> {error}
+              </div>
+            )}
+            {!!success && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#065f46', background: '#d1fae5', border: '1px solid #a7f3d0', padding: '10px 14px', borderRadius: 8, fontSize: 14 }}>
+                <FiCheck size={16} /> {success}
+              </div>
+            )}
 
               {/* From, To, Date/Time Row */}
               <div style={styles.section}>
@@ -601,11 +604,16 @@ const Reply = ({ onNavigateToDocuments }) => {
                     />
                     <button 
                       type="button" 
-                      style={styles.openButton}
+                      style={{
+                        ...styles.openButton,
+                        opacity: replyLink ? 1 : 0.5,
+                        cursor: replyLink ? 'pointer' : 'not-allowed'
+                      }}
                       onClick={() => replyLink && window.open(replyLink, '_blank')} 
                       disabled={!replyLink} 
                       title="Open in new tab"
                     >
+                      <FiExternalLink size={14} />
                       Open
                     </button>
                   </div>
@@ -639,30 +647,40 @@ const Reply = ({ onNavigateToDocuments }) => {
         </div>
         {showPreviewPanel && (
           <div style={styles.previewCol}>
-            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Document Link</div>
-            <div style={styles.previewContent}>
-              <div style={styles.previewIcon}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
-                  <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                </svg>
-              </div>
-              <div style={styles.previewTitle}>
-                Google Drive Document
-              </div>
-              <div style={styles.previewSubtitle}>
-                Click below to open in new tab
-              </div>
-              <button 
-                type="button" 
-                onClick={() => window.open(getDriveViewUrl(replyLink), '_blank')}
-                style={styles.previewButton}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z" />
-                </svg>
-                Open Document
-              </button>
+            <div style={styles.previewHeader}>
+              <FiExternalLink size={18} />
+              Document Preview
             </div>
+            {previewUrl ? (
+              <iframe
+                src={previewUrl}
+                style={styles.previewIframe}
+                title="Google Drive Preview"
+                allow="autoplay"
+              />
+            ) : (
+              <div style={styles.previewPlaceholder}>
+                <div style={styles.previewIcon}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 8 }}>
+                  Google Drive Document
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
+                  Preview not available for this link type
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => window.open(getDriveViewUrl(replyLink), '_blank')}
+                  style={styles.previewButton}
+                >
+                  <FiExternalLink size={14} />
+                  Open in New Tab
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
