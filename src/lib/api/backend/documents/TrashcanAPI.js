@@ -1,6 +1,7 @@
 import express from 'express';
 import mysql from 'mysql2/promise';
 import { requireAuth } from '../middleware/authMiddleware.js';
+import db from '../connections/connection.js';
 
 const router = express.Router();
 
@@ -27,20 +28,9 @@ const requireAdminOrDean = (req, res, next) => {
   next();
 };
 
-// Database connection configuration
-const dbConfig = {
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'ispsc_tagudin_dms_2'
-};
-
-// Create database connection pool
-const pool = mysql.createPool(dbConfig);
-
 // Move document to trashcan (soft delete) or restore (soft undelete)
 router.post('/documents/trashcan', requireAuth, requireAdminOrDean, async (req, res) => {
-  const connection = await pool.getConnection();
+  const connection = await db.promise().getConnection();
   
   try {
     const { documentId, action, deletedAt } = req.body || {};
@@ -201,7 +191,7 @@ router.post('/documents/trashcan', requireAuth, requireAdminOrDean, async (req, 
 
 // List soft-deleted documents (trash view)
 router.get('/documents/trashcan', requireAuth, requireAdminOrDean, async (req, res) => {
-  const connection = await pool.getConnection();
+  const connection = await db.promise().getConnection();
   
   try {
     // Disable caching so updated fields (e.g., profile pics) are not served stale
@@ -270,7 +260,7 @@ router.get('/documents/trashcan', requireAuth, requireAdminOrDean, async (req, r
 
 // Permanently delete a soft-deleted document
 router.delete('/documents/trashcan/:documentId', requireAuth, requireAdminOrDean, async (req, res) => {
-  const connection = await pool.getConnection();
+  const connection = await db.promise().getConnection();
   
   try {
     const { documentId } = req.params;
