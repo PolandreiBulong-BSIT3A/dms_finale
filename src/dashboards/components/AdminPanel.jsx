@@ -1177,13 +1177,13 @@ const AdminPanel = ({ role }) => {
           <div style={styles.formGroup}>
             <label style={styles.label}>Maintenance Message (optional)</label>
             <textarea
-            style={{...styles.input, minHeight: 80, resize: 'vertical'}}
-            placeholder="Short note users will see on the maintenance screen"
-            value={maintenanceMessage}
-            onChange={(e)=>{ setMaintenanceMessage(e.target.value); }}
-            onFocus={()=> setIsEditingMaintenance(true)}
-            onBlur={()=> setIsEditingMaintenance(false)}
-          />
+              style={{...styles.input, minHeight: 80, resize: 'vertical'}}
+              placeholder="Short note users will see on the maintenance screen"
+              value={maintenanceMessage}
+              onChange={(e) => setMaintenanceMessage(e.target.value)}
+              onFocus={() => setIsEditingMaintenance(true)}
+              onBlur={() => setIsEditingMaintenance(false)}
+            ></textarea>
           </div>
 
         <div style={styles.formGroup}>
