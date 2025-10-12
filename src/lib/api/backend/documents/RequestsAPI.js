@@ -53,6 +53,17 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
     const isAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
     const isDean = roleUpper === 'DEAN';
 
+    // Debug logging for dean requests
+    if (isDean) {
+      console.log('[RequestsAPI] Dean request:', {
+        userId,
+        deptId,
+        roleUpper,
+        scope,
+        currentUser: req.currentUser
+      });
+    }
+
     // Base SQL selects documents that have any action rows (including completed ones)
     let sql = `
       SELECT 
@@ -70,6 +81,10 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
         da.completed_at,
         da.completed_by_user_id,
         CONCAT(completed_user.firstname, ' ', completed_user.lastname) AS completed_by_name,
+        -- receiver aggregates for 'Requested To'
+        GROUP_CONCAT(DISTINCT da.assigned_to_user_id ORDER BY da.assigned_to_user_id SEPARATOR ',') AS assigned_user_ids_csv,
+        GROUP_CONCAT(DISTINCT da.assigned_to_role ORDER BY da.assigned_to_role SEPARATOR ',') AS assigned_roles_csv,
+        GROUP_CONCAT(DISTINCT da.assigned_to_department_id ORDER BY da.assigned_to_department_id SEPARATOR ',') AS assigned_department_ids_csv,
         reply_doc.doc_id AS reply_doc_id,
         reply_doc.title AS reply_title,
         reply_doc.description AS reply_description,
@@ -91,13 +106,26 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
     if (!isAdmin) {
       if (isDean) {
         // Dean: see everything within their department (department-wide), regardless of scope
-        sql += ` AND (
-            (dd.department_id IS NOT NULL AND dd.department_id = ?)
-            OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-            OR (d.visible_to_all = 1)
-          )`;
-        params.push(deptId, deptId, roleUpper);
+        // Also include items assigned directly to the dean user
+        // Use OR conditions to be permissive - show if ANY condition matches
+        if (deptId) {
+          sql += ` AND (
+              (dd.department_id = ?)
+              OR (da.assigned_to_department_id = ?)
+              OR (da.assigned_to_role = ?)
+              OR (da.assigned_to_user_id = ?)
+              OR (d.visible_to_all = 1)
+            )`;
+          params.push(deptId, deptId, roleUpper, userId);
+        } else {
+          // Dean without department - show role-based, user-based, and public only
+          sql += ` AND (
+              (da.assigned_to_role = ?)
+              OR (da.assigned_to_user_id = ?)
+              OR (d.visible_to_all = 1)
+            )`;
+          params.push(roleUpper, userId);
+        }
       } else if (scope === 'dept') {
         // Department overview: include items tied to their department, their role, or in their department, or public
         sql += ` AND (
@@ -123,7 +151,52 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
       ORDER BY d.created_at DESC
     `;
 
+    // Debug: Log the final query for deans
+    if (isDean) {
+      console.log('[RequestsAPI] Dean SQL query:', sql.replace(/\s+/g, ' '));
+      console.log('[RequestsAPI] Dean params:', params);
+    }
+
     const [rows] = await db.promise().query(sql, params);
+
+    // Debug logging for dean results
+    if (isDean) {
+      console.log('[RequestsAPI] Dean query returned', rows.length, 'rows');
+      if (rows.length > 0) {
+        console.log('[RequestsAPI] Sample row:', rows[0]);
+      } else {
+        // Check if there are ANY documents with actions
+        const [allDocs] = await db.promise().query(
+          'SELECT COUNT(*) as count FROM dms_documents d INNER JOIN document_actions da ON da.doc_id = d.doc_id WHERE (d.deleted IS NULL OR d.deleted = 0)'
+        );
+        console.log('[RequestsAPI] Total documents with actions in DB:', allDocs[0]?.count || 0);
+        
+        // Check dean\'s department assignments
+        const [deptCheck] = await db.promise().query(
+          'SELECT COUNT(*) as count FROM document_actions WHERE assigned_to_department_id = ?',
+          [deptId]
+        );
+        console.log('[RequestsAPI] Actions assigned to dean dept', deptId, ':', deptCheck[0]?.count || 0);
+        
+        // Check role assignments
+        const [roleCheck] = await db.promise().query(
+          'SELECT COUNT(*) as count FROM document_actions WHERE assigned_to_role = ?',
+          [roleUpper]
+        );
+        console.log('[RequestsAPI] Actions assigned to role', roleUpper, ':', roleCheck[0]?.count || 0);
+      }
+    }
+
+    const parseCsvNums = (csv) => (csv || '')
+      .toString()
+      .split(',')
+      .map(s => Number(String(s).trim()))
+      .filter(Boolean);
+    const parseCsvStrings = (csv) => (csv || '')
+      .toString()
+      .split(',')
+      .map(s => String(s).trim())
+      .filter(Boolean);
 
     const documents = rows.map(r => ({
       id: r.id,
@@ -140,6 +213,10 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
       completed_at: r.completed_at,
       completed_by_user_id: r.completed_by_user_id,
       completed_by_name: r.completed_by_name,
+      // requested-to aggregates
+      requested_to_user_ids: parseCsvNums(r.assigned_user_ids_csv),
+      requested_to_roles: Array.from(new Set(parseCsvStrings(r.assigned_roles_csv).map(x => x.toUpperCase()))),
+      requested_to_department_ids: parseCsvNums(r.assigned_department_ids_csv),
       reply_title: r.reply_title,
       reply_description: r.reply_description,
       reply_google_drive_link: r.reply_google_drive_link,
@@ -369,13 +446,23 @@ router.get('/documents/answered', requireAuth, async (req, res) => {
     if (!isAdmin) {
       if (isDean) {
         // Deans: see all completed requests within their department, plus public and role assignments
-        sql += ` AND (
-            (dd.department_id IS NOT NULL AND dd.department_id = ?)
-            OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-            OR (d.visible_to_all = 1)
-          )`;
-        params.push(deptId, deptId, roleUpper);
+        if (deptId) {
+          sql += ` AND (
+              (dd.department_id = ?)
+              OR (da.assigned_to_department_id = ?)
+              OR (da.assigned_to_role = ?)
+              OR (da.assigned_to_user_id = ?)
+              OR (d.visible_to_all = 1)
+            )`;
+          params.push(deptId, deptId, roleUpper, userId);
+        } else {
+          sql += ` AND (
+              (da.assigned_to_role = ?)
+              OR (da.assigned_to_user_id = ?)
+              OR (d.visible_to_all = 1)
+            )`;
+          params.push(roleUpper, userId);
+        }
       } else {
         // Other users: only those they completed or were assigned to
         sql += ` AND (
@@ -450,6 +537,54 @@ router.get('/documents/answered', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching answered documents:', error);
     res.status(500).json({ success: false, message: 'Database error.' });
+  }
+});
+
+// Debug endpoint to check document_actions table
+router.get('/documents/requests/debug', requireAuth, async (req, res) => {
+  try {
+    const userId = req.currentUser?.id || req.currentUser?.user_id || null;
+    const deptId = req.currentUser?.department_id || null;
+    const roleUpper = (req.currentUser?.role || '').toString().toUpperCase();
+
+    // Get all document actions
+    const [allActions] = await db.promise().query(
+      `SELECT da.*, d.title, d.doc_id 
+       FROM document_actions da 
+       INNER JOIN dms_documents d ON d.doc_id = da.doc_id 
+       WHERE (d.deleted IS NULL OR d.deleted = 0)
+       ORDER BY da.doc_id DESC 
+       LIMIT 20`
+    );
+
+    // Get document_departments
+    const [docDepts] = await db.promise().query(
+      `SELECT dd.*, d.title 
+       FROM document_departments dd 
+       INNER JOIN dms_documents d ON d.doc_id = dd.doc_id 
+       WHERE (d.deleted IS NULL OR d.deleted = 0)
+       LIMIT 20`
+    );
+
+    res.json({
+      success: true,
+      currentUser: {
+        userId,
+        deptId,
+        role: roleUpper
+      },
+      documentActions: allActions,
+      documentDepartments: docDepts,
+      counts: {
+        totalActions: allActions.length,
+        assignedToYourDept: allActions.filter(a => a.assigned_to_department_id === deptId).length,
+        assignedToYourRole: allActions.filter(a => a.assigned_to_role === roleUpper).length,
+        assignedToYou: allActions.filter(a => a.assigned_to_user_id === userId).length
+      }
+    });
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

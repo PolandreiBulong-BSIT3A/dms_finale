@@ -13,7 +13,6 @@ const Request = ({ onNavigateToUpload }) => {
   const [viewMode, setViewMode] = useState('pending'); // 'pending' or 'answered'
   const [answeredDocs, setAnsweredDocs] = useState([]);
   const [answeredLoading, setAnsweredLoading] = useState(false);
-  const [reqScope, setReqScope] = useState('assigned'); // 'assigned' | 'dept'
   const [sortField, setSortField] = useState('date_received'); // Default sort field
   const [sortDirection, setSortDirection] = useState('desc'); // 'asc' or 'desc'
   const [showMenu, setShowMenu] = useState(null); // Track which row's menu is open
@@ -50,8 +49,7 @@ const Request = ({ onNavigateToUpload }) => {
   React.useEffect(() => {
     (async () => {
       try {
-        const scopeParam = (reqScope ? `?scope=${encodeURIComponent(reqScope)}` : '');
-        const res = await fetchWithRetry(buildUrl(`documents/requests${scopeParam}`), { credentials: 'include' });
+        const res = await fetchWithRetry(buildUrl('documents/requests'), { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           const list = data?.documents || [];
@@ -61,7 +59,7 @@ const Request = ({ onNavigateToUpload }) => {
         console.error('Failed to fetch requests:', e);
       }
     })();
-  }, [reqScope]);
+  }, []);
 
   // Fetch answered documents
   const fetchAnsweredDocuments = async () => {
@@ -539,24 +537,7 @@ const Request = ({ onNavigateToUpload }) => {
           {viewMode === 'pending' ? 'Action Required' : 'Request Answered'}
         </h2>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {(currentUser?.role?.toString().toLowerCase() === 'dean' || currentUser?.role?.toString().toLowerCase() === 'faculty') && (
-            <div style={{ display: 'flex', gap: 6, marginRight: 8 }}>
-              <button
-                className={`btn ${reqScope === 'assigned' ? 'btn-dark' : 'btn-light'} border rounded-pill px-3`}
-                onClick={() => setReqScope('assigned')}
-                title="Only requests assigned to you/your role/department"
-              >
-                Assigned
-              </button>
-              <button
-                className={`btn ${reqScope === 'dept' ? 'btn-dark' : 'btn-light'} border rounded-pill px-3`}
-                onClick={() => setReqScope('dept')}
-                title="Department overview (dept/role/public/in-department)"
-              >
-                Dept Overview
-              </button>
-            </div>
-          )}
+          {/* Removed Assigned/Dept Overview toggle for dean - deans always see department-wide */}
           
           {/* View Mode Toggle Buttons */}
           <div style={{ display: 'flex', gap: 4, marginRight: 16 }}>
@@ -590,15 +571,7 @@ const Request = ({ onNavigateToUpload }) => {
             placeholder={viewMode === 'pending' ? "Search title, action, status..." : "Search title, reply, action..."}
             style={{ padding: '8px 12px', borderRadius: 20, border: '1px solid #d1d5db', minWidth: 260 }}
           />
-          {viewMode === 'answered' && (
-            <button
-              className="btn btn-primary border rounded-pill px-3"
-              onClick={() => onNavigateToUpload && onNavigateToUpload('upload')}
-              title="Add Document"
-            >
-              + Add Document
-            </button>
-          )}
+          {/* Removed '+ Add Document' button in answered view per request */}
           {/* Removed Refresh on desktop */}
 
           {items.length > 0 && (
