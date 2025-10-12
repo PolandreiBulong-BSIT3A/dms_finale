@@ -200,7 +200,7 @@ router.post('/signup', signupRateLimit, validateSignup, async (req, res) => {
       } else {
         return res.status(409).json({ 
           success: false, 
-          message: 'Username already taken.',
+          message: 'Email already taken.',
           code: 'USERNAME_EXISTS'
         });
       }

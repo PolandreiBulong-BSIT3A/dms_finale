@@ -446,7 +446,9 @@ router.post('/users/trash', requireAuth, requireRole(['admin','administrator','d
     if (action === 'restore_from_trashcan') {
       if (!userId && !Array.isArray(userIds)) return res.status(400).json({ success: false, message: 'userId or userIds is required' });
       if (Array.isArray(userIds) && userIds.length > 0) {
-        await db.promise().query(`UPDATE dms_user SET status = 'active', updated_at = NOW() WHERE user_id IN (?)`, [userIds]);
+        // Fix: Use proper placeholder syntax for arrays
+        const placeholders = userIds.map(() => '?').join(',');
+        await db.promise().query(`UPDATE dms_user SET status = 'active', updated_at = NOW() WHERE user_id IN (${placeholders})`, userIds);
         return res.json({ success: true, message: 'Selected users restored' });
       }
       await db.promise().query(`UPDATE dms_user SET status = 'active', updated_at = NOW() WHERE user_id = ?`, [userId]);
@@ -456,7 +458,9 @@ router.post('/users/trash', requireAuth, requireRole(['admin','administrator','d
     if (action === 'permanent_delete') {
       if (!userId && !Array.isArray(userIds)) return res.status(400).json({ success: false, message: 'userId or userIds is required' });
       if (Array.isArray(userIds) && userIds.length > 0) {
-        await db.promise().query(`DELETE FROM dms_user WHERE user_id IN (?)`, [userIds]);
+        // Fix: Use proper placeholder syntax for arrays
+        const placeholders = userIds.map(() => '?').join(',');
+        await db.promise().query(`DELETE FROM dms_user WHERE user_id IN (${placeholders})`, userIds);
         return res.json({ success: true, message: 'Selected users permanently deleted' });
       }
       await db.promise().query(`DELETE FROM dms_user WHERE user_id = ?`, [userId]);

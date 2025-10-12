@@ -130,13 +130,29 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
                 // Fetch departments
         try {
           const deptData = await fetchJson(buildUrl('departments'));
-          const transformedDepartments = (deptData.departments || []).map(dept => ({
-            department_id: parseInt(dept.value),
-            name: dept.label,
-            code: dept.code
-          }));
+          console.log('Raw department data:', deptData); // Debug log
+          
+          let rawDepartments = [];
+          if (Array.isArray(deptData)) {
+            rawDepartments = deptData;
+          } else if (Array.isArray(deptData.departments)) {
+            rawDepartments = deptData.departments;
+          } else if (Array.isArray(deptData.data)) {
+            rawDepartments = deptData.data;
+          }
+          
+          const transformedDepartments = rawDepartments.map(dept => ({
+            department_id: parseInt(dept.department_id || dept.value || dept.id),
+            name: dept.name || dept.label || dept.department_name,
+            code: dept.code || dept.department_code
+          })).filter(dept => dept.department_id && dept.name);
+          
+          console.log('Transformed departments:', transformedDepartments); // Debug log
           setDepartments(transformedDepartments);
-        } catch {}
+        } catch (error) {
+          console.error('Error fetching departments:', error);
+          setDepartments([]);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {

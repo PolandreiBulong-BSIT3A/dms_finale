@@ -33,6 +33,7 @@ const User = ({ role }) => {
   const [selectedUsers, setSelectedUsers] = useState([]); // bulk selection
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteType, setDeleteType] = useState('');
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const { user: currentUser } = useUser();
 
@@ -652,18 +653,9 @@ const fetchDepartments = async () => {
           {(isAdmin || effectiveIsDean) && (
           <button
             className="btn btn-danger border rounded-pill px-3"
-            onClick={async () => {
+            onClick={() => {
               if (selectedUsers.length === 0) return;
-              const ok = window.confirm(`Permanently delete ${selectedUsers.length} selected user(s)? This cannot be undone.`);
-              if (!ok) return;
-              try {
-                await bulkPermanentDelete(selectedUsers);
-                setSelectedUsers([]);
-                await fetchUsers();
-                showToast('Selected users permanently deleted', 'success');
-              } catch (e) {
-                showToast(e.message || 'Bulk delete failed', 'error');
-              }
+              setShowBulkDeleteModal(true);
             }}
             disabled={selectedUsers.length === 0}
             style={{
@@ -987,6 +979,83 @@ const fetchDepartments = async () => {
                 style={styles.confirmButton}
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>Confirm Bulk Deletion</h3>
+              <button
+                onClick={() => setShowBulkDeleteModal(false)}
+                style={styles.closeButton}
+                title="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={styles.modalBody}>
+              <div style={styles.confirmMessage}>
+                <div style={styles.confirmIcon}>
+                  <ExclamationTriangle size={48} color="#dc2626" />
+                </div>
+                <h4 style={styles.confirmTitle}>
+                  Permanently delete {selectedUsers.length} selected user(s)?
+                </h4>
+                <p style={styles.confirmText}>
+                  This action cannot be undone. The selected users will be permanently removed from the system.
+                </p>
+              </div>
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button
+                onClick={() => setShowBulkDeleteModal(false)}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await bulkPermanentDelete(selectedUsers);
+                    setSelectedUsers([]);
+                    await fetchUsers();
+                    setShowBulkDeleteModal(false);
+                    showToast('Selected users permanently deleted', 'success');
+                  } catch (e) {
+                    showToast(e.message || 'Bulk delete failed', 'error');
+                  }
+                }}
+                style={styles.confirmButton}
+              >
+                Okay
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await Promise.all(selectedUsers.map(userId => updateUserTrashState(userId, 'move_to_trashcan')));
+                    setSelectedUsers([]);
+                    await fetchUsers();
+                    setShowBulkDeleteModal(false);
+                    showToast('Selected users moved to trash', 'success');
+                  } catch (e) {
+                    showToast(e.message || 'Move to trash failed', 'error');
+                  }
+                }}
+                style={{
+                  ...styles.confirmButton,
+                  backgroundColor: '#f59e0b',
+                  borderColor: '#f59e0b'
+                }}
+              >
+                Move to User Trash
               </button>
             </div>
           </div>

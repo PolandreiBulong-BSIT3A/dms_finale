@@ -577,12 +577,12 @@ const Upload = ({ role, onNavigateToDocuments }) => {
     }
 
     let newErrors = {};
-    if (!linkTitle.trim()) newErrors.linkTitle = 'Title required';
-    if (!docReference.trim()) newErrors.docReference = 'Reference required';
-    if (!fromField.trim()) newErrors.fromField = 'Sender required';
-    if (!toField.trim()) newErrors.toField = 'Recipient required';
-    if (!dateTimeReceived.trim()) newErrors.dateTimeReceived = 'Date/time required';
-    if (!docType.trim()) newErrors.docType = 'Document type required';
+    if (!linkTitle.trim()) newErrors.linkTitle = 'Document title is required';
+    // Reference field is now optional - removed validation
+    if (!fromField.trim()) newErrors.fromField = 'Sender information is required';
+    if (!toField.trim()) newErrors.toField = 'Recipient information is required';
+    if (!dateTimeReceived.trim()) newErrors.dateTimeReceived = 'Date and time received is required';
+    if (!docType.trim()) newErrors.docType = 'Document type is required';
     
     // Validate multiple links
     const validLinks = multipleLinks.filter(link => link.link.trim());
@@ -595,17 +595,17 @@ const Upload = ({ role, onNavigateToDocuments }) => {
       link.link.trim() && !isValidDriveLink(link.link)
     );
     if (invalidLinks.length > 0) {
-      newErrors.multipleLinks = 'One or more Google Drive links are invalid';
+      newErrors.multipleLinks = `Invalid Google Drive link(s) detected. Please ensure links are valid Google Drive URLs (e.g., https://drive.google.com/file/d/...)`;
     }
     if (
       (role?.toLowerCase() === 'dean' || role?.toLowerCase() === 'admin') &&
       visibilityMode === 'specific' &&
       selectedVisibility.length === 0
     ) {
-      newErrors.selectedVisibility = 'Select at least one department';
+      newErrors.selectedVisibility = 'Please select at least one department for document visibility';
     }
     if (requireAction && selectedActions.length === 0) {
-      newErrors.selectedActions = 'Select at least one action';
+      newErrors.selectedActions = 'Please select at least one action requirement for this document';
     }
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
@@ -774,7 +774,47 @@ const Upload = ({ role, onNavigateToDocuments }) => {
       const result = await addDocument(documentForContext);
       
         if (!result.success) {
-          setErrorMessage(result.message);
+          // Enhanced error handling for individual document upload failures
+          let individualErrorMessage = result.message || 'Failed to upload document';
+          
+          // Provide more specific error messages based on the result
+          if (result.message && result.message.includes('duplicate')) {
+            individualErrorMessage = `Document "${uniqueTitle}" already exists. Please use a different title or reference.`;
+          } else if (result.message && result.message.includes('validation')) {
+            individualErrorMessage = `Validation error for "${uniqueTitle}": ${result.message}`;
+          } else if (result.message && result.message.includes('permission')) {
+            individualErrorMessage = `Permission denied for "${uniqueTitle}": You don't have permission to upload this document.`;
+          }
+          
+          setErrorMessage(individualErrorMessage);
+          
+          // Show error toast for individual document failure
+          const individualErrorToast = document.createElement('div');
+          individualErrorToast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #dc2626;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 9999;
+            font-weight: 500;
+            animation: slideIn 0.3s ease-out;
+            max-width: 400px;
+            word-wrap: break-word;
+          `;
+          individualErrorToast.textContent = `❌ Failed to upload "${uniqueTitle}": ${individualErrorMessage}`;
+          document.body.appendChild(individualErrorToast);
+          
+          // Remove the error toast after 5 seconds
+          setTimeout(() => {
+            if (individualErrorToast.parentNode) {
+              individualErrorToast.parentNode.removeChild(individualErrorToast);
+            }
+          }, 5000);
+          
           return;
         }
       }
@@ -856,7 +896,59 @@ const Upload = ({ role, onNavigateToDocuments }) => {
         }, 2000);
     } catch (error) {
       console.error('Error uploading document:', error);
-      setErrorMessage('Failed to upload document. Please try again.');
+      
+      // Enhanced error handling with specific error messages
+      let errorMessage = 'Failed to upload document. Please try again.';
+      
+      if (error.message) {
+        // Handle specific error types
+        if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'Network error: Please check your internet connection and try again.';
+        } else if (error.message.includes('validation') || error.message.includes('required')) {
+          errorMessage = 'Validation error: Please check all required fields and try again.';
+        } else if (error.message.includes('permission') || error.message.includes('unauthorized')) {
+          errorMessage = 'Permission error: You do not have permission to upload documents.';
+        } else if (error.message.includes('duplicate') || error.message.includes('exists')) {
+          errorMessage = 'Document already exists: Please use a different title or reference.';
+        } else if (error.message.includes('size') || error.message.includes('limit')) {
+          errorMessage = 'File size error: The document exceeds size limits.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Request timeout: The server is taking too long to respond. Please try again.';
+        } else {
+          // Use the specific error message if available
+          errorMessage = error.message;
+        }
+      }
+      
+      setErrorMessage(errorMessage);
+      
+      // Show error toast notification
+      const errorToast = document.createElement('div');
+      errorToast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #dc2626;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        font-weight: 500;
+        animation: slideIn 0.3s ease-out;
+        max-width: 400px;
+        word-wrap: break-word;
+      `;
+      errorToast.textContent = `❌ Upload failed: ${errorMessage}`;
+      document.body.appendChild(errorToast);
+      
+      // Remove the error toast after 5 seconds
+      setTimeout(() => {
+        if (errorToast.parentNode) {
+          errorToast.parentNode.removeChild(errorToast);
+        }
+      }, 5000);
+      
     } finally {
       setUploading(false);
     }
@@ -1057,8 +1149,8 @@ const Upload = ({ role, onNavigateToDocuments }) => {
                 {errors.linkTitle && <div style={styles.error}>{errors.linkTitle}</div>}
               </div>
               <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
-                <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>Reference</div>
-                <input style={{...styles.input, fontSize: 'clamp(14px, 2.5vw, 15px)'}} type="text" value={docReference} onChange={e => setDocReference(e.target.value)} placeholder=" " />
+                <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>Reference <span style={{color: '#6b7280', fontSize: '12px', fontWeight: 'normal'}}>(optional)</span></div>
+                <input style={{...styles.input, fontSize: 'clamp(14px, 2.5vw, 15px)'}} type="text" value={docReference} onChange={e => setDocReference(e.target.value)} placeholder="Enter document reference (optional)" />
                 {errors.docReference && <div style={styles.error}>{errors.docReference}</div>}
               </div>
             </div>

@@ -459,12 +459,12 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
     }
 
     let newErrors = {};
-    if (!linkTitle.trim()) newErrors.linkTitle = 'Title required';
-    if (!docReference.trim()) newErrors.docReference = 'Reference required';
-    if (!fromField.trim()) newErrors.fromField = 'Sender required';
-    if (!toField.trim()) newErrors.toField = 'Recipient required';
-    if (!dateTimeReceived.trim()) newErrors.dateTimeReceived = 'Date/time required';
-    if (!docType.trim()) newErrors.docType = 'Document type required';
+    if (!linkTitle.trim()) newErrors.linkTitle = 'Document title is required';
+    // Reference field is now optional - removed validation
+    if (!fromField.trim()) newErrors.fromField = 'Sender information is required';
+    if (!toField.trim()) newErrors.toField = 'Recipient information is required';
+    if (!dateTimeReceived.trim()) newErrors.dateTimeReceived = 'Date and time received is required';
+    if (!docType.trim()) newErrors.docType = 'Document type is required';
     
     // Validate multiple links
     const validLinks = multipleLinks.filter(link => link.link.trim());
@@ -973,8 +973,8 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
                 {errors.linkTitle && <div style={styles.error}>{errors.linkTitle}</div>}
               </div>
               <div style={styles.inputRow}>
-                <div style={styles.inputLabel}>Reference</div>
-                <input style={styles.input} type="text" value={docReference} onChange={e => setDocReference(e.target.value)} placeholder=" " />
+                <div style={styles.inputLabel}>Reference <span style={{color: '#6b7280', fontSize: '12px', fontWeight: 'normal'}}>(optional)</span></div>
+                <input style={styles.input} type="text" value={docReference} onChange={e => setDocReference(e.target.value)} placeholder="Enter document reference (optional)" />
                 {errors.docReference && <div style={styles.error}>{errors.docReference}</div>}
               </div>
             </div>

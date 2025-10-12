@@ -613,7 +613,6 @@ const Announcements = ({ role, setActiveTab }) => {
         </div>
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
       {loading && (
         <div
           style={{
@@ -938,87 +937,270 @@ const Announcements = ({ role, setActiveTab }) => {
         setSelectedDeptIds([]);
         setSelectedRoles([]);
         setError('');
-      }} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>{isEditing ? 'Edit Announcement' : 'Create Announcement'}</Modal.Title>
+      }} centered size="lg">
+        <Modal.Header closeButton style={{ borderBottom: '1px solid #e5e7eb', padding: '20px 24px' }}>
+          <Modal.Title style={{ fontSize: '18px', fontWeight: '600', color: '#111827' }}>
+            {isEditing ? 'Edit Announcement' : 'Create Announcement'}
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-        <Form id="createAnnForm" onSubmit={handleCreateSubmit}>
-          <Form.Group className="mb-3" controlId="annTitle">
-            <Form.Label>Title</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Enter title"
-              value={formTitle}
-              onChange={(e) => setFormTitle(e.target.value)}
-              required
-            />
-          </Form.Group>
-          <Form.Group className="mb-3" controlId="annMessage">
-  <Form.Label>Message</Form.Label>
-  <Form.Control
-    as="textarea"
-    rows={5}
-    placeholder="Type the announcement message"
-    value={formMessage}
-    onChange={(e) => setFormMessage(e.target.value)}
-    required
-  />
-</Form.Group>
-            <Form.Group className="mb-3" controlId="annPublic">
-              <Form.Check
-                type="switch"
-                label="Public (visible to all)"
-                checked={formIsPublic}
-                onChange={(e) => setFormIsPublic(e.target.checked)}
-                disabled={isDean}
-              />
-            </Form.Group>
-            <Form.Group className="mb-3" controlId="annDepartments">
-              <Form.Label>Target Departments</Form.Label>
-              <Select
-                isMulti
-                isSearchable
-                closeMenuOnSelect={false}
-                options={deptOptions.map((d) => ({
-                  value: String(d.value),
-                  label: d.code ? `${d.code} — ${d.label}` : d.label,
-                }))}
-                value={deptOptions
-                  .filter((d) => selectedDeptIds.map(String).includes(String(d.value)))
-                  .map((d) => ({ value: String(d.value), label: d.code ? `${d.code} — ${d.label}` : d.label }))}
-                onChange={(selected) => {
-                  const vals = (selected || []).map((opt) => Number(opt.value)).filter((n) => !Number.isNaN(n));
-                  setSelectedDeptIds(vals);
-                }}
-                styles={selectStyles}
-                isDisabled={formIsPublic || isDean}
-              />
-              <Form.Text className="text-muted">Search and select one or more departments.</Form.Text>
-            </Form.Group>
-        </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => setShowCreateModal(false)} disabled={creating}>
-          Cancel
-        </Button>
-        <Button variant="dark" type="submit" form="createAnnForm" disabled={creating}>
-          {creating ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update' : 'Create')}
-        </Button>
-      </Modal.Footer>
-    </Modal>
+        <Modal.Body style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+          {/* Error Message Display */}
+          {error && (
+            <div 
+              style={{
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginBottom: '20px',
+                color: '#dc2626',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              {error}
+            </div>
+          )}
+          
+          <Form id="createAnnForm" onSubmit={handleCreateSubmit}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Title Field */}
+              <div>
+                <Form.Label style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
+                  Title
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter announcement title"
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  required
+                  style={{
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    padding: '12px 16px',
+                    fontSize: '14px',
+                    transition: 'border-color 0.2s ease'
+                  }}
+                />
+              </div>
+
+              {/* Message Field */}
+              <div>
+                <Form.Label style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
+                  Message
+                </Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={6}
+                  placeholder="Type the announcement message..."
+                  value={formMessage}
+                  onChange={(e) => setFormMessage(e.target.value)}
+                  required
+                  style={{
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    padding: '12px 16px',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                    minHeight: '120px',
+                    transition: 'border-color 0.2s ease'
+                  }}
+                />
+              </div>
+
+              {/* Visibility Settings */}
+              <div style={{ 
+                backgroundColor: '#f9fafb', 
+                borderRadius: '8px', 
+                padding: '16px',
+                border: '1px solid #e5e7eb'
+              }}>
+                <Form.Label style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                  Visibility Settings
+                </Form.Label>
+                
+                <Form.Check
+                  type="switch"
+                  label={
+                    <span style={{ fontSize: '14px', color: '#374151' }}>
+                      Public (visible to all users)
+                    </span>
+                  }
+                  checked={formIsPublic}
+                  onChange={(e) => setFormIsPublic(e.target.checked)}
+                  disabled={isDean}
+                  style={{ marginBottom: '12px' }}
+                />
+                
+                {!formIsPublic && !isDean && (
+                  <div>
+                    <Form.Label style={{ fontSize: '13px', fontWeight: '500', color: '#6b7280', marginBottom: '8px' }}>
+                      Target Departments
+                    </Form.Label>
+                    <Select
+                      isMulti
+                      isSearchable
+                      closeMenuOnSelect={false}
+                      placeholder="Search and select departments..."
+                      options={deptOptions.map((d) => ({
+                        value: String(d.value),
+                        label: d.code ? `${d.code} — ${d.label}` : d.label,
+                      }))}
+                      value={deptOptions
+                        .filter((d) => selectedDeptIds.map(String).includes(String(d.value)))
+                        .map((d) => ({ value: String(d.value), label: d.code ? `${d.code} — ${d.label}` : d.label }))}
+                      onChange={(selected) => {
+                        const vals = (selected || []).map((opt) => Number(opt.value)).filter((n) => !Number.isNaN(n));
+                        setSelectedDeptIds(vals);
+                      }}
+                      styles={selectStyles}
+                    />
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '6px' }}>
+                      Select specific departments to target this announcement
+                    </div>
+                  </div>
+                )}
+                
+                {isDean && (
+                  <div style={{ 
+                    backgroundColor: '#eff6ff', 
+                    border: '1px solid #bfdbfe', 
+                    borderRadius: '6px', 
+                    padding: '8px 12px',
+                    fontSize: '13px',
+                    color: '#1e40af'
+                  }}>
+                    As a Dean, announcements are automatically targeted to your department
+                  </div>
+                )}
+              </div>
+            </div>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer style={{ 
+          borderTop: '1px solid #e5e7eb', 
+          padding: '16px 24px',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '12px'
+        }}>
+          <Button 
+            variant="outline-secondary" 
+            onClick={() => setShowCreateModal(false)} 
+            disabled={creating}
+            style={{
+              borderRadius: '8px',
+              padding: '8px 16px',
+              fontSize: '14px',
+              fontWeight: '500',
+              border: '1px solid #d1d5db',
+              backgroundColor: 'transparent',
+              color: '#374151'
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="dark" 
+            type="submit" 
+            form="createAnnForm" 
+            disabled={creating}
+            style={{
+              borderRadius: '8px',
+              padding: '8px 20px',
+              fontSize: '14px',
+              fontWeight: '500',
+              backgroundColor: '#111827',
+              border: 'none'
+            }}
+          >
+            {creating ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update' : 'Create')}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
     {/* Delete Confirmation Modal */}
     <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Delete Announcement</Modal.Title>
+      <Modal.Header closeButton style={{ borderBottom: '1px solid #e5e7eb', padding: '20px 24px' }}>
+        <Modal.Title style={{ fontSize: '18px', fontWeight: '600', color: '#111827' }}>
+          Delete Announcement
+        </Modal.Title>
       </Modal.Header>
-      <Modal.Body>
-        Are you sure you want to delete this announcement? This action cannot be undone.
+      <Modal.Body style={{ padding: '24px' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'flex-start', 
+          gap: '12px',
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '8px',
+          padding: '16px'
+        }}>
+          <div style={{ 
+            fontSize: '20px', 
+            color: '#dc2626',
+            marginTop: '2px'
+          }}>
+            ⚠️
+          </div>
+          <div>
+            <div style={{ 
+              fontSize: '16px', 
+              fontWeight: '600', 
+              color: '#111827',
+              marginBottom: '8px'
+            }}>
+              Confirm Deletion
+            </div>
+            <div style={{ 
+              fontSize: '14px', 
+              color: '#374151',
+              lineHeight: '1.5'
+            }}>
+              Are you sure you want to delete this announcement? This action cannot be undone and will remove the announcement for all users.
+            </div>
+          </div>
+        </div>
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => setShowDeleteModal(false)} disabled={deleting}>Cancel</Button>
-        <Button variant="danger" onClick={confirmDelete} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
+      <Modal.Footer style={{ 
+        borderTop: '1px solid #e5e7eb', 
+        padding: '16px 24px',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: '12px'
+      }}>
+        <Button 
+          variant="outline-secondary" 
+          onClick={() => setShowDeleteModal(false)} 
+          disabled={deleting}
+          style={{
+            borderRadius: '8px',
+            padding: '8px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            border: '1px solid #d1d5db',
+            backgroundColor: 'transparent',
+            color: '#374151'
+          }}
+        >
+          Cancel
+        </Button>
+        <Button 
+          variant="danger" 
+          onClick={confirmDelete} 
+          disabled={deleting}
+          style={{
+            borderRadius: '8px',
+            padding: '8px 20px',
+            fontSize: '14px',
+            fontWeight: '500',
+            backgroundColor: '#dc2626',
+            border: 'none'
+          }}
+        >
+          {deleting ? 'Deleting...' : 'Delete'}
+        </Button>
       </Modal.Footer>
     </Modal>
   </div>

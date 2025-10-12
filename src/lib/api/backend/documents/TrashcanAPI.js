@@ -1,36 +1,8 @@
 import express from 'express';
 import mysql from 'mysql2/promise';
+import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
-
-// Authentication middleware
-const requireAuth = (req, res, next) => {
-  // Prefer passport session user if present, else fallback to our own session user
-  const passportUser = req.user;
-  const sessionUser = req.session && req.session.user;
-  const user = passportUser || sessionUser;
-  
-  console.log('Auth middleware - User object:', user);
-  console.log('Auth middleware - Session:', req.session);
-  
-  if (!user) {
-    console.log('Auth middleware - No user found');
-    return res.status(401).json({ success: false, message: 'Not authenticated.' });
-  }
-  
-  // Normalize minimal shape for downstream use
-  req.currentUser = {
-    id: user.user_id || user.id,
-    email: user.user_email || user.email,
-    username: user.Username || user.username,
-    role: user.role,
-    department: user.department,
-    department_id: user.department_id || user.dept_id || user.departmentId || null,
-  };
-  
-  console.log('Auth middleware - Normalized user:', req.currentUser);
-  next();
-};
 
 // Role-based authorization middleware for admin/dean only
 const requireAdminOrDean = (req, res, next) => {
