@@ -26,6 +26,14 @@ const Reply = ({ onNavigateToDocuments }) => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Cleanup sessionStorage when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clear reply data when leaving the Reply page
+      sessionStorage.removeItem('createReply');
+    };
+  }, []);
+
   // Get source document ID from URL parameters or sessionStorage
   useEffect(() => {
     // First try URL parameters
@@ -491,7 +499,10 @@ const Reply = ({ onNavigateToDocuments }) => {
               )}
               {onNavigateToDocuments && (
                 <button
-                  onClick={() => onNavigateToDocuments('requests')}
+                  onClick={() => {
+                    sessionStorage.removeItem('createReply');
+                    onNavigateToDocuments('requests');
+                  }}
                   style={styles.backButton}
                 >
                   ← Back to Requests
@@ -607,7 +618,10 @@ const Reply = ({ onNavigateToDocuments }) => {
                 <button 
                   type="button" 
                   style={styles.button}
-                  onClick={() => onNavigateToDocuments && onNavigateToDocuments('requests')} 
+                  onClick={() => {
+                    sessionStorage.removeItem('createReply');
+                    onNavigateToDocuments && onNavigateToDocuments('requests');
+                  }} 
                   disabled={submitting}
                 >
                   Cancel

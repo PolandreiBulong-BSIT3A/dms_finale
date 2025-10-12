@@ -409,41 +409,8 @@ const Request = ({ onNavigateToUpload }) => {
 
   const uploadDocumentFromSource = (sourceDoc) => {
     if (onNavigateToUpload) {
-      const currentUserName = [
-        currentUser?.firstname || currentUser?.first_name,
-        currentUser?.lastname || currentUser?.last_name
-      ].filter(Boolean).join(' ') || currentUser?.name || currentUser?.full_name || currentUser?.username || '';
-      
-      // Determine the best Google Drive link to prefill (same logic as createDocumentFromSource)
-      let googleDriveLink = '';
-      if (sourceDoc.google_drive_link) {
-        googleDriveLink = sourceDoc.google_drive_link;
-      } else if (sourceDoc.reply_google_drive_link) {
-        googleDriveLink = sourceDoc.reply_google_drive_link;
-      } else if (Array.isArray(sourceDoc.replies) && sourceDoc.replies.length > 0) {
-        const firstReply = sourceDoc.replies[0];
-        if (firstReply?.google_drive_link) {
-          googleDriveLink = firstReply.google_drive_link;
-        }
-      }
-      
-      const documentData = {
-        title: `New Document - ${sourceDoc.title}`,
-        reference: `REF-${Date.now()}`, // Generate new reference
-        category: sourceDoc.doc_type,
-        from: currentUserName,
-        to: sourceDoc.created_by_name || sourceDoc.from_field || '',
-        dateTimeReceived: formatDatetimeLocal(new Date()),
-        description: `Related to: ${sourceDoc.title}${sourceDoc.description ? '\n\nOriginal Description: ' + sourceDoc.description : ''}`,
-        google_drive_link: googleDriveLink, // Prefill with original document's link
-        available_copy: sourceDoc.available_copy || 'soft_copy',
-        // Don't copy action_required for new documents
-        source_document_id: sourceDoc.id || sourceDoc.doc_id,
-        isNewDocument: true,
-        notificationMessage: 'New document added'
-      };
-      // For Upload page prefill
-      sessionStorage.setItem('createReply', JSON.stringify(documentData));
+      // Clear any reply data before navigating to upload
+      sessionStorage.removeItem('createReply');
       onNavigateToUpload('upload');
     }
   };
