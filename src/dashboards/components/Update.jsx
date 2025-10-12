@@ -4,6 +4,7 @@ import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { FiLink, FiX, FiCheck, FiAlertCircle, FiExternalLink, FiMaximize2, FiPlus, FiChevronDown } from 'react-icons/fi';
 import { useDocuments } from '../../contexts/DocumentContext.jsx';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
+import { isValidDriveLink, getDrivePreviewUrl } from '../../lib/utils/drive.js';
 
 const Update = ({ role, onNavigateToDocuments, id }) => {
   const [editingId, setEditingId] = useState(id);
@@ -117,18 +118,7 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const [isPrefilledFromAnswered, setIsPrefilledFromAnswered] = useState(false);
   const [availableCopy, setAvailableCopy] = useState('soft_copy'); // 'soft_copy', 'hard_copy', 'both'
 
-  // Validate Google Drive link
-  const isValidDriveLink = (link) => {
-    const drivePatterns = [
-      /^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view/,
-      /^https:\/\/drive\.google\.com\/open\?id=[a-zA-Z0-9_-]+/,
-      /^https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+\/edit/,
-      /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9_-]+\/edit/,
-      /^https:\/\/docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+\/edit/
-    ];
-    return drivePatterns.some(pattern => pattern.test(link));
-  };
-
+  
   // Fetch document types
   const fetchDocumentTypes = async () => {
     try {
@@ -252,61 +242,47 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
     
     // Check if we should pre-fill form from answered document
     const createFromAnswered = sessionStorage.getItem('createFromAnswered');
-    console.log('Upload component - sessionStorage createFromAnswered:', createFromAnswered);
-    
+        
     if (createFromAnswered) {
       try {
         const data = JSON.parse(createFromAnswered);
-        console.log('Upload component - parsed data:', data);
-        
+                
         // Pre-fill the form fields
         if (data.title) {
-          console.log('Setting title:', data.title);
-          setLinkTitle(data.title);
+                    setLinkTitle(data.title);
         }
         if (data.reference) {
-          console.log('Setting reference:', data.reference);
-          setDocReference(data.reference);
+                    setDocReference(data.reference);
         }
         if (data.category) {
-          console.log('Setting category:', data.category);
-          setDocType(data.category);
+                    setDocType(data.category);
         }
         if (data.from) {
-          console.log('Setting from:', data.from);
-          setFromField(data.from);
+                    setFromField(data.from);
         }
         if (data.to) {
-          console.log('Setting to:', data.to);
-          setToField(data.to);
+                    setToField(data.to);
         }
         if (data.dateTimeReceived) {
-          console.log('Setting dateTimeReceived:', data.dateTimeReceived);
-          setDateTimeReceived(data.dateTimeReceived);
+                    setDateTimeReceived(data.dateTimeReceived);
         }
         if (data.description) {
-          console.log('Setting description:', data.description);
-          setDescription(data.description);
+                    setDescription(data.description);
         }
         if (data.available_copy) {
-          console.log('Setting available_copy:', data.available_copy);
-          setAvailableCopy(data.available_copy);
+                    setAvailableCopy(data.available_copy);
         }
         
         // Handle Google Drive link prefill
         if (data.google_drive_link) {
-          console.log('Setting google_drive_link:', data.google_drive_link);
-          // Set the link in the first multiple link field
+                    // Set the link in the first multiple link field
           setMultipleLinks([{ id: 1, link: data.google_drive_link }]);
-          console.log('Google Drive link set in form field:', data.google_drive_link);
-        } else {
-          console.log('No Google Drive link found in prefill data');
-        }
+                  } else {
+                  }
         
         // Set flag to show this was pre-filled
         setIsPrefilledFromAnswered(true);
-        console.log('Form pre-filled successfully');
-        
+                
         // Clear the sessionStorage after pre-filling
         sessionStorage.removeItem('createFromAnswered');
         
@@ -317,8 +293,7 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
         sessionStorage.removeItem('createFromAnswered');
       }
     } else {
-      console.log('No createFromAnswered data found in sessionStorage');
-    }
+          }
   }, []);
 
   // Load From/To history from localStorage
@@ -881,24 +856,7 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
     return '🔗';
   };
 
-  // 1. Add a function to generate a Google Drive preview URL from the input link
-  function getDrivePreviewUrl(link) {
-    if (!link) return null;
-    // File
-    let match = link.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (match) return `https://drive.google.com/file/d/${match[1]}/preview`;
-    // Doc
-    match = link.match(/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)/);
-    if (match) return `https://docs.google.com/document/d/${match[1]}/preview`;
-    // Sheet
-    match = link.match(/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-    if (match) return `https://docs.google.com/spreadsheets/d/${match[1]}/preview`;
-    // Slides
-    match = link.match(/docs\.google\.com\/presentation\/d\/([a-zA-Z0-9_-]+)/);
-    if (match) return `https://docs.google.com/presentation/d/${match[1]}/preview`;
-    return null;
-  }
-
+  
   // Filter users based on selected filters
   const getFilteredUsers = () => {
     let filtered = users;

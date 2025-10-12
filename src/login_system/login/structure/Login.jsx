@@ -305,7 +305,12 @@ const Login = () => {
         setCurrentStep(4);
         setAuthSuccess('Account created successfully! Please check your email for verification.');
       } catch (error) {
-        setAuthError(error.message || 'Signup failed. Please try again.');
+        // Improve error message for duplicate email
+        let errorMessage = error.message || 'Signup failed. Please try again.';
+        if (error.message && error.message.includes('Email already registered')) {
+          errorMessage = 'This email is already registered. Please use a different email or try logging in instead.';
+        }
+        setAuthError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -809,6 +814,7 @@ const Login = () => {
                 variant="outline-secondary" 
                 className="w-100 py-3 google-btn btn-outline-custom" 
                 onClick={handleGoogleSignup}
+                style={{ backgroundColor: '#f8f9fa' }}
               >
                 <FcGoogle size={20} style={{ marginRight: 8 }} />
                 <span className="d-none d-sm-inline">Create account with Google</span>
@@ -919,8 +925,14 @@ const Login = () => {
                     name="contactNumber"
                     placeholder="Enter contact number"
                     className="form-control-custom py-3"
-                    onChange={e => handleFieldChange('contactNumber', e.target.value)}
+                    onChange={e => {
+                      const value = e.target.value.replace(/\D/g, ''); // Only allow numbers
+                      if (value.length <= 11) { // Limit to 11 digits
+                        handleFieldChange('contactNumber', value);
+                      }
+                    }}
                     value={formData.contactNumber}
+                    maxLength={11}
                     required
                   />
                 </FloatingLabel>
@@ -1176,6 +1188,14 @@ const Login = () => {
               />
             </div>
             <h1 className="login-title">
+              {isLogin && !showForgotPassword && (
+                <Image 
+                  src={Logo} 
+                  alt="ISPSc Logo" 
+                  className="logo-inline d-none d-lg-inline-block me-3"
+                  style={{ height: '50px', width: 'auto', verticalAlign: 'middle' }}
+                />
+              )}
               {showForgotPassword ? "RESET PASSWORD" : isLogin ? "WELCOME BACK" : "JOIN US"}
             </h1>
             {isLogin && !showForgotPassword && (

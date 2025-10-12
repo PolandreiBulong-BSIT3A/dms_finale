@@ -189,8 +189,9 @@ router.post('/signup', signupRateLimit, validateSignup, async (req, res) => {
     );
 
     if (existingUsers.length > 0) {
-      const existingUser = existingUsers[0];
-      if (existingUser.user_email === email) {
+      // Check if email exists first
+      const emailExists = existingUsers.some(user => user.user_email === email);
+      if (emailExists) {
         return res.status(409).json({ 
           success: false, 
           message: 'Email already registered.',
