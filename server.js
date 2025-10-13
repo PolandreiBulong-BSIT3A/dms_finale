@@ -51,13 +51,7 @@ if (NODE_ENV === 'production') {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: [
-      FRONTEND_URL,
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'https://ispsctagudindms.com',
-      'https://dms-finale.onrender.com'
-    ],
+    origin: FRONTEND_URL,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
   }
@@ -99,27 +93,8 @@ app.use(compression());
 app.use(cookieParser());
 
 // ----- Core Middleware -----
-// Allow multiple origins for CORS
-const allowedOrigins = [
-  FRONTEND_URL,
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'https://ispsctagudindms.com',
-  'https://dms-finale.onrender.com'
-];
-
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.warn('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: FRONTEND_URL,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
