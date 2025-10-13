@@ -911,7 +911,13 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
         counts.set(doc.folder, (counts.get(doc.folder) || 0) + 1);
       }
     });
-    const withCounts = (folders || []).map(f => ({ ...f, count: counts.get(f.name) || 0 }));
+    // Add defensive check: filter out folders with invalid names and ensure count property exists
+    const withCounts = (folders || [])
+      .filter(f => f && f.name) // Filter out folders without valid names
+      .map(f => ({ 
+        ...f, 
+        count: counts.get(f.name) || 0 
+      }));
     // For deans and admins, show all folders regardless of content
     if (effectiveIsDean || isAdmin) {
       return withCounts;
@@ -2394,7 +2400,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                     {foldersLoading ? (
                       <option value="" disabled>Loading folders...</option>
                     ) : folders.length > 0 ? (
-                      folders.map(folder => {
+                      folders.filter(folder => folder && folder.name).map(folder => {
                         const count = documents.filter(doc => doc.folder === folder.name).length;
                         return <option key={folder.folder_id} value={folder.name}>{folder.name} ({count})</option>;
                       })
@@ -2582,7 +2588,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
             scrollSnapType: 'x mandatory'
           }}>
             {filteredVisibleFolders.map(folder => {
-              const docCount = folder.count;
+              const docCount = Number(folder.count) || 0;
               const isSelected = selectedFolder === folder.name;
               const isDragOver = dragOverFolder === folder.folder_id;
               

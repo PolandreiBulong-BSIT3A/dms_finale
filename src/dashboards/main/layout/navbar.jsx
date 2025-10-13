@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiSearch, FiBell, FiUser, FiSettings, FiLogOut, FiX, FiRefreshCw, FiCheck, FiEye, FiHelpCircle, FiHeadphones } from 'react-icons/fi';
+import { FiSearch, FiBell, FiUser, FiSettings, FiLogOut, FiX, FiRefreshCw, FiCheck, FiEye, FiHelpCircle, FiHeadphones, FiMail, FiPhone, FiMessageCircle } from 'react-icons/fi';
 import './navbar.css';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../../contexts/NotificationContext';
@@ -14,6 +14,9 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(true);
   const [departmentName, setDepartmentName] = useState('');
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [developerInfo, setDeveloperInfo] = useState(null);
+  const [loadingContact, setLoadingContact] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotificationSession, refreshNotificationsImmediately } = useNotifications();
   const { user, logout } = useUser();
 
@@ -31,9 +34,10 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.user-container') && !event.target.closest('.notification-container')) {
+      if (!event.target.closest('.user-container') && !event.target.closest('.notification-container') && !event.target.closest('.contact-modal')) {
         setShowUserMenu(false);
         setShowNotifications(false);
+        setShowContactModal(false);
       }
     };
 
@@ -41,6 +45,7 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
       if (event.key === 'Escape') {
         setShowUserMenu(false);
         setShowNotifications(false);
+        setShowContactModal(false);
       }
     };
 
@@ -95,6 +100,54 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
     }
   };
 
+  const handleContactDeveloper = async () => {
+    try {
+      setLoadingContact(true);
+      setShowContactModal(true);
+      
+      // Fetch all developer contact info from others table
+      const res = await fetch(buildUrl('others?category=DEVELOPER'), { credentials: 'include' });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.items && data.items.length > 0) {
+          // Parse the developer info items
+          const info = {};
+          data.items.forEach(item => {
+            const name = item.other_name?.toUpperCase();
+            if (name === 'EMAIL') info.email = item.link;
+            else if (name === 'PHONE') info.phone = item.link;
+            else if (name === 'NAME') info.name = item.link;
+            else if (name === 'MESSAGE') info.message = item.link;
+          });
+          setDeveloperInfo(info);
+        } else {
+          // Fallback if no developer info found
+          setDeveloperInfo({
+            name: 'Developer Support',
+            email: 'developer@ispsc.edu.ph',
+            message: 'Contact us for technical support and inquiries.'
+          });
+        }
+      } else {
+        setDeveloperInfo({
+          name: 'Developer Support',
+          email: 'developer@ispsc.edu.ph',
+          message: 'Contact us for technical support and inquiries.'
+        });
+      }
+    } catch (e) {
+      console.error('handleContactDeveloper error:', e);
+      setDeveloperInfo({
+        name: 'Developer Support',
+        email: 'developer@ispsc.edu.ph',
+        message: 'Contact us for technical support and inquiries.'
+      });
+    } finally {
+      setLoadingContact(false);
+    }
+  };
+
   const formatTimeAgo = (dateString) => {
     const now = new Date();
     const date = new Date(dateString);
@@ -143,6 +196,33 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
 
         {/* Right Side Actions */}
         <div className="navbar-actions" style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto' }}>
+          {/* Contact Developer */}
+          <button
+            className="icon-btn"
+            onClick={handleContactDeveloper}
+            title="Contact a Developer"
+            aria-label="Contact a Developer"
+            style={{
+              background: 'none',
+              border: '1px solid #e5e7eb',
+              borderRadius: 8,
+              padding: 8,
+              marginRight: 8,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#f3f4f6';
+              e.currentTarget.style.borderColor = '#3b82f6';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'none';
+              e.currentTarget.style.borderColor = '#e5e7eb';
+            }}
+          >
+            <FiMessageCircle size={18} />
+          </button>
+
           {/* Developer Support (Report Bug) */}
           <button
             className="icon-btn"
@@ -401,8 +481,282 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
           </div>
         </div>
       </div>
+
+      {/* Contact Developer Modal */}
+      {showContactModal && (
+        <>
+          <div 
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 9998,
+              animation: 'fadeIn 0.2s ease'
+            }}
+            onClick={() => setShowContactModal(false)}
+          />
+          <div 
+            className="contact-modal"
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+              zIndex: 9999,
+              width: '90%',
+              maxWidth: '500px',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              animation: 'slideIn 0.3s ease'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '24px',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{
+                margin: 0,
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#111827',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <FiMessageCircle size={24} color="#3b82f6" />
+                Contact a Developer
+              </h3>
+              <button
+                onClick={() => setShowContactModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  color: '#6b7280',
+                  transition: 'color 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#111827'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#6b7280'}
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px' }}>
+              {loadingContact ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    border: '4px solid #e5e7eb',
+                    borderTop: '4px solid #3b82f6',
+                    borderRadius: '50%',
+                    margin: '0 auto 16px',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                  <p style={{ color: '#6b7280', margin: 0 }}>Loading contact information...</p>
+                </div>
+              ) : developerInfo ? (
+                <div>
+                  {developerInfo.name && (
+                    <div style={{
+                      marginBottom: '20px',
+                      padding: '16px',
+                      backgroundColor: '#f9fafb',
+                      borderRadius: '8px'
+                    }}>
+                      <div style={{
+                        fontSize: '14px',
+                        color: '#6b7280',
+                        marginBottom: '4px'
+                      }}>Developer</div>
+                      <div style={{
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        color: '#111827'
+                      }}>{developerInfo.name}</div>
+                    </div>
+                  )}
+
+                  {developerInfo.email && (
+                    <div style={{
+                      marginBottom: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px',
+                      backgroundColor: '#eff6ff',
+                      borderRadius: '8px',
+                      border: '1px solid #dbeafe'
+                    }}>
+                      <FiMail size={20} color="#3b82f6" />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '2px' }}>Email</div>
+                        <a 
+                          href={`mailto:${developerInfo.email}`}
+                          style={{
+                            color: '#3b82f6',
+                            textDecoration: 'none',
+                            fontSize: '14px',
+                            fontWeight: '500'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                          onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                        >
+                          {developerInfo.email}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {developerInfo.phone && (
+                    <div style={{
+                      marginBottom: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px',
+                      backgroundColor: '#f0fdf4',
+                      borderRadius: '8px',
+                      border: '1px solid #d1fae5'
+                    }}>
+                      <FiPhone size={20} color="#10b981" />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '2px' }}>Phone</div>
+                        <a 
+                          href={`tel:${developerInfo.phone}`}
+                          style={{
+                            color: '#10b981',
+                            textDecoration: 'none',
+                            fontSize: '14px',
+                            fontWeight: '500'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                          onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                        >
+                          {developerInfo.phone}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {developerInfo.message && (
+                    <div style={{
+                      marginTop: '20px',
+                      padding: '16px',
+                      backgroundColor: '#fef3c7',
+                      borderRadius: '8px',
+                      border: '1px solid #fde68a'
+                    }}>
+                      <div style={{
+                        fontSize: '14px',
+                        color: '#92400e',
+                        lineHeight: '1.6'
+                      }}>{developerInfo.message}</div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div style={{
+                    marginTop: '24px',
+                    display: 'flex',
+                    gap: '12px',
+                    flexWrap: 'wrap'
+                  }}>
+                    {developerInfo.email && (
+                      <button
+                        onClick={() => window.open(`mailto:${developerInfo.email}`, '_blank')}
+                        style={{
+                          flex: 1,
+                          minWidth: '140px',
+                          padding: '10px 16px',
+                          backgroundColor: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+                      >
+                        <FiMail size={16} />
+                        Send Email
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setShowContactModal(false)}
+                      style={{
+                        flex: 1,
+                        minWidth: '140px',
+                        padding: '10px 16px',
+                        backgroundColor: '#f3f4f6',
+                        color: '#374151',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                  <FiMessageCircle size={48} color="#d1d5db" style={{ marginBottom: '16px' }} />
+                  <p style={{ color: '#6b7280', margin: 0 }}>No contact information available</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes slideIn {
+              from {
+                opacity: 0;
+                transform: translate(-50%, -48%);
+              }
+              to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+              }
+            }
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+        </>
+      )}
     </nav>
   );
 };
 
-export default Navbar; 
+export default Navbar;
