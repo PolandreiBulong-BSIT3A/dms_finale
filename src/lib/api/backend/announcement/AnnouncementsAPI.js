@@ -38,7 +38,8 @@ router.use((req, _res, next) => {
       }
       next();
     });
-  } catch (_) {
+  } catch (authError) {
+    console.error('Auth middleware error:', authError);
     next();
   }
 });
@@ -107,7 +108,8 @@ router.get('/announcements', (req, res) => {
         });
       });
     });
-  } catch (e) {
+  } catch (error) {
+    console.error('Error loading announcements:', error);
     res.status(500).json({ success: false, message: 'Failed to load announcements' });
   }
 });
@@ -223,7 +225,9 @@ router.post('/announcements', (req, res) => {
                   created_at: new Date().toISOString(),
                   related_doc_id: null,
                 });
-              } catch (_) {}
+              } catch (socketError) {
+                console.error('Socket emit error:', socketError);
+              }
             }).catch((e) => console.error('Failed to save notification targets:', e));
           }
         });
@@ -243,13 +247,16 @@ router.post('/announcements', (req, res) => {
           target_users: tUsers,
           created_by_profile_pic: req.user?.profile_pic || null,
         };
-        try { req.io?.emit?.('announcement:new', item); } catch (_) {}
+        try { req.io?.emit?.('announcement:new', item); } catch (emitError) {
+          console.error('Socket emit error:', emitError);
+        }
         return res.status(201).json({ success: true, announcement: item });
       }).catch(() => {
         res.status(500).json({ success: false, message: 'Failed to save targets' });
       });
     });
-  } catch (e) {
+  } catch (error) {
+    console.error('Error creating announcement:', error);
     res.status(500).json({ success: false, message: 'Failed to create announcement' });
   }
 
@@ -321,13 +328,16 @@ router.put('/announcements/:id', (req, res) => {
               target_users: tUsers,
               created_by_profile_pic: req.user?.profile_pic || null,
             };
-            try { req.io?.emit?.('announcement:updated', item); } catch (_) {}
+            try { req.io?.emit?.('announcement:updated', item); } catch (emitError) {
+              console.error('Socket emit error:', emitError);
+            }
             return res.json({ success: true, announcement: item });
           }).catch(() => res.status(500).json({ success: false, message: 'Failed to save targets' }));
         }).catch(() => res.status(500).json({ success: false, message: 'Failed to clear targets' }));
       });
     });
-  } catch (e) {
+  } catch (error) {
+    console.error('Error updating announcement:', error);
     res.status(500).json({ success: false, message: 'Failed to update announcement' });
   }
 });
@@ -349,13 +359,16 @@ router.delete('/announcements/:id', (req, res) => {
       }
 
       const deleteSql = `DELETE FROM announcements WHERE announcement_id = ?`;
-      db.query(deleteSql, [id], (err, result) => {
-        if (err) return res.status(500).json({ success: false, message: 'DB delete error' });
-        try { req.io?.emit?.('announcement:deleted', id); } catch (_) {}
+      db.query(deleteSql, [id], (deleteErr) => {
+        if (deleteErr) return res.status(500).json({ success: false, message: 'DB delete error' });
+        try { req.io?.emit?.('announcement:deleted', id); } catch (emitError) {
+          console.error('Socket emit error:', emitError);
+        }
         return res.status(200).json({ success: true });
       });
     });
-  } catch (e) {
+  } catch (error) {
+    console.error('Error deleting announcement:', error);
     res.status(500).json({ success: false, message: 'Failed to delete announcement' });
   }
 });

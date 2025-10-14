@@ -53,11 +53,11 @@ const DocumentTrashcan = ({ onBack }) => {
         setLoading(false);
       }
     };
+    load();
+  }, [fetchDeletedDocuments]);
 
   const openProps = (doc) => setPropsModal({ open: true, doc });
   const closeProps = () => setPropsModal({ open: false, doc: null });
-    load();
-  }, [fetchDeletedDocuments]);
 
   // Fetch document types from backend API (same as Document.jsx)
   useEffect(() => {

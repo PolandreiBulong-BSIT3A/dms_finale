@@ -1406,9 +1406,11 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     });
     
     try {
-      const versions = await fetchDocumentVersions(doc.id || doc.doc_id);
-      setVersions(versions);
-      setRevisionOpen(true);
+      // TODO: Implement fetchDocumentVersions function
+      console.warn('fetchDocumentVersions not implemented');
+      // const versions = await fetchDocumentVersions(doc.id || doc.doc_id);
+      // setVersions(versions);
+      // setRevisionOpen(true);
     } catch (error) {
       console.error('Error fetching versions:', error);
       alert('Failed to load document versions.');
@@ -1455,6 +1457,11 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     
     setIsCreatingRevision(true);
     
+    // TODO: Implement createRevision function
+    console.warn('createRevision not implemented');
+    alert('Revision feature not yet implemented');
+    setIsCreatingRevision(false);
+    /* 
     try {
       const result = await createRevision(revisionDoc.id || revisionDoc.doc_id, {
         newGoogleDriveLink: revisionForm.newGoogleDriveLink.trim(),
@@ -1464,7 +1471,6 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       
       if (result.success) {
         closeRevision();
-        // Show success message
         const successMessage = document.createElement('div');
         successMessage.style.cssText = `
           position: fixed;
@@ -1482,7 +1488,6 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
         successMessage.textContent = `✅ Revision created successfully! (v${result.newVersion})`;
         document.body.appendChild(successMessage);
         
-        // Remove the message after 3 seconds
         setTimeout(() => {
           if (successMessage.parentNode) {
             successMessage.parentNode.removeChild(successMessage);
@@ -1497,6 +1502,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     } finally {
       setIsCreatingRevision(false);
     }
+    */
   };
 
   const handleRestoreVersion = async (version) => {
@@ -1506,15 +1512,17 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       return;
     }
     
+    // TODO: Implement restoreVersion function
+    console.warn('restoreVersion not implemented');
+    alert('Restore version feature not yet implemented');
+    /* 
     try {
       const result = await restoreVersion(revisionDoc.id || revisionDoc.doc_id, version.version_id);
       
       if (result.success) {
-        // Refresh the versions list
         const updatedVersions = await fetchDocumentVersions(revisionDoc.id || revisionDoc.doc_id);
         setVersions(updatedVersions);
         
-        // Show success message
         const successMessage = document.createElement('div');
         successMessage.style.cssText = `
           position: fixed;
@@ -1532,7 +1540,6 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
         successMessage.textContent = `✅ Version v${version.version_number} restored successfully!`;
         document.body.appendChild(successMessage);
         
-        // Remove the message after 3 seconds
         setTimeout(() => {
           if (successMessage.parentNode) {
             successMessage.parentNode.removeChild(successMessage);
@@ -1545,6 +1552,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       console.error('Error restoring version:', error);
       alert('An error occurred while restoring the version. Please try again.');
     }
+    */
   };
 
   const handleEdit = (doc) => {

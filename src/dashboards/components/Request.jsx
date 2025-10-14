@@ -7,13 +7,12 @@ import { useDocuments } from '../../contexts/DocumentContext.jsx';
 import { useUser } from '../../contexts/UserContext.jsx';
 
 const Request = ({ onNavigateToUpload }) => {
-  const { documents, loading, error, refreshDocuments, fetchRequestDocuments } = useDocuments();
+  const { documents, loading, error, refreshDocuments } = useDocuments();
   const { user: currentUser } = useUser();
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('pending'); // 'pending' or 'answered'
   const [answeredDocs, setAnsweredDocs] = useState([]);
   const [answeredLoading, setAnsweredLoading] = useState(false);
-  const [reqScope, setReqScope] = useState('assigned'); // 'assigned' | 'dept'
   const [sortField, setSortField] = useState('date_received'); // Default sort field
   const [sortDirection, setSortDirection] = useState('desc'); // 'asc' or 'desc'
   const [showMenu, setShowMenu] = useState(null); // Track which row's menu is open
@@ -25,12 +24,13 @@ const Request = ({ onNavigateToUpload }) => {
   const [propertiesDoc, setPropertiesDoc] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]); // bulk selection
   const [allUsers, setAllUsers] = useState([]);
-  const [usersLoading, setUsersLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const onResize = () => {
-      try { setIsMobile(window.innerWidth <= 768); } catch {}
+      try { setIsMobile(window.innerWidth <= 768); } catch (resizeError) {
+        console.error('Resize error:', resizeError);
+      }
     };
     onResize();
     window.addEventListener('resize', onResize);
@@ -50,8 +50,7 @@ const Request = ({ onNavigateToUpload }) => {
   React.useEffect(() => {
     (async () => {
       try {
-        const scopeParam = (reqScope ? `?scope=${encodeURIComponent(reqScope)}` : '');
-        const res = await fetchWithRetry(buildUrl(`documents/requests${scopeParam}`), { credentials: 'include' });
+        const res = await fetchWithRetry(buildUrl(`documents/requests`), { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           const list = data?.documents || [];
@@ -61,7 +60,7 @@ const Request = ({ onNavigateToUpload }) => {
         console.error('Failed to fetch requests:', e);
       }
     })();
-  }, [reqScope]);
+  }, []);
 
   // Fetch answered documents
   const fetchAnsweredDocuments = async () => {
@@ -89,13 +88,13 @@ const Request = ({ onNavigateToUpload }) => {
     if (viewMode === 'answered' && answeredDocs.length === 0) {
       fetchAnsweredDocuments();
     }
-  }, [viewMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, answeredDocs.length]);
 
   // Load users for avatar matching
   React.useEffect(() => {
     const loadUsers = async () => {
       try {
-        setUsersLoading(true);
         const res = await fetchWithRetry(buildUrl('users'), { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
@@ -111,8 +110,8 @@ const Request = ({ onNavigateToUpload }) => {
           }));
           setAllUsers(normalized);
         }
-      } finally {
-        setUsersLoading(false);
+      } catch (userLoadError) {
+        console.error('Error loading users:', userLoadError);
       }
     };
     loadUsers();
@@ -285,27 +284,7 @@ const Request = ({ onNavigateToUpload }) => {
       : <ArrowDown size={14} style={{ marginLeft: 6, color: '#374151' }} />;
   };
 
-  // Visibility display helper for table
-  const renderVisibility = (d) => {
-    const items = [];
-    if (d.visible_to_all) {
-      return <span style={chip}>FOR ALL</span>;
-    }
-    if (Array.isArray(d.department_ids) && d.department_ids.length > 0) {
-      items.push(<span key="v-dept" style={chip}>Dept: {d.department_ids.length}</span>);
-    }
-    if (Array.isArray(d.targetRoles) && d.targetRoles.length > 0) {
-      items.push(<span key="v-role" style={chip}>Role: {d.targetRoles.length}</span>);
-    }
-    if (Array.isArray(d.targetUsers) && d.targetUsers.length > 0) {
-      items.push(<span key="v-user" style={chip}>User: {d.targetUsers.length}</span>);
-    }
-    if (d.targetRoleDept && (d.targetRoleDept.role || d.targetRoleDept.department)) {
-      const txt = `${d.targetRoleDept.role || 'Role'}${d.targetRoleDept.department ? ` • Dept ${d.targetRoleDept.department}` : ''}`;
-      items.push(<span key="v-roledept" style={chip}>{txt}</span>);
-    }
-    return items.length > 0 ? items : <span style={chip}>Custom</span>;
-  };
+  // Visibility display helper for table - removed as unused
 
   // removed favorite toggle
 
@@ -539,25 +518,6 @@ const Request = ({ onNavigateToUpload }) => {
           {viewMode === 'pending' ? 'Action Required' : 'Request Answered'}
         </h2>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {(currentUser?.role?.toString().toLowerCase() === 'dean' || currentUser?.role?.toString().toLowerCase() === 'faculty') && (
-            <div style={{ display: 'flex', gap: 6, marginRight: 8 }}>
-              <button
-                className={`btn ${reqScope === 'assigned' ? 'btn-dark' : 'btn-light'} border rounded-pill px-3`}
-                onClick={() => setReqScope('assigned')}
-                title="Only requests assigned to you/your role/department"
-              >
-                Assigned
-              </button>
-              <button
-                className={`btn ${reqScope === 'dept' ? 'btn-dark' : 'btn-light'} border rounded-pill px-3`}
-                onClick={() => setReqScope('dept')}
-                title="Department overview (dept/role/public/in-department)"
-              >
-                Dept Overview
-              </button>
-            </div>
-          )}
-          
           {/* View Mode Toggle Buttons */}
           <div style={{ display: 'flex', gap: 4, marginRight: 16 }}>
             <button
@@ -1350,8 +1310,9 @@ const ReplyModal = ({ document, onClose, onSuccess }) => {
             replyTypeId = f.type_id ?? f.id ?? f.typeId ?? null;
           }
         }
-      } catch (_) {
+      } catch (typeError) {
         // ignore; backend may default
+        console.error('Error fetching document types:', typeError);
       }
 
       const response = await fetch(buildUrl('documents/reply'), {
@@ -1594,18 +1555,7 @@ const successMsg = {
   marginTop: 8,
 };
 
-// Dropdown menu styles (matching Document.jsx)
-const dropdownStyle = {
-  position: 'absolute',
-  backgroundColor: '#ffffff',
-  border: '1px solid #e5e7eb',
-  borderRadius: '10px',
-  padding: '6px',
-  zIndex: 1000,
-  minWidth: '220px',
-  boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
-  overflow: 'hidden'
-};
+// Dropdown menu styles removed - unused
 
 const menuListStyle = {
   listStyle: 'none',

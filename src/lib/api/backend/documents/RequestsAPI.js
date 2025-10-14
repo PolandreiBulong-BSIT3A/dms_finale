@@ -49,11 +49,11 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
     const userId = req.currentUser?.id || req.currentUser?.user_id || null;
     const deptId = req.currentUser?.department_id || null;
     const roleUpper = (req.currentUser?.role || '').toString().toUpperCase();
-    const scope = (req.query.scope || 'assigned').toString().toLowerCase();
     const isAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
     const isDean = roleUpper === 'DEAN';
+    const isFaculty = roleUpper === 'FACULTY';
 
-    // Base SQL selects documents that have any action rows (including completed ones)
+    // Base SQL selects documents that have any action rows with pending status
     let sql = `
       SELECT 
         d.doc_id AS id,
@@ -84,31 +84,18 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
       LEFT JOIN dms_user completed_user ON da.completed_by_user_id = completed_user.user_id
       LEFT JOIN dms_documents reply_doc ON reply_doc.is_reply_to_doc_id = d.doc_id
       WHERE (d.deleted IS NULL OR d.deleted = 0)
+        AND da.status = 'pending'
     `;
 
     const params = [];
 
     if (!isAdmin) {
-      if (isDean) {
-        // Dean: see everything within their department (department-wide), regardless of scope
-        sql += ` AND (
-            (dd.department_id IS NOT NULL AND dd.department_id = ?)
-            OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-            OR (d.visible_to_all = 1)
-          )`;
-        params.push(deptId, deptId, roleUpper);
-      } else if (scope === 'dept') {
-        // Department overview: include items tied to their department, their role, or in their department, or public
-        sql += ` AND (
-            (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-            OR (dd.department_id IS NOT NULL AND dd.department_id = ?)
-            OR (d.visible_to_all = 1)
-          )`;
-        params.push(deptId, roleUpper, deptId);
+      if (isDean || isFaculty) {
+        // Dean and Faculty: see all pending requests (no filtering by assignment)
+        // This shows all pending requests in the system
+        sql += ` AND (d.visible_to_all = 1 OR dd.department_id IS NOT NULL OR da.assigned_to_department_id IS NOT NULL OR da.assigned_to_role IS NOT NULL OR da.assigned_to_user_id IS NOT NULL)`;
       } else {
-        // Assigned-only view (default)
+        // Other roles: only see requests assigned to them
         sql += ` AND (
             (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
             OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
@@ -201,8 +188,9 @@ router.post('/documents/reply', requireAuth, async (req, res) => {
         const [anyType] = await db.promise().query('SELECT type_id FROM document_types LIMIT 1');
         if (Array.isArray(anyType) && anyType.length > 0) replyTypeId = anyType[0].type_id;
       }
-    } catch (_) {
+    } catch (typeError) {
       // ignore – let insert fail if FK still not satisfied
+      console.error('Error resolving reply type:', typeError);
     }
 
     // Insert reply document
@@ -263,7 +251,9 @@ router.post('/documents/reply', requireAuth, async (req, res) => {
             if (r.department_id) audience.departments.push(r.department_id);
           });
         }
-      } catch (_) {}
+      } catch (docQueryError) {
+        console.error('Error querying original document:', docQueryError);
+      }
 
       try {
         const [assignRows] = await db.promise().query(
@@ -278,7 +268,9 @@ router.post('/documents/reply', requireAuth, async (req, res) => {
             if (a?.assigned_to_department_id) audience.departments.push(Number(a.assigned_to_department_id));
           }
         }
-      } catch (_) {}
+      } catch (assignQueryError) {
+        console.error('Error querying assignments:', assignQueryError);
+      }
 
       // Deduplicate
       audience.users = Array.from(new Set(audience.users.filter(Boolean)));

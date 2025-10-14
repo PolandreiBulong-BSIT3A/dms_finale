@@ -1,21 +1,10 @@
 import express from 'express';
 import db from '../connections/connection.js';
-import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Relaxed: either disable or set very high thresholds for these lightweight endpoints
-const relaxedLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 2000,               // high burst limit to avoid 429 during page load
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true,
-});
-
-// Apply only to mutating routes if needed; leave GETs unthrottled
-// router.use(relaxedLimiter);
+// Rate limiting can be added here if needed in the future
 
 // Test endpoint to verify router is working
 router.get('/test', (req, res) => {

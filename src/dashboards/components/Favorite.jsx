@@ -1441,14 +1441,9 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       changeSummary: ''
     });
     
-    try {
-      const versions = await fetchDocumentVersions(doc.id || doc.doc_id);
-      setVersions(versions);
-      setRevisionOpen(true);
-    } catch (error) {
-      console.error('Error fetching versions:', error);
-      alert('Failed to load document versions.');
-    }
+    // TODO: Implement fetchDocumentVersions
+    console.warn('fetchDocumentVersions not implemented');
+    alert('Document versions feature not yet implemented');
   };
 
   const closeRevision = () => {
@@ -1491,7 +1486,12 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     
     setIsCreatingRevision(true);
     
-    try {
+    // TODO: Implement createRevision
+    console.warn('createRevision not implemented');
+    alert('Create revision feature not yet implemented');
+    setIsCreatingRevision(false);
+    return;
+    /* try {
       const result = await createRevision(revisionDoc.id || revisionDoc.doc_id, {
         newGoogleDriveLink: revisionForm.newGoogleDriveLink.trim(),
         revision: revisionForm.revision.trim() || undefined,
@@ -1533,6 +1533,7 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     } finally {
       setIsCreatingRevision(false);
     }
+    */
   };
 
   const handleRestoreVersion = async (version) => {
@@ -1542,7 +1543,11 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       return;
     }
     
-    try {
+    // TODO: Implement restoreVersion
+    console.warn('restoreVersion not implemented');
+    alert('Restore version feature not yet implemented');
+    return;
+    /* try {
       const result = await restoreVersion(revisionDoc.id || revisionDoc.doc_id, version.version_id);
       
       if (result.success) {
@@ -1581,6 +1586,7 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       console.error('Error restoring version:', error);
       alert('An error occurred while restoring the version. Please try again.');
     }
+    */
   };
 
   const handleEdit = (doc) => {

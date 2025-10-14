@@ -275,10 +275,9 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
         
         // Handle Google Drive link prefill
         if (data.google_drive_link) {
-                    // Set the link in the first multiple link field
+          // Set the link in the first multiple link field
           setMultipleLinks([{ id: 1, link: data.google_drive_link }]);
-                  } else {
-                  }
+        }
         
         // Set flag to show this was pre-filled
         setIsPrefilledFromAnswered(true);
@@ -292,8 +291,7 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
         console.error('Error parsing createFromAnswered data:', error);
         sessionStorage.removeItem('createFromAnswered');
       }
-    } else {
-          }
+    }
   }, []);
 
   // Load From/To history from localStorage

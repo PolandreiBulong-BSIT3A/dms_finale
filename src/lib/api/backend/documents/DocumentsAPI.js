@@ -68,7 +68,8 @@ router.use(async (req, _res, next) => {
         profile_pic: u.profile_pic,
       };
     }
-  } catch (_) {
+  } catch (authError) {
+    console.error('Auth middleware error:', authError);
     // noop
   }
   next();
@@ -597,7 +598,9 @@ router.post('/documents', requireAuth, async (req, res) => {
           } else if (folderId) {
             await db.promise().query('INSERT INTO document_folders (doc_id, folder_id) VALUES (?, ?)', [newId, folderId]);
           }
-        } catch {}
+        } catch (folderError) {
+          console.error('Error inserting document folders:', folderError);
+        }
 
         // Insert document_actions
         const actionIds = Array.isArray(actionRequired) ? actionRequired.filter(a => !!a) : [];

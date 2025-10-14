@@ -26,25 +26,7 @@ import {
 } from 'react-icons/fi';
 
 const AdminPanel = ({ role }) => {
-  // Normalize role to lowercase for consistent comparison
-  const normalizedRole = (role || '').toString().toLowerCase();
-  
-  // Check if user has access to admin panel
-  if (normalizedRole === 'faculty') {
-    return (
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Access Denied</h1>
-          <p style={styles.subtitle}>You don't have permission to access the admin panel.</p>
-        </div>
-        <div style={styles.placeholder}>
-          <FiShield size={48} color="#ccc" />
-          <p>Only administrators and deans can access the admin panel.</p>
-        </div>
-      </div>
-    );
-  }
-
+  // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [activeTab, setActiveTab] = useState('documents');
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({});
@@ -114,7 +96,8 @@ const AdminPanel = ({ role }) => {
   });
   const [othersCategoryFilter, setOthersCategoryFilter] = useState('ALL');
 
-  // Fetch functions
+  // Normalize role to lowercase for consistent comparison
+  const normalizedRole = (role || '').toString().toLowerCase();
   const fetchDepartments = async () => {
     try {
       const data = await fetchJson(buildUrl('departments'));
@@ -722,6 +705,22 @@ const AdminPanel = ({ role }) => {
       setActiveTab(availableTabs[0].id);
     }
   }, [role]);
+
+  // Check if user has access to admin panel - AFTER all hooks and functions
+  if (normalizedRole === 'faculty') {
+    return (
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>Access Denied</h1>
+          <p style={styles.subtitle}>You don't have permission to access the admin panel.</p>
+        </div>
+        <div style={styles.placeholder}>
+          <FiShield size={48} color="#ccc" />
+          <p>Only administrators and deans can access the admin panel.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Role-based tabs
   const getTabsForRole = (userRole) => {
