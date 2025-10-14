@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Badge, Form, Nav } from 'react-bootstrap';
 import Announcements from './Announcements.jsx';

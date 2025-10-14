@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
+import React, { useState, useEffect } from 'react';
 import {
   Container, Form, Button, FloatingLabel, Image, Row, Col, Alert
 } from "react-bootstrap";

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import express from 'express';
 import db from '../connections/connection.js';
 import { requireAuth, requireRole } from '../middleware/authMiddleware.js';

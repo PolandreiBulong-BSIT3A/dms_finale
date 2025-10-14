@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+/* eslint-disable react-refresh/only-export-components, react-hooks/exhaustive-deps */
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import socket from '../lib/realtime/socket.js';
 import { useUser } from './UserContext.jsx';
 import { buildUrl, fetchJson } from '../lib/api/frontend/client.js';

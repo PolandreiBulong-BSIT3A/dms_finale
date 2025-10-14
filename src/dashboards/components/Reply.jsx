@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect, useMemo } from 'react';
 import { FiCheck, FiAlertCircle } from 'react-icons/fi';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 

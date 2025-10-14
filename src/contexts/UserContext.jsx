@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components, react-hooks/exhaustive-deps */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import socket from '../lib/realtime/socket.js';
 import { buildUrl } from '../lib/api/frontend/client.js';

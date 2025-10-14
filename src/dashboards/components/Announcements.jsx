@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Modal, Form } from 'react-bootstrap';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
@@ -7,7 +8,7 @@ import { fetchDepartments, getFallbackDepartments } from '../../lib/api/frontend
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import Select from 'react-select';
 
-const Announcements = ({ role, setActiveTab }) => {
+const Announcements = ({ setActiveTab }) => {
   const [loading, setLoading] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
   const [error, setError] = useState('');

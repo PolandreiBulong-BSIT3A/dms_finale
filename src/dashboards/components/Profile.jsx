@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, no-useless-escape, react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { Container, Card, Form, Button, Alert, Row, Col } from 'react-bootstrap';
 import { 

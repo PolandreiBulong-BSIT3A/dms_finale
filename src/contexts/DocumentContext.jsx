@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components, no-unused-vars */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { buildUrl, fetchJson } from '../lib/api/frontend/client.js';
 

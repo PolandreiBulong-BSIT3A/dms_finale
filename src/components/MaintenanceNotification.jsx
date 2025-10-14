@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FaExclamationTriangle, FaTimes, FaUserShield } from 'react-icons/fa';
 
 const MaintenanceNotification = ({ isAdmin = false, onDismiss }) => {

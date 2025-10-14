@@ -26,7 +26,6 @@ import ActionsRouter from './src/lib/api/backend/actions/ActionsAPI.js';
 import OthersRouter from './src/lib/api/backend/others/OthersAPI.js';
 import { 
   sessionConfig, 
-  securityHeaders, 
   errorHandler, 
   requestLogger 
 } from './src/lib/api/backend/middleware/authMiddleware.js';
@@ -161,13 +160,13 @@ io.on('connection', (socket) => {
   console.log(`✅ Socket connected: ${socket.id}`);
   
   // Handle authentication for socket connections
-  socket.on('authenticate', (token) => {
+  socket.on('authenticate', (_token) => {
     try {
       // Verify token and store user info in socket
       // This would integrate with your JWT verification
       socket.userId = 'authenticated'; // Placeholder
       socket.emit('authenticated', { success: true });
-    } catch (error) {
+    } catch {
       socket.emit('authentication_error', { message: 'Invalid token' });
     }
   });

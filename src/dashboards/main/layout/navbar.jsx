@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { FiSearch, FiBell, FiUser, FiSettings, FiLogOut, FiX, FiRefreshCw, FiCheck, FiEye, FiHelpCircle, FiHeadphones } from 'react-icons/fi';
+import { FiBell, FiLogOut, FiX, FiRefreshCw, FiCheck, FiEye, FiHelpCircle, FiHeadphones, FiMessageCircle } from 'react-icons/fi';
 import './navbar.css';
-import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../../contexts/NotificationContext';
 import { useUser } from '../../../contexts/UserContext';
 import ProfilePicture from '../../../components/ProfilePicture';
 import Logo from '../../../assets/logos/logo.png';
 import { buildUrl } from '../../../lib/api/frontend/client.js';
 
-const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
-  const navigate = useNavigate();
+const Navbar = ({ setSidebarOpen, isMobile }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(true);
   const [departmentName, setDepartmentName] = useState('');
-  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotificationSession, refreshNotificationsImmediately } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, refreshNotificationsImmediately } = useNotifications();
   const { user, logout } = useUser();
+  const [showContactMenu, setShowContactMenu] = useState(false);
+  const [contactItems, setContactItems] = useState([]);
+  const [contactLoading, setContactLoading] = useState(false);
 
   // Set department name from user context
   useEffect(() => {
@@ -31,9 +32,14 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.user-container') && !event.target.closest('.notification-container')) {
+      if (
+        !event.target.closest('.user-container') &&
+        !event.target.closest('.notification-container') &&
+        !event.target.closest('.contact-container')
+      ) {
         setShowUserMenu(false);
         setShowNotifications(false);
+        setShowContactMenu(false);
       }
     };
 
@@ -90,9 +96,44 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
       // Open Gmail compose directly
       const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${subject}&body=${body}`;
       window.open(gmailUrl, '_blank', 'noopener');
-    } catch (e) {
-      console.error('handleReportBug error:', e);
+    } catch {
+      // Silently fail
     }
+  };
+
+  const loadContactItems = async () => {
+    setContactLoading(true);
+    try {
+      const res = await fetch(buildUrl('others/INFO'), { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      setContactItems(Array.isArray(data.items) ? data.items : []);
+    } catch {
+      setContactItems([]);
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
+  const handleToggleContact = async () => {
+    const next = !showContactMenu;
+    setShowContactMenu(next);
+    if (next && contactItems.length === 0 && !contactLoading) {
+      await loadContactItems();
+    }
+  };
+
+  const handleOpenContact = (item) => {
+    const link = item?.link || '';
+    if (!link) return;
+    if (link.startsWith('http')) {
+      window.open(link, '_blank', 'noopener');
+    } else if (link.includes('@')) {
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(link)}&su=${encodeURIComponent('[ISPSC DMS] Contact Developer')}`;
+      window.open(gmailUrl, '_blank', 'noopener');
+    } else {
+      window.open(link, '_blank', 'noopener');
+    }
+    setShowContactMenu(false);
   };
 
   const formatTimeAgo = (dateString) => {
@@ -143,7 +184,49 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
 
         {/* Right Side Actions */}
         <div className="navbar-actions" style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto' }}>
-          {/* Developer Support (Report Bug) */}
+          <div className="contact-container" style={{ position: 'relative' }}>
+            <button
+              className="icon-btn"
+              onClick={handleToggleContact}
+              title="Contact developer"
+              aria-label="Contact developer"
+              style={{
+                background: 'none',
+                border: '1px solid #e5e7eb',
+                borderRadius: 8,
+                padding: 8,
+                marginRight: 8,
+                cursor: 'pointer'
+              }}
+            >
+              <FiMessageCircle size={18} />
+            </button>
+            {showContactMenu && (
+              <div style={{ position: 'absolute', right: 0, top: 40, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.08)', minWidth: 220, zIndex: 1200 }}>
+                <div style={{ padding: '8px 12px', fontWeight: 600, fontSize: 13 }}>Contact Developer</div>
+                <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                  {contactLoading ? (
+                    <div style={{ padding: '8px 12px', fontSize: 13, color: '#6b7280' }}>Loading...</div>
+                  ) : (
+                    contactItems.length === 0 ? (
+                      <div style={{ padding: '8px 12px', fontSize: 13, color: '#6b7280' }}>No contacts</div>
+                    ) : (
+                      contactItems.map((item) => (
+                        <button
+                          key={item.other_id}
+                          onClick={() => handleOpenContact(item)}
+                          style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '8px 12px', cursor: 'pointer', fontSize: 13 }}
+                        >
+                          {item.other_name}
+                        </button>
+                      ))
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             className="icon-btn"
             onClick={handleReportBug}
@@ -161,7 +244,6 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
             <FiHeadphones size={18} />
           </button>
 
-          {/* Help (User & Maintenance Manual) */}
           <button
             className="icon-btn"
             onClick={handleOpenManual}
@@ -363,7 +445,7 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
               <div className="user-info">
                 <span className="user-name">{user?.Username || user?.username || 'User'}</span>
                 <span className="user-role">
-                  {user?.role || role}
+                  {user?.role || 'User'}
                   {departmentName ? ` | ${departmentName}` : ''}
                 </span>
               </div>

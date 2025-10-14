@@ -1,32 +1,28 @@
-import React, { useMemo } from 'react';
-import { FiLayout, FiUser, FiFileText, FiUpload, FiUsers, FiBarChart2, FiDatabase, FiSettings, FiFolder, FiStar, FiAlertCircle, FiX } from 'react-icons/fi';
+import React from 'react';
+import { FiLayout, FiUser, FiFileText, FiUpload, FiUsers, FiBarChart2, FiSettings, FiStar, FiAlertCircle, FiX } from 'react-icons/fi';
 import './sidebar.css';
 import Logo from '../../../assets/logos/logo.png';
-import { useDocuments } from '../../../contexts/DocumentContext.jsx';
-import { useUser } from '../../../contexts/UserContext.jsx';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, role, isMobile }) => {
-  const { documents } = useDocuments();
-  const { currentUser } = useUser();
 
   const streamlitUrl = 'https://dmsanalyticsfinalepy-jucq3wyqghj5iwgpyxwgkz.streamlit.app';
 
-  // Detect action-required docs (for faculty visibility)
-  const facultyRequestCount = useMemo(() => {
-    const isActionRequiredDoc = (doc) => {
-      const arArray = doc.action_required || doc.actionRequired || doc.actions || [];
-      const arName = doc.action_required_name || doc.actionName || '';
-      const arIds = doc.action_required_ids || [];
-      return (Array.isArray(arArray) && arArray.length > 0) || !!arName || (Array.isArray(arIds) && arIds.length > 0);
-    };
-    const isForFaculty = (doc) => {
-      // Heuristic: document is visible to ALL or to user's department/role
-      const visibleAll = doc.visible_to_all === 1 || doc.visible_to_all === true;
-      const inDept = (doc.department_ids || '').toString().split(',').map(s => s.trim()).includes((currentUser?.department_id || '').toString());
-      return visibleAll || inDept;
-    };
-    return documents.filter(d => isActionRequiredDoc(d) && isForFaculty(d)).length;
-  }, [documents, currentUser]);
+  // Detect action-required docs (for faculty visibility) - currently unused but may be used for badges
+  // const facultyRequestCount = useMemo(() => {
+  //   const isActionRequiredDoc = (doc) => {
+  //     const arArray = doc.action_required || doc.actionRequired || doc.actions || [];
+  //     const arName = doc.action_required_name || doc.actionName || '';
+  //     const arIds = doc.action_required_ids || [];
+  //     return (Array.isArray(arArray) && arArray.length > 0) || !!arName || (Array.isArray(arIds) && arIds.length > 0);
+  //   };
+  //   const isForFaculty = (doc) => {
+  //     // Heuristic: document is visible to ALL or to user's department/role
+  //     const visibleAll = doc.visible_to_all === 1 || doc.visible_to_all === true;
+  //     const inDept = (doc.department_ids || '').toString().split(',').map(s => s.trim()).includes((currentUser?.department_id || '').toString());
+  //     return visibleAll || inDept;
+  //   };
+  //   return documents.filter(d => isActionRequiredDoc(d) && isForFaculty(d)).length;
+  // }, [documents, currentUser]);
 
   // User menu (limited access)
   const userMenu = [

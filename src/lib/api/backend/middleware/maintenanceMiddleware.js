@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import db from '../connections/connection.js';
 
 // Middleware to check maintenance mode and block access

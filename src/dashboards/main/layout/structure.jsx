@@ -26,7 +26,6 @@ const Structure = ({ role }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [selectedFolder, setSelectedFolder] = useState(null);
   const [updateDocId, setUpdateDocId] = useState(null);
   const [showProfileBanner, setShowProfileBanner] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -110,7 +109,7 @@ const Structure = ({ role }) => {
       />
 
       {/* Navbar */}
-      <Navbar sidebarOpen={sidebarOpen} role={user?.role || role} setRole={undefined} setSidebarOpen={setSidebarOpen} isMobile={isMobile} />
+      <Navbar setSidebarOpen={setSidebarOpen} isMobile={isMobile} />
 
       {/* Mobile backdrop for sidebar */}
       {isMobile && sidebarOpen && (

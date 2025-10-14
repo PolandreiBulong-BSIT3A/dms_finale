@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, no-empty, react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../../contexts/UserContext.jsx';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';

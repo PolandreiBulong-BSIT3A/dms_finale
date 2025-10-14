@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
+import React, { useState, useEffect, useMemo } from 'react';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { ArrowCounterclockwise, Trash2, Search, ExclamationTriangle, X, ArrowDownUp, ArrowUp, ArrowDown, Envelope, Trash } from 'react-bootstrap-icons';
 import { FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';

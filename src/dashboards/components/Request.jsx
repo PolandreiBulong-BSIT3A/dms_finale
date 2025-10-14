@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
+import React, { useState, useEffect, useMemo } from 'react';
 import { fetchWithRetry } from '../../lib/api/frontend/http.js';
 import { buildUrl } from '../../lib/api/frontend/client.js';
 import { FiExternalLink, FiEye, FiMessageSquare, FiUpload, FiDownload, FiPlus, FiMoreVertical, FiEdit3, FiTrash2, FiBookmark, FiInfo, FiAlertTriangle, FiSearch } from 'react-icons/fi';

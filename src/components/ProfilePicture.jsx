@@ -12,12 +12,10 @@ const ProfilePicture = ({
   onLoad = null
 }) => {
   const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
 
   // Reset error state when src changes
   useEffect(() => {
     setImageError(false);
-    setImageLoaded(false);
   }, [src]);
 
   const handleError = (e) => {
@@ -27,7 +25,6 @@ const ProfilePicture = ({
   };
 
   const handleLoad = (e) => {
-    setImageLoaded(true);
     if (onLoad) onLoad(e);
   };
 

@@ -1,18 +1,14 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
 import Login from './login_system/login.jsx'
 import Dashboard from './dashboards/Dashboard.jsx'
 import Request from './dashboards/components/Request.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
-import MaintenanceNotification from './components/MaintenanceNotification.jsx'
 import { DocumentProvider } from './contexts/DocumentContext.jsx'
 import { NotificationProvider } from './contexts/NotificationContext.jsx'
 import { UserProvider } from './contexts/UserContext.jsx'
-import { buildUrl, fetchJson } from './lib/api/frontend/client.js'
 import './App.css'
 
 function App() {
-  const [showMaintenanceNotification, setShowMaintenanceNotification] = useState(false);
 
   return (
     <UserProvider>
