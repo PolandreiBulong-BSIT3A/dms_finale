@@ -405,4 +405,4 @@ const Navbar = ({ sidebarOpen, role, setRole, setSidebarOpen, isMobile }) => {
   );
 };
 
-export default Navbar; 
+export default Navbar;

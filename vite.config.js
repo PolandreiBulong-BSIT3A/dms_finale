@@ -5,6 +5,10 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   base: '/',  // Set base URL for production
+  define: {
+    // Define environment variables that will be available at build time
+    __API_BASE_URL__: JSON.stringify(process.env.VITE_API_BASE_URL || ''),
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

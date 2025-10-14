@@ -59,12 +59,21 @@ const Login = () => {
   const [maintenanceMessage, setMaintenanceMessage] = useState(null);
   const [etaText, setEtaText] = useState('');
   const [windowText, setWindowText] = useState('');
+  const [debugMode, setDebugMode] = useState(false);
 
   // Handle Google OAuth callback and maintenance errors
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const userParam = urlParams.get('user');
     const errorParam = urlParams.get('error');
+    const forceMaintenance = urlParams.get('maintenance');
+    
+    // Check for force maintenance parameter (for testing)
+    if (forceMaintenance === 'true') {
+      console.log('[Maintenance] Force maintenance mode enabled via URL parameter');
+      setMaintenanceMode(true);
+      setMaintenanceMessage('Maintenance mode forced for testing');
+    }
 
     if (userParam) {
       try {
@@ -124,18 +133,46 @@ const Login = () => {
   const fetchMaintenanceStatus = async () => {
     setCheckingMaintenance(true);
     try {
-      const res = await fetch(buildUrl('maintenance/status'));
+      const url = buildUrl('maintenance/status');
+      console.log('[Maintenance] Fetching status from:', url);
+      console.log('[Maintenance] Current hostname:', window.location.hostname);
+      console.log('[Maintenance] Current origin:', window.location.origin);
+      
+      // Add timeout and better error handling for production
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const res = await fetch(url, {
+        signal: controller.signal,
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      console.log('[Maintenance] Response status:', res.status, res.ok);
+      
       if (res.ok) {
         const data = await res.json();
+        console.log('[Maintenance] Response data:', data);
         const on = !!data.maintenanceMode;
         setMaintenanceMode(on);
         setMaintenanceStartTime(data.maintenanceStartTime || null);
         setMaintenanceEndTime(data.maintenanceEndTime || null);
         setMaintenanceMessage(data.maintenanceMessage || null);
         if (!on) setAdminBypass(false);
+        console.log('[Maintenance] Mode set to:', on);
+      } else {
+        console.warn('[Maintenance] API returned non-OK status:', res.status);
+        // Don't set maintenance mode to true on API failure
+        setMaintenanceMode(false);
       }
     } catch (e) {
-      // ignore network errors
+      console.error('[Maintenance] Fetch error:', e);
+      // On network error, don't assume maintenance mode
+      setMaintenanceMode(false);
     } finally {
       setCheckingMaintenance(false);
     }
@@ -169,7 +206,11 @@ const Login = () => {
 
   // Poll maintenance status on mount and every 60s; refresh on tab focus
   useEffect(() => {
-    fetchMaintenanceStatus();
+    // Initial fetch with delay to ensure page is loaded
+    const initialDelay = setTimeout(() => {
+      fetchMaintenanceStatus();
+    }, 1000);
+    
     const id = setInterval(fetchMaintenanceStatus, 60000);
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
@@ -178,6 +219,7 @@ const Login = () => {
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
+      clearTimeout(initialDelay);
       clearInterval(id);
       document.removeEventListener('visibilitychange', onVisibility);
     };
@@ -1111,8 +1153,19 @@ const Login = () => {
     }
   };
 
+  // Debug log for maintenance mode
+  console.log('[Maintenance] Current state:', {
+    maintenanceMode,
+    adminBypass,
+    checkingMaintenance,
+    maintenanceStartTime,
+    maintenanceEndTime,
+    maintenanceMessage
+  });
+
   // Full-page maintenance takeover: early return
   if (maintenanceMode && !adminBypass) {
+    console.log('[Maintenance] Showing maintenance page');
     return (
       <div className={`page-transition login-mode`}>
         <div className="maintenance-fullpage">
@@ -1152,14 +1205,119 @@ const Login = () => {
               <Button variant="primary" onClick={() => setAdminBypass(true)}>
                 Continue (Admin)
               </Button>
+              {/* Debug toggle - show in development or when URL has debug parameter */}
+              {(process.env.NODE_ENV === 'development' || new URLSearchParams(window.location.search).get('debug') === 'true') && (
+                <Button 
+                  variant="outline-warning" 
+                  size="sm" 
+                  onClick={() => setDebugMode(!debugMode)}
+                  style={{ marginLeft: '10px' }}
+                >
+                  Debug
+                </Button>
+              )}
             </div>
+            
+            {/* Debug panel */}
+            {debugMode && (
+              <div style={{ 
+                marginTop: '20px', 
+                padding: '15px', 
+                backgroundColor: '#f8f9fa', 
+                border: '1px solid #dee2e6', 
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}>
+                <h6>Debug Information:</h6>
+                <div><strong>API Base URL:</strong> {buildUrl('')}</div>
+                <div><strong>Current Hostname:</strong> {window.location.hostname}</div>
+                <div><strong>Current Origin:</strong> {window.location.origin}</div>
+                <div><strong>Maintenance Mode:</strong> {maintenanceMode ? 'ON' : 'OFF'}</div>
+                <div><strong>Admin Bypass:</strong> {adminBypass ? 'YES' : 'NO'}</div>
+                <div><strong>Checking Status:</strong> {checkingMaintenance ? 'YES' : 'NO'}</div>
+                <div><strong>Start Time:</strong> {maintenanceStartTime || 'None'}</div>
+                <div><strong>End Time:</strong> {maintenanceEndTime || 'None'}</div>
+                <div><strong>Message:</strong> {maintenanceMessage || 'None'}</div>
+                <div><strong>ETA Text:</strong> {etaText || 'None'}</div>
+                <div><strong>Window Text:</strong> {windowText || 'None'}</div>
+                <div style={{ marginTop: '10px' }}>
+                  <Button 
+                    variant="outline-danger" 
+                    size="sm" 
+                    onClick={() => setMaintenanceMode(true)}
+                    style={{ marginRight: '5px' }}
+                  >
+                    Force Maintenance ON
+                  </Button>
+                  <Button 
+                    variant="outline-success" 
+                    size="sm" 
+                    onClick={() => setMaintenanceMode(false)}
+                    style={{ marginRight: '5px' }}
+                  >
+                    Force Maintenance OFF
+                  </Button>
+                  <Button 
+                    variant="outline-info" 
+                    size="sm" 
+                    onClick={async () => {
+                      try {
+                        const url = buildUrl('maintenance/status');
+                        console.log('[Debug] Testing API connectivity to:', url);
+                        const response = await fetch(url, { 
+                          method: 'GET',
+                          headers: { 'Accept': 'application/json' }
+                        });
+                        console.log('[Debug] API Response:', response.status, response.ok);
+                        if (response.ok) {
+                          const data = await response.json();
+                          console.log('[Debug] API Data:', data);
+                          alert(`API Test Successful!\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`);
+                        } else {
+                          alert(`API Test Failed!\nStatus: ${response.status}\nURL: ${url}`);
+                        }
+                      } catch (error) {
+                        console.error('[Debug] API Test Error:', error);
+                        alert(`API Test Error: ${error.message}`);
+                      }
+                    }}
+                  >
+                    Test API
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="maintenance-right">
             <div
               className="maintenance-hero has-tooltip"
               data-tooltip='If you are wondering, "Bakit my pusa dito, anong connect?" This is the developer Logo, Haha Remembrance ko nalang'
             >
-              <Image src={LanImage} alt="Maintenance illustration" className="maintenance-hero-img" fluid />
+              <Image 
+                src={LanImage} 
+                alt="Maintenance illustration" 
+                className="maintenance-hero-img" 
+                fluid 
+                onError={(e) => {
+                  console.error('Failed to load maintenance image:', e);
+                  e.target.style.display = 'none';
+                  // Show fallback text
+                  const fallback = document.createElement('div');
+                  fallback.innerHTML = '🐱<br/>Maintenance<br/>Mode';
+                  fallback.style.cssText = `
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                    font-size: 48px;
+                    color: #6b7280;
+                    text-align: center;
+                    line-height: 1.2;
+                  `;
+                  e.target.parentNode.appendChild(fallback);
+                }}
+              />
             </div>
           </div>
         </div>

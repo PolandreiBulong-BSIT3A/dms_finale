@@ -50,7 +50,7 @@ const Request = ({ onNavigateToUpload }) => {
   React.useEffect(() => {
     (async () => {
       try {
-        const res = await fetchWithRetry(buildUrl(`documents/requests`), { credentials: 'include' });
+        const res = await fetchWithRetry(buildUrl('documents/requests'), { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           const list = data?.documents || [];
@@ -390,41 +390,8 @@ const Request = ({ onNavigateToUpload }) => {
 
   const uploadDocumentFromSource = (sourceDoc) => {
     if (onNavigateToUpload) {
-      const currentUserName = [
-        currentUser?.firstname || currentUser?.first_name,
-        currentUser?.lastname || currentUser?.last_name
-      ].filter(Boolean).join(' ') || currentUser?.name || currentUser?.full_name || currentUser?.username || '';
-      
-      // Determine the best Google Drive link to prefill (same logic as createDocumentFromSource)
-      let googleDriveLink = '';
-      if (sourceDoc.google_drive_link) {
-        googleDriveLink = sourceDoc.google_drive_link;
-      } else if (sourceDoc.reply_google_drive_link) {
-        googleDriveLink = sourceDoc.reply_google_drive_link;
-      } else if (Array.isArray(sourceDoc.replies) && sourceDoc.replies.length > 0) {
-        const firstReply = sourceDoc.replies[0];
-        if (firstReply?.google_drive_link) {
-          googleDriveLink = firstReply.google_drive_link;
-        }
-      }
-      
-      const documentData = {
-        title: `New Document - ${sourceDoc.title}`,
-        reference: `REF-${Date.now()}`, // Generate new reference
-        category: sourceDoc.doc_type,
-        from: currentUserName,
-        to: sourceDoc.created_by_name || sourceDoc.from_field || '',
-        dateTimeReceived: formatDatetimeLocal(new Date()),
-        description: `Related to: ${sourceDoc.title}${sourceDoc.description ? '\n\nOriginal Description: ' + sourceDoc.description : ''}`,
-        google_drive_link: googleDriveLink, // Prefill with original document's link
-        available_copy: sourceDoc.available_copy || 'soft_copy',
-        // Don't copy action_required for new documents
-        source_document_id: sourceDoc.id || sourceDoc.doc_id,
-        isNewDocument: true,
-        notificationMessage: 'New document added'
-      };
-      // For Upload page prefill
-      sessionStorage.setItem('createReply', JSON.stringify(documentData));
+      // Clear any reply data before navigating to upload
+      sessionStorage.removeItem('createReply');
       onNavigateToUpload('upload');
     }
   };
@@ -550,15 +517,7 @@ const Request = ({ onNavigateToUpload }) => {
             placeholder={viewMode === 'pending' ? "Search title, action, status..." : "Search title, reply, action..."}
             style={{ padding: '8px 12px', borderRadius: 20, border: '1px solid #d1d5db', minWidth: 260 }}
           />
-          {viewMode === 'answered' && (
-            <button
-              className="btn btn-primary border rounded-pill px-3"
-              onClick={() => onNavigateToUpload && onNavigateToUpload('upload')}
-              title="Add Document"
-            >
-              + Add Document
-            </button>
-          )}
+          {/* Removed '+ Add Document' button in answered view per request */}
           {/* Removed Refresh on desktop */}
 
           {items.length > 0 && (
@@ -769,7 +728,7 @@ const Request = ({ onNavigateToUpload }) => {
                 </div>
 
                 {/* Document Title */}
-                <div style={{ fontWeight: 600, fontSize: 16, color: '#1f2937', marginBottom: 8, lineHeight: 1.4 }}>
+                <div style={{ fontWeight: 700, fontSize: 18, color: '#111827', marginBottom: 12, lineHeight: 1.4 }}>
                   {d.title || 'Untitled'}
                 </div>
 
@@ -777,12 +736,13 @@ const Request = ({ onNavigateToUpload }) => {
                 <div style={{ marginBottom: 12 }}>
                   <span style={{
                     display: 'inline-block',
-                    padding: '4px 12px',
+                    padding: '6px 14px',
                     backgroundColor: '#dbeafe',
                     color: '#1e40af',
-                    borderRadius: 12,
-                    fontSize: 12,
-                    fontWeight: 500
+                    borderRadius: 16,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    border: '1px solid #93c5fd'
                   }}>
                     {d.doc_type || 'Document'}
                   </span>
@@ -790,9 +750,9 @@ const Request = ({ onNavigateToUpload }) => {
 
                 {/* Action Required / Reply Info */}
                 {viewMode === 'pending' ? (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Action Required:</div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: '#374151' }}>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6, fontWeight: 600 }}>Action Required:</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#1f2937', marginBottom: 8 }}>
                       {Array.isArray(d.action_required) 
                         ? d.action_required.map(ar => ar.name || ar).join(', ')
                         : (d.action_required_name || 'N/A')}
@@ -801,31 +761,32 @@ const Request = ({ onNavigateToUpload }) => {
                       <div style={{ marginTop: 8 }}>
                         <span style={{
                           display: 'inline-block',
-                          padding: '4px 10px',
-                          backgroundColor: d.action_status.toLowerCase() === 'completed' ? '#dcfce7' : '#fef3c7',
-                          color: d.action_status.toLowerCase() === 'completed' ? '#166534' : '#92400e',
-                          borderRadius: 12,
-                          fontSize: 11,
-                          fontWeight: 600
+                          padding: '6px 12px',
+                          backgroundColor: d.action_status.toLowerCase() === 'completed' ? '#dcfce7' : d.action_status.toLowerCase() === 'in_progress' ? '#fef3c7' : '#fef2f2',
+                          color: d.action_status.toLowerCase() === 'completed' ? '#166534' : d.action_status.toLowerCase() === 'in_progress' ? '#92400e' : '#991b1b',
+                          borderRadius: 16,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          border: `1px solid ${d.action_status.toLowerCase() === 'completed' ? '#16a34a' : d.action_status.toLowerCase() === 'in_progress' ? '#d97706' : '#dc2626'}`
                         }}>
-                          {d.action_status}
+                          {d.action_status === 'completed' ? '✓ Replied' : d.action_status === 'in_progress' ? '⏳ In Progress' : '⏱️ Pending'}
                         </span>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Reply:</div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 4 }}>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6, fontWeight: 600 }}>Reply:</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#059669', marginBottom: 6 }}>
                       {d.reply_title || 'No title'}
                     </div>
                     {d.reply_description && (
-                      <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.5, marginBottom: 8 }}>
                         {d.reply_description.substring(0, 100)}{d.reply_description.length > 100 ? '...' : ''}
                       </div>
                     )}
                     {d.completed_at && (
-                      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
+                      <div style={{ fontSize: 13, color: '#6b7280', marginTop: 8, fontWeight: 500 }}>
                         Completed: {new Date(d.completed_at).toLocaleDateString()} by {d.completed_by_name || d.reply_created_by_name || 'Unknown'}
                       </div>
                     )}
@@ -833,16 +794,29 @@ const Request = ({ onNavigateToUpload }) => {
                 )}
 
                 {/* Action Buttons */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', gap: 10, marginTop: 16, paddingTop: 16, borderTop: '2px solid #e5e7eb' }}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       window.open(d.google_drive_link, '_blank');
                     }}
                     className="btn btn-sm btn-light border"
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}
+                    style={{ 
+                      flex: 1, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      gap: 8, 
+                      fontSize: 14,
+                      fontWeight: 600,
+                      padding: '10px 16px',
+                      backgroundColor: '#f8fafc',
+                      borderColor: '#d1d5db',
+                      color: '#374151',
+                      borderRadius: 8
+                    }}
                   >
-                    <FiEye size={14} /> View
+                    <FiEye size={16} /> View
                   </button>
                   {viewMode === 'pending' && (
                     <button
@@ -851,9 +825,23 @@ const Request = ({ onNavigateToUpload }) => {
                         createDocumentFromSource(d);
                       }}
                       className="btn btn-sm btn-primary"
-                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}
+                      style={{ 
+                        flex: 1, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: 8, 
+                        fontSize: 14,
+                        fontWeight: 600,
+                        padding: '10px 16px',
+                        backgroundColor: '#0d6efd',
+                        borderColor: '#0d6efd',
+                        color: 'white',
+                        borderRadius: 8,
+                        boxShadow: '0 2px 4px rgba(13, 110, 253, 0.2)'
+                      }}
                     >
-                      <FiMessageSquare size={14} /> Reply
+                      <FiMessageSquare size={16} /> Reply
                     </button>
                   )}
                 </div>
@@ -922,8 +910,15 @@ const Request = ({ onNavigateToUpload }) => {
             </thead>
             <tbody>
               {items.map(d => (
-                <tr key={d.id || d.doc_id} style={{ transition: 'all 0.2s ease', backgroundColor: '#fff', borderRadius: '20px', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)', marginBottom: '12px' }}>
-                  <td style={{ ...td, width: 44, textAlign: 'center', borderTopLeftRadius: '20px', borderBottomLeftRadius: '20px', border: 'none', backgroundColor: '#fff' }}>
+                <tr key={d.id || d.doc_id} style={{ 
+                  transition: 'all 0.2s ease', 
+                  backgroundColor: '#fff', 
+                  borderRadius: '12px', 
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)', 
+                  marginBottom: '16px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <td style={{ ...td, width: 44, textAlign: 'center', borderTopLeftRadius: '12px', borderBottomLeftRadius: '12px', border: 'none', backgroundColor: '#fff' }}>
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleSelectOne(d.id || d.doc_id); }}
                       role="checkbox"
@@ -973,16 +968,37 @@ const Request = ({ onNavigateToUpload }) => {
                     <>
                       <td style={{ ...td, border: 'none', backgroundColor: '#fff' }}>
                         {d.action_status === 'completed' ? (
-                          <span style={{ ...chip, backgroundColor: '#dcfce7', borderColor: '#16a34a', color: '#166534' }}>
-                            Replied
+                          <span style={{ 
+                            ...chip, 
+                            backgroundColor: '#dcfce7', 
+                            borderColor: '#16a34a', 
+                            color: '#166534',
+                            fontWeight: 700,
+                            fontSize: 14
+                          }}>
+                            ✓ Replied
                           </span>
                         ) : d.action_status === 'in_progress' ? (
-                          <span style={{ ...chip, backgroundColor: '#fef3c7', borderColor: '#d97706', color: '#92400e' }}>
-                            In Progress
+                          <span style={{ 
+                            ...chip, 
+                            backgroundColor: '#fef3c7', 
+                            borderColor: '#d97706', 
+                            color: '#92400e',
+                            fontWeight: 700,
+                            fontSize: 14
+                          }}>
+                            ⏳ In Progress
                           </span>
                         ) : (
-                          <span style={{ ...chip, backgroundColor: '#fef2f2', borderColor: '#dc2626', color: '#991b1b' }}>
-                            Pending
+                          <span style={{ 
+                            ...chip, 
+                            backgroundColor: '#fef2f2', 
+                            borderColor: '#dc2626', 
+                            color: '#991b1b',
+                            fontWeight: 700,
+                            fontSize: 14
+                          }}>
+                            ⏱️ Pending
                           </span>
                         )}
                       </td>
@@ -1011,48 +1027,81 @@ const Request = ({ onNavigateToUpload }) => {
                     </>
                   )}
                   
-                  <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap', position: 'relative', borderTopRightRadius: '20px', borderBottomRightRadius: '20px', border: 'none', backgroundColor: '#fff' }}>
+                  <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap', position: 'relative', borderTopRightRadius: '12px', borderBottomRightRadius: '12px', border: 'none', backgroundColor: '#fff' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                       {viewMode === 'pending' ? (
                         d.action_status === 'completed' ? (
                             <button
                               title="View Reply"
-                              className="btn btn-success border rounded-pill px-2"
-                              style={{ backgroundColor: '#059669', borderColor: '#059669', color: 'white' }}
+                              className="btn btn-success border rounded-pill px-3"
+                              style={{ 
+                                backgroundColor: '#059669', 
+                                borderColor: '#059669', 
+                                color: 'white',
+                                fontWeight: 600,
+                                fontSize: 14,
+                                padding: '8px 12px',
+                                boxShadow: '0 2px 4px rgba(5, 150, 105, 0.2)'
+                              }}
                               onClick={() => d.reply_google_drive_link && window.open(d.reply_google_drive_link, '_blank', 'noopener')}
                               disabled={!d.reply_google_drive_link}
                             >
-                              <FiEye />
+                              <FiEye size={16} />
                             </button>
                         ) : (
                           <button
                             title="Upload Reply"
-                            className="btn btn-primary border rounded-pill px-2"
-                            style={{ backgroundColor: '#0d6efd', borderColor: '#0d6efd', color: 'white' }}
+                            className="btn btn-primary border rounded-pill px-3"
+                            style={{ 
+                              backgroundColor: '#0d6efd', 
+                              borderColor: '#0d6efd', 
+                              color: 'white',
+                              fontWeight: 600,
+                              fontSize: 14,
+                              padding: '8px 12px',
+                              boxShadow: '0 2px 4px rgba(13, 110, 253, 0.2)'
+                            }}
                             onClick={() => createDocumentFromSource(d)}
                           >
-                            <FiUpload />
+                            <FiUpload size={16} />
                           </button>
                         )
                       ) : (
                           <button
                             title="View Reply"
-                            className="btn btn-success border rounded-pill px-2"
-                            style={{ backgroundColor: '#059669', borderColor: '#059669', color: 'white' }}
+                            className="btn btn-success border rounded-pill px-3"
+                            style={{ 
+                              backgroundColor: '#059669', 
+                              borderColor: '#059669', 
+                              color: 'white',
+                              fontWeight: 600,
+                              fontSize: 14,
+                              padding: '8px 12px',
+                              boxShadow: '0 2px 4px rgba(5, 150, 105, 0.2)'
+                            }}
                             onClick={() => d.reply_google_drive_link && window.open(d.reply_google_drive_link, '_blank', 'noopener')}
                             disabled={!d.reply_google_drive_link}
                           >
-                            <FiEye />
+                            <FiEye size={16} />
                           </button>
                       )}
 
                       <button
                         title="Open Original"
-                        className="btn btn-light border rounded-pill px-2"
+                        className="btn btn-light border rounded-pill px-3"
+                        style={{
+                          backgroundColor: '#f8fafc',
+                          borderColor: '#d1d5db',
+                          color: '#374151',
+                          fontWeight: 600,
+                          fontSize: 14,
+                          padding: '8px 12px',
+                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+                        }}
                         onClick={() => d.google_drive_link && window.open(d.google_drive_link, '_blank', 'noopener')}
                         disabled={!d.google_drive_link}
                       >
-                        <FiExternalLink />
+                        <FiExternalLink size={16} />
                       </button>
 
                       <div style={{ position: 'relative' }} data-menu-container>
@@ -1218,12 +1267,13 @@ const Request = ({ onNavigateToUpload }) => {
 
 const th = { 
   textAlign: 'left', 
-  padding: '20px 14px', 
-  fontSize: 14, 
-  fontWeight: 600,
-  color: '#6b7280', 
-  borderBottom: '1px solid #f3f4f6',
-  backgroundColor: 'transparent'
+  padding: '20px 16px', 
+  fontSize: 15, 
+  fontWeight: 700,
+  color: '#1f2937', 
+  borderBottom: '2px solid #e5e7eb',
+  backgroundColor: '#f9fafb',
+  letterSpacing: '0.025em'
 };
 const sortableTh = { 
   ...th, 
@@ -1231,36 +1281,39 @@ const sortableTh = {
   userSelect: 'none',
   transition: 'all 0.2s ease',
   '&:hover': {
-    backgroundColor: '#f8fafc',
-    color: '#374151'
+    backgroundColor: '#f3f4f6',
+    color: '#111827'
   }
 };
 const td = { 
-  padding: '18px 14px', 
-  fontSize: 14, 
-  color: '#374151', 
+  padding: '20px 16px', 
+  fontSize: 15, 
+  color: '#1f2937', 
   border: 'none',
   verticalAlign: 'top',
-  backgroundColor: '#fff'
+  backgroundColor: '#fff',
+  fontWeight: 500
 };
 const tdPrimary = { 
   ...td, 
   width: '220px',
-  fontWeight: 500,
-  paddingRight: '10px'
+  fontWeight: 600,
+  paddingRight: '12px',
+  color: '#111827'
 };
 const chip = { 
   display: 'inline-block', 
-  padding: '6px 12px', 
-  border: '1px solid #e2e8f0', 
+  padding: '8px 14px', 
+  border: '1px solid #d1d5db', 
   borderRadius: 20, 
   marginRight: 6, 
   marginBottom: 6, 
-  fontSize: 12, 
-  fontWeight: 500,
-  color: '#374151', 
-  background: '#f8fafc',
-  transition: 'all 0.2s ease'
+  fontSize: 13, 
+  fontWeight: 600,
+  color: '#1f2937', 
+  background: '#f3f4f6',
+  transition: 'all 0.2s ease',
+  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
 };
 
 // Reply Modal Component
