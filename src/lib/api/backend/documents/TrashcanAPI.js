@@ -1,6 +1,5 @@
 /* eslint-disable no-unused-vars */
 import express from 'express';
-import mysql from 'mysql2/promise';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import db from '../connections/connection.js';
 
@@ -36,7 +35,6 @@ router.post('/documents/trashcan', requireAuth, requireAdminOrDean, async (req, 
   try {
     const { documentId, action, deletedAt } = req.body || {};
     const currentUser = req.currentUser;
-    const toNull = (v) => (v === undefined ? null : v);
     const docId = Number(documentId);
     if (!docId || Number.isNaN(docId)) {
       return res.status(400).json({ success: false, message: 'Invalid or missing documentId' });

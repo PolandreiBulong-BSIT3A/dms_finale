@@ -862,9 +862,12 @@ const Announcements = ({ setActiveTab }) => {
                               lineHeight: 1.6,
                               fontSize: 14,
                               whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              overflowWrap: 'break-word',
                               marginBottom: 12,
                               maxHeight: 200,
-                              overflowY: 'auto'
+                              overflowY: 'auto',
+                              padding: '8px 0'
                             }}
                           >
                             {message}
@@ -981,7 +984,9 @@ const Announcements = ({ setActiveTab }) => {
                     border: '1px solid #d1d5db',
                     padding: '12px 16px',
                     fontSize: '14px',
-                    transition: 'border-color 0.2s ease'
+                    transition: 'border-color 0.2s ease',
+                    fontFamily: 'inherit',
+                    lineHeight: '1.5'
                   }}
                 />
               </div>
@@ -1005,7 +1010,11 @@ const Announcements = ({ setActiveTab }) => {
                     fontSize: '14px',
                     resize: 'vertical',
                     minHeight: '120px',
-                    transition: 'border-color 0.2s ease'
+                    transition: 'border-color 0.2s ease',
+                    fontFamily: 'inherit',
+                    lineHeight: '1.5',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word'
                   }}
                 />
               </div>

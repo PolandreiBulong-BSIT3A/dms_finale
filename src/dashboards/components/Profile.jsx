@@ -138,7 +138,7 @@ const Profile = () => {
     }
     
     // Handle Google Drive URLs
-    const match = url.match(/\/file\/d\/([^\/]+)/);
+    const match = url.match(/\/file\/d\/([^/]+)/);
     if (match && match[1]) {
       // Use Google Drive thumbnail API
       return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`;

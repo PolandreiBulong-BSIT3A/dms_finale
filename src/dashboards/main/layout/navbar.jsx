@@ -487,4 +487,4 @@ const Navbar = ({ setSidebarOpen, isMobile }) => {
   );
 };
 
-export default Navbar; 
+export default Navbar;

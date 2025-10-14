@@ -9,6 +9,11 @@ const MaintenanceNotification = ({ isAdmin = false, onDismiss }) => {
     if (onDismiss) onDismiss();
   };
 
+  const handleRedirect = () => {
+    // Force reload to show maintenance page
+    window.location.reload();
+  };
+
   if (!isVisible) return null;
 
   return (
@@ -35,19 +40,19 @@ const MaintenanceNotification = ({ isAdmin = false, onDismiss }) => {
           {isAdmin ? (
             <div>
               <p style={styles.message}>
-                Maintenance mode has been enabled. You have administrator access and can continue using the system.
+                🔧 Maintenance mode is currently active. As an administrator, you can continue using the system normally.
               </p>
               <p style={styles.submessage}>
-                Regular users are now seeing the maintenance page.
+                Regular users are being redirected to the maintenance page. You can dismiss this notification to continue working.
               </p>
             </div>
           ) : (
             <div>
               <p style={styles.message}>
-                The system has entered maintenance mode. You will be redirected to the maintenance page shortly.
+                ⚠️ The system is currently under maintenance. You will be redirected to the maintenance page.
               </p>
               <p style={styles.submessage}>
-                Please save any unsaved work immediately.
+                Please save any unsaved work immediately. The system will be back online soon.
               </p>
             </div>
           )}
@@ -59,7 +64,7 @@ const MaintenanceNotification = ({ isAdmin = false, onDismiss }) => {
               Continue Working
             </button>
           ) : (
-            <button style={styles.redirectButton} onClick={() => window.location.reload()}>
+            <button style={styles.redirectButton} onClick={handleRedirect}>
               Go to Maintenance Page
             </button>
           )}
@@ -141,23 +146,25 @@ const styles = {
     backgroundColor: '#10b981',
     color: 'white',
     border: 'none',
-    padding: '10px 20px',
+    padding: '12px 24px',
     borderRadius: '8px',
     fontSize: '14px',
-    fontWeight: '500',
+    fontWeight: '600',
     cursor: 'pointer',
-    transition: 'background-color 0.2s'
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'
   },
   redirectButton: {
     backgroundColor: '#f59e0b',
     color: 'white',
     border: 'none',
-    padding: '10px 20px',
+    padding: '12px 24px',
     borderRadius: '8px',
     fontSize: '14px',
-    fontWeight: '500',
+    fontWeight: '600',
     cursor: 'pointer',
-    transition: 'background-color 0.2s'
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 4px rgba(245, 158, 11, 0.2)'
   }
 };
 

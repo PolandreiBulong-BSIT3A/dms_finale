@@ -33,7 +33,8 @@ router.get('/users', requireAuth, async (req, res) => {
 
     if (role) {
       filters.push('u.role = ?');
-      values.push(role);
+      // Normalize role to uppercase to match database storage
+      values.push(role.toString().toUpperCase());
     }
 
     // Status filter: default visibility includes 'active'

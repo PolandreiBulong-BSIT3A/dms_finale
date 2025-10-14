@@ -1,6 +1,11 @@
+<<<<<<< HEAD
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useMemo } from 'react';
 import { FiCheck, FiAlertCircle } from 'react-icons/fi';
+=======
+import React, { useEffect, useMemo, useState } from 'react';
+import { FiCheck, FiAlertCircle, FiMaximize2, FiExternalLink } from 'react-icons/fi';
+>>>>>>> 34c31f29d478ee772418465801b52a58f58a084c
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 
 const Reply = ({ onNavigateToDocuments }) => {
@@ -25,6 +30,14 @@ const Reply = ({ onNavigateToDocuments }) => {
     onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Cleanup sessionStorage when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clear reply data when leaving the Reply page
+      sessionStorage.removeItem('createReply');
+    };
   }, []);
 
   // Get source document ID from URL parameters or sessionStorage
@@ -102,6 +115,290 @@ const Reply = ({ onNavigateToDocuments }) => {
     setShowPreviewPanel(isValidDriveLink(replyLink) && !!previewUrl);
   }, [replyLink, previewUrl]);
 
+  // Styles matching Upload.jsx design system
+  const styles = {
+    outerWrap: {
+      minHeight: '100vh',
+      background: 'transparent',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      padding: isMobile ? '16px' : '32px 0',
+      fontFamily: 'Inter, sans-serif',
+    },
+    flexCard: {
+      display: 'flex',
+      flexDirection: isMobile ? 'column' : 'row',
+      alignItems: 'stretch',
+      width: '100%',
+      maxWidth: 1200,
+      background: '#fff',
+      border: '1.5px solid #111',
+      borderRadius: 16,
+      boxSizing: 'border-box',
+      marginBottom: 32,
+      overflow: 'hidden',
+    },
+    formCol: {
+      flex: 1,
+      padding: isMobile ? '16px' : '32px',
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      height: 'auto',
+      alignSelf: 'stretch',
+      margin: 0,
+    },
+    previewCol: {
+      flex: 1,
+      borderLeft: isMobile ? 'none' : '1px solid #eee',
+      borderTop: isMobile ? '1px solid #eee' : 'none',
+      background: '#fafafa',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      padding: isMobile ? '16px' : '32px',
+      minWidth: 0,
+      height: 'auto',
+      alignSelf: 'stretch',
+    },
+    title: {
+      fontSize: 'clamp(20px, 4vw, 28px)',
+      fontWeight: 700,
+      color: '#111',
+      margin: 0,
+      letterSpacing: '-0.02em',
+      textAlign: 'left',
+    },
+    section: {
+      marginBottom: 20,
+    },
+    inputRow: {
+      display: 'flex',
+      gap: 18,
+      marginBottom: 0,
+      flexDirection: isMobile ? 'column' : 'row',
+      alignItems: isMobile ? 'flex-start' : 'center',
+    },
+    inputLabel: {
+      fontWeight: 400,
+      marginBottom: 2,
+      color: '#333',
+      fontSize: 'clamp(12px, 2vw, 13px)',
+      textAlign: 'left',
+      minWidth: isMobile ? 'auto' : '120px',
+    },
+    input: {
+      width: '100%',
+      border: 'none',
+      borderBottom: '1px solid #ddd',
+      borderRadius: 0,
+      background: '#fff',
+      fontSize: 15,
+      color: '#111',
+      padding: '6px 0 4px 0',
+      marginBottom: 10,
+      outline: 'none',
+      transition: 'border-bottom-color 0.2s',
+      fontFamily: 'inherit',
+    },
+    textarea: {
+      width: '100%',
+      border: 'none',
+      borderBottom: '1px solid #ddd',
+      borderRadius: 0,
+      background: '#fff',
+      fontSize: 15,
+      color: '#111',
+      padding: '6px 0 4px 0',
+      marginBottom: 10,
+      outline: 'none',
+      transition: 'border-bottom-color 0.2s',
+      fontFamily: 'inherit',
+      resize: 'vertical',
+      minHeight: 60,
+    },
+    error: {
+      color: '#c00',
+      fontSize: 'clamp(11px, 2vw, 12px)',
+      fontWeight: 400,
+      marginTop: 6,
+    },
+    buttonRow: {
+      display: 'flex',
+      gap: 12,
+      marginTop: 24,
+      flexDirection: isMobile ? 'column' : 'row',
+      justifyContent: 'flex-end',
+    },
+    button: {
+      padding: isMobile ? '12px 20px' : '10px 20px',
+      borderRadius: '8px',
+      border: '1.5px solid #ddd',
+      background: 'white',
+      color: '#666',
+      fontSize: 14,
+      fontWeight: 500,
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+      width: isMobile ? '100%' : 'auto',
+    },
+    primaryButton: {
+      padding: isMobile ? '12px 20px' : '10px 20px',
+      borderRadius: '8px',
+      border: 'none',
+      background: '#111',
+      color: 'white',
+      fontSize: 14,
+      fontWeight: 500,
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+      width: isMobile ? '100%' : 'auto',
+    },
+    previewToggleButton: {
+      padding: isMobile ? '10px 14px' : '8px 16px',
+      borderRadius: '20px',
+      border: '1px solid #e2e8f0',
+      backgroundColor: 'white',
+      color: '#475569',
+      fontWeight: '500',
+      cursor: 'pointer',
+      fontSize: 'clamp(13px, 2vw, 14px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '6px',
+      transition: 'all 0.2s',
+      width: isMobile ? '100%' : 'auto',
+    },
+    backButton: {
+      padding: isMobile ? '10px 14px' : '8px 16px',
+      borderRadius: '20px',
+      border: '1px solid #e2e8f0',
+      backgroundColor: 'white',
+      color: '#475569',
+      fontWeight: '500',
+      cursor: 'pointer',
+      fontSize: 'clamp(13px, 2vw, 14px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '6px',
+      width: isMobile ? '100%' : 'auto',
+    },
+    statusBadge: {
+      backgroundColor: sourceDocumentId ? '#f0f9ff' : '#fef2f2',
+      border: `1px solid ${sourceDocumentId ? '#0ea5e9' : '#f87171'}`,
+      borderRadius: '6px',
+      padding: isMobile ? '6px 10px' : '8px 12px',
+      marginTop: '8px',
+      fontSize: 'clamp(11px, 2vw, 13px)',
+      color: sourceDocumentId ? '#0c4a6e' : '#991b1b',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      width: isMobile ? '100%' : 'auto',
+      justifyContent: isMobile ? 'center' : 'flex-start',
+    },
+    linkInputContainer: {
+      display: 'flex',
+      gap: 8,
+      alignItems: 'center',
+      width: '100%',
+    },
+    linkInput: {
+      flex: 1,
+      minWidth: 0,
+      border: 'none',
+      borderBottom: '1px solid #ddd',
+      borderRadius: 0,
+      background: '#fff',
+      fontSize: 15,
+      color: '#111',
+      padding: '6px 0 4px 0',
+      marginBottom: 10,
+      outline: 'none',
+      transition: 'border-bottom-color 0.2s',
+      fontFamily: 'inherit',
+    },
+    openButton: {
+      background: 'transparent',
+      border: '1.5px solid #ddd',
+      borderRadius: '6px',
+      color: '#666',
+      fontSize: 12,
+      fontWeight: 500,
+      padding: '6px 12px',
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+      whiteSpace: 'nowrap',
+      flex: '0 0 auto',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4,
+    },
+    previewHeader: {
+      fontWeight: 600,
+      fontSize: 18,
+      color: '#111',
+      marginBottom: 16,
+      alignSelf: 'flex-start',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+    },
+    previewIframe: {
+      width: '100%',
+      height: '100%',
+      minHeight: isMobile ? 300 : 500,
+      flex: 1,
+      border: '1.5px solid #111',
+      borderRadius: 8,
+      background: '#fff',
+      overflow: 'auto',
+    },
+    previewPlaceholder: {
+      width: '100%',
+      minHeight: isMobile ? 200 : 300,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#888',
+      border: '1.5px dashed #bbb',
+      borderRadius: 8,
+      background: '#fff',
+      fontSize: 14,
+      padding: 20,
+      textAlign: 'center',
+    },
+    previewIcon: {
+      width: 64,
+      height: 64,
+      backgroundColor: '#4285f4',
+      borderRadius: 12,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    previewButton: {
+      backgroundColor: '#4285f4',
+      color: 'white',
+      border: 'none',
+      borderRadius: 6,
+      padding: '8px 16px',
+      fontSize: 13,
+      fontWeight: 500,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      transition: 'all 0.2s',
+    },
+  };
+
   // Prefill removed per request
 
   const handleSubmit = async (e) => {
@@ -165,153 +462,232 @@ const Reply = ({ onNavigateToDocuments }) => {
   };
 
   return (
-    <div style={{ padding: isMobile ? '20px 28px 20px 20px' : 20, maxWidth: 640, margin: '0 auto', boxSizing: 'border-box' }}>
-      <div style={{ display: 'flex', justifyContent: isMobile ? 'center' : 'space-between', alignItems: isMobile ? 'stretch' : 'center', marginBottom: 16, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 8 : 0 }}>
-        <div style={{ width: '100%' }}>
-          <h2 style={{ margin: 0, textAlign: isMobile ? 'center' : 'left' }}>Upload Reply</h2>
-          <div style={{
-            backgroundColor: sourceDocumentId ? '#f0f9ff' : '#fef2f2',
-            border: `1px solid ${sourceDocumentId ? '#0ea5e9' : '#f87171'}`,
-            borderRadius: 9999,
-            padding: '8px 12px',
-            marginTop: 8,
-            fontSize: 13,
-            color: sourceDocumentId ? '#0c4a6e' : '#991b1b',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            width: isMobile ? '100%' : 'auto',
-            justifyContent: isMobile ? 'center' : 'flex-start'
+    <div style={styles.outerWrap}>
+      <div style={{...styles.flexCard, maxWidth: isMobile ? '100%' : 1200}}>
+        <div style={styles.formCol}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: isMobile ? 'column' : 'row',
+            justifyContent: 'space-between', 
+            alignItems: isMobile ? 'flex-start' : 'center', 
+            marginBottom: '24px',
+            gap: isMobile ? '12px' : '0'
           }}>
-            {sourceDocumentId ? (
-              <>
-                <FiCheck size={14} /> Replying to document ID: {sourceDocumentId}
-              </>
+            <div>
+              <h2 style={styles.title}>Upload Reply</h2>
+              <div style={styles.statusBadge}>
+                {sourceDocumentId ? (
+                  <>
+                    <FiCheck size={14} /> Replying to document ID: {sourceDocumentId}
+                  </>
+                ) : (
+                  <>
+                    <FiAlertCircle size={14} /> No source document ID found in URL
+                  </>
+                )}
+              </div>
+            </div>
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px', 
+              alignItems: 'center',
+              flexDirection: isMobile ? 'column' : 'row',
+              width: isMobile ? '100%' : 'auto'
+            }}>
+              {isValidDriveLink(replyLink) && (
+                <button
+                  onClick={() => setShowPreviewPanel(!showPreviewPanel)}
+                  style={{
+                    ...styles.previewToggleButton,
+                    backgroundColor: showPreviewPanel ? '#111' : 'white',
+                    color: showPreviewPanel ? 'white' : '#475569',
+                  }}
+                >
+                  <FiMaximize2 style={{ fontSize: isMobile ? '12px' : '14px' }} />
+                  {showPreviewPanel ? 'Hide Preview' : 'Show Preview'}
+                </button>
+              )}
+              {onNavigateToDocuments && (
+                <button
+                  onClick={() => {
+                    sessionStorage.removeItem('createReply');
+                    onNavigateToDocuments('requests');
+                  }}
+                  style={styles.backButton}
+                >
+                  ← Back to Requests
+                </button>
+              )}
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 24 }}>
+            {!!error && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecaca', padding: '10px 14px', borderRadius: 8, fontSize: 14 }}>
+                <FiAlertCircle size={16} /> {error}
+              </div>
+            )}
+            {!!success && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#065f46', background: '#d1fae5', border: '1px solid #a7f3d0', padding: '10px 14px', borderRadius: 8, fontSize: 14 }}>
+                <FiCheck size={16} /> {success}
+              </div>
+            )}
+
+              {/* From, To, Date/Time Row */}
+              <div style={styles.section}>
+                <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
+                  <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>From</div>
+                  <input 
+                    style={styles.input} 
+                    type="text" 
+                    value={fromField} 
+                    onChange={e => setFromField(e.target.value)} 
+                    placeholder=" " 
+                  />
+                </div>
+                <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
+                  <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>To</div>
+                  <input 
+                    style={styles.input} 
+                    type="text" 
+                    value={toField} 
+                    onChange={e => setToField(e.target.value)} 
+                    placeholder=" " 
+                  />
+                </div>
+                <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
+                  <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>Date/Time</div>
+                  <input 
+                    style={styles.input} 
+                    type="datetime-local" 
+                    value={dateTimeReceived} 
+                    onChange={e => setDateTimeReceived(e.target.value)} 
+                    placeholder=" " 
+                  />
+                </div>
+              </div>
+
+              {/* Reply Title */}
+              <div style={styles.section}>
+                <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
+                  <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>Reply Title *</div>
+                  <input 
+                    style={{...styles.input, borderBottom: `1px solid ${fieldErrors.replyTitle ? '#fca5a5' : '#ddd'}`}} 
+                    type="text" 
+                    value={replyTitle} 
+                    onChange={e => setReplyTitle(e.target.value)} 
+                    placeholder="e.g., Response to Memo #123" 
+                  />
+                </div>
+                {fieldErrors.replyTitle && <div style={styles.error}>{fieldErrors.replyTitle}</div>}
+              </div>
+
+              {/* Description */}
+              <div style={styles.section}>
+                <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
+                  <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>Description</div>
+                  <textarea 
+                    style={styles.textarea} 
+                    value={replyDescription} 
+                    onChange={e => setReplyDescription(e.target.value)} 
+                    rows={3} 
+                    placeholder="Brief description of your response..." 
+                  />
+                </div>
+              </div>
+
+              {/* Google Drive Link */}
+              <div style={styles.section}>
+                <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
+                  <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>Google Drive Link *</div>
+                  <div style={styles.linkInputContainer}>
+                    <input 
+                      style={{...styles.linkInput, borderBottom: `1px solid ${fieldErrors.replyLink ? '#fca5a5' : '#ddd'}`}} 
+                      type="url" 
+                      value={replyLink} 
+                      onChange={e => setReplyLink(e.target.value)} 
+                      placeholder="https://drive.google.com/file/d/..." 
+                    />
+                    <button 
+                      type="button" 
+                      style={{
+                        ...styles.openButton,
+                        opacity: replyLink ? 1 : 0.5,
+                        cursor: replyLink ? 'pointer' : 'not-allowed'
+                      }}
+                      onClick={() => replyLink && window.open(replyLink, '_blank')} 
+                      disabled={!replyLink} 
+                      title="Open in new tab"
+                    >
+                      <FiExternalLink size={14} />
+                      Open
+                    </button>
+                  </div>
+                </div>
+                {fieldErrors.replyLink && <div style={styles.error}>{fieldErrors.replyLink}</div>}
+              </div>
+
+              {/* Action Buttons */}
+              <div style={styles.buttonRow}>
+                <button 
+                  type="button" 
+                  style={styles.button}
+                  onClick={() => {
+                    sessionStorage.removeItem('createReply');
+                    onNavigateToDocuments && onNavigateToDocuments('requests');
+                  }} 
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  style={styles.primaryButton}
+                  disabled={submitting}
+                >
+                  {submitting ? 'Uploading...' : 'Upload Reply'}
+                </button>
+              </div>
+            </form>
+          </div>
+        {showPreviewPanel && (
+          <div style={styles.previewCol}>
+            <div style={styles.previewHeader}>
+              <FiExternalLink size={18} />
+              Document Preview
+            </div>
+            {previewUrl ? (
+              <iframe
+                src={previewUrl}
+                style={styles.previewIframe}
+                title="Google Drive Preview"
+                allow="autoplay"
+              />
             ) : (
-              <>
-                <FiAlertCircle size={14} /> No source document ID found in URL
-              </>
+              <div style={styles.previewPlaceholder}>
+                <div style={styles.previewIcon}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 8 }}>
+                  Google Drive Document
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
+                  Preview not available for this link type
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => window.open(getDriveViewUrl(replyLink), '_blank')}
+                  style={styles.previewButton}
+                >
+                  <FiExternalLink size={14} />
+                  Open in New Tab
+                </button>
+              </div>
             )}
           </div>
-        </div>
-      </div>
-
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 16, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row', maxWidth: '100%' }}>
-      <form onSubmit={handleSubmit} style={{ flex: 1, minWidth: 0 }}>
-        {!!error && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: 6, marginBottom: 12 }}>
-            <FiAlertCircle /> {error}
-          </div>
         )}
-        {!!success && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#065f46', background: '#d1fae5', border: '1px solid #a7f3d0', padding: '8px 12px', borderRadius: 6, marginBottom: 12 }}>
-            <FiCheck /> {success}
-          </div>
-        )}
-
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-          <div>
-            <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280', fontWeight: 600 }}>From</div>
-            <input type="text" value={fromField} onChange={e => setFromField(e.target.value)} style={{ width: '100%', maxWidth: isMobile ? '90%' : '100%', margin: '0 auto', boxSizing: 'border-box', padding: '9px 11px', border: '1px solid #d1d5db', borderRadius: 6 }} />
-          </div>
-          <div>
-            <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280', fontWeight: 600 }}>To</div>
-            <input type="text" value={toField} onChange={e => setToField(e.target.value)} style={{ width: '100%', maxWidth: isMobile ? '90%' : '100%', margin: '0 auto', boxSizing: 'border-box', padding: '9px 11px', border: '1px solid #d1d5db', borderRadius: 6 }} />
-          </div>
-          <div>
-            <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280', fontWeight: 600 }}>Date/Time</div>
-            <input type="datetime-local" value={dateTimeReceived} onChange={e => setDateTimeReceived(e.target.value)} style={{ width: '100%', maxWidth: isMobile ? '90%' : '100%', margin: '0 auto', boxSizing: 'border-box', padding: '9px 11px', border: '1px solid #d1d5db', borderRadius: 6 }} />
-          </div>
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280', fontWeight: 600 }}>Reply Title *</div>
-          <input type="text" value={replyTitle} onChange={e => setReplyTitle(e.target.value)} placeholder="e.g., Response to Memo #123" style={{ width: '100%', maxWidth: isMobile ? '90%' : '100%', margin: '0 auto', boxSizing: 'border-box', padding: '9px 11px', border: `1px solid ${fieldErrors.replyTitle ? '#fca5a5' : '#d1d5db'}`, borderRadius: 6 }} />
-          {fieldErrors.replyTitle && <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 6 }}>{fieldErrors.replyTitle}</div>}
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280', fontWeight: 600 }}>Description</div>
-          <textarea value={replyDescription} onChange={e => setReplyDescription(e.target.value)} rows={3} placeholder="Brief description of your response..." style={{ width: '100%', maxWidth: isMobile ? '90%' : '100%', margin: '0 auto', boxSizing: 'border-box', padding: '9px 11px', border: '1px solid #d1d5db', borderRadius: 6 }} />
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={{ marginBottom: 6, fontSize: 13, color: '#6b7280', fontWeight: 600 }}>Google Drive Link *</div>
-          <div style={{ display: 'flex', gap: 8, maxWidth: isMobile ? '90%' : '100%', margin: '0 auto', alignItems: 'center' }}>
-            <input type="url" value={replyLink} onChange={e => setReplyLink(e.target.value)} placeholder="https://drive.google.com/file/d/..." style={{ flex: 1, minWidth: 0, maxWidth: '100%', boxSizing: 'border-box', padding: '9px 11px', border: `1px solid ${fieldErrors.replyLink ? '#fca5a5' : '#d1d5db'}`, borderRadius: 6 }} />
-            <button type="button" className="btn btn-outline-secondary rounded-pill" onClick={() => replyLink && window.open(replyLink, '_blank')} disabled={!replyLink} title="Open in new tab" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>Open</button>
-          </div>
-          {fieldErrors.replyLink && <div style={{ color: '#b91c1c', fontSize: 12, marginTop: 6 }}>{fieldErrors.replyLink}</div>}
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, marginTop: 20, flexDirection: isMobile ? 'column' : 'row', maxWidth: isMobile ? '90%' : '100%', marginLeft: 'auto', marginRight: 'auto' }}>
-          <button type="button" className="btn btn-light border rounded-pill px-3" onClick={() => onNavigateToDocuments && onNavigateToDocuments('requests')} disabled={submitting} style={isMobile ? { width: '100%' } : {}}>Cancel</button>
-          <button type="submit" className="btn btn-primary border rounded-pill px-3" disabled={submitting} style={isMobile ? { width: '100%' } : {}}>{submitting ? 'Uploading...' : 'Upload Reply'}</button>
-        </div>
-      </form>
-      {showPreviewPanel && (
-        <div style={{ flex: 1, minWidth: isMobile ? 0 : 280, width: isMobile ? '100%' : 'auto' }}>
-          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Document Link</div>
-          <div style={{ 
-            border: '1px solid #e5e7eb', 
-            borderRadius: 10, 
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 200,
-            backgroundColor: '#f9fafb'
-          }}>
-            <div style={{ 
-              width: 64, 
-              height: 64, 
-              backgroundColor: '#4285f4', 
-              borderRadius: 12, 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              marginBottom: 16
-            }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
-                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-              </svg>
-            </div>
-            <div style={{ textAlign: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 4 }}>
-                Google Drive Document
-              </div>
-              <div style={{ fontSize: 12, color: '#6b7280' }}>
-                Click below to open in new tab
-              </div>
-            </div>
-            <button 
-              type="button" 
-              onClick={() => window.open(getDriveViewUrl(replyLink), '_blank')}
-              style={{
-                backgroundColor: '#4285f4',
-                color: 'white',
-                border: 'none',
-                borderRadius: 6,
-                padding: '8px 16px',
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z" />
-              </svg>
-              Open Document
-            </button>
-          </div>
-        </div>
-      )}
-      </div>
       </div>
     </div>
   );

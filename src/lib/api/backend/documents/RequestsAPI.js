@@ -50,11 +50,11 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
     const userId = req.currentUser?.id || req.currentUser?.user_id || null;
     const deptId = req.currentUser?.department_id || null;
     const roleUpper = (req.currentUser?.role || '').toString().toUpperCase();
-    const scope = (req.query.scope || 'assigned').toString().toLowerCase();
     const isAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
     const isDean = roleUpper === 'DEAN';
+    const isFaculty = roleUpper === 'FACULTY';
 
-    // Base SQL selects documents that have any action rows (including completed ones)
+    // Base SQL selects documents that have any action rows with pending status
     let sql = `
       SELECT 
         d.doc_id AS id,
@@ -71,6 +71,10 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
         da.completed_at,
         da.completed_by_user_id,
         CONCAT(completed_user.firstname, ' ', completed_user.lastname) AS completed_by_name,
+        -- receiver aggregates for 'Requested To'
+        GROUP_CONCAT(DISTINCT da.assigned_to_user_id ORDER BY da.assigned_to_user_id SEPARATOR ',') AS assigned_user_ids_csv,
+        GROUP_CONCAT(DISTINCT da.assigned_to_role ORDER BY da.assigned_to_role SEPARATOR ',') AS assigned_roles_csv,
+        GROUP_CONCAT(DISTINCT da.assigned_to_department_id ORDER BY da.assigned_to_department_id SEPARATOR ',') AS assigned_department_ids_csv,
         reply_doc.doc_id AS reply_doc_id,
         reply_doc.title AS reply_title,
         reply_doc.description AS reply_description,
@@ -85,31 +89,18 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
       LEFT JOIN dms_user completed_user ON da.completed_by_user_id = completed_user.user_id
       LEFT JOIN dms_documents reply_doc ON reply_doc.is_reply_to_doc_id = d.doc_id
       WHERE (d.deleted IS NULL OR d.deleted = 0)
+        AND da.status = 'pending'
     `;
 
     const params = [];
 
     if (!isAdmin) {
-      if (isDean) {
-        // Dean: see everything within their department (department-wide), regardless of scope
-        sql += ` AND (
-            (dd.department_id IS NOT NULL AND dd.department_id = ?)
-            OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-            OR (d.visible_to_all = 1)
-          )`;
-        params.push(deptId, deptId, roleUpper);
-      } else if (scope === 'dept') {
-        // Department overview: include items tied to their department, their role, or in their department, or public
-        sql += ` AND (
-            (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-            OR (dd.department_id IS NOT NULL AND dd.department_id = ?)
-            OR (d.visible_to_all = 1)
-          )`;
-        params.push(deptId, roleUpper, deptId);
+      if (isDean || isFaculty) {
+        // Dean and Faculty: see all pending requests (no filtering by assignment)
+        // This shows all pending requests in the system
+        sql += ` AND (d.visible_to_all = 1 OR dd.department_id IS NOT NULL OR da.assigned_to_department_id IS NOT NULL OR da.assigned_to_role IS NOT NULL OR da.assigned_to_user_id IS NOT NULL)`;
       } else {
-        // Assigned-only view (default)
+        // Other roles: only see requests assigned to them
         sql += ` AND (
             (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
             OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
@@ -126,6 +117,17 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
 
     const [rows] = await db.promise().query(sql, params);
 
+    const parseCsvNums = (csv) => (csv || '')
+      .toString()
+      .split(',')
+      .map(s => Number(String(s).trim()))
+      .filter(Boolean);
+    const parseCsvStrings = (csv) => (csv || '')
+      .toString()
+      .split(',')
+      .map(s => String(s).trim())
+      .filter(Boolean);
+
     const documents = rows.map(r => ({
       id: r.id,
       title: r.title,
@@ -141,6 +143,10 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
       completed_at: r.completed_at,
       completed_by_user_id: r.completed_by_user_id,
       completed_by_name: r.completed_by_name,
+      // requested-to aggregates
+      requested_to_user_ids: parseCsvNums(r.assigned_user_ids_csv),
+      requested_to_roles: Array.from(new Set(parseCsvStrings(r.assigned_roles_csv).map(x => x.toUpperCase()))),
+      requested_to_department_ids: parseCsvNums(r.assigned_department_ids_csv),
       reply_title: r.reply_title,
       reply_description: r.reply_description,
       reply_google_drive_link: r.reply_google_drive_link,
@@ -202,8 +208,9 @@ router.post('/documents/reply', requireAuth, async (req, res) => {
         const [anyType] = await db.promise().query('SELECT type_id FROM document_types LIMIT 1');
         if (Array.isArray(anyType) && anyType.length > 0) replyTypeId = anyType[0].type_id;
       }
-    } catch (_) {
+    } catch (typeError) {
       // ignore – let insert fail if FK still not satisfied
+      console.error('Error resolving reply type:', typeError);
     }
 
     // Insert reply document
@@ -264,7 +271,9 @@ router.post('/documents/reply', requireAuth, async (req, res) => {
             if (r.department_id) audience.departments.push(r.department_id);
           });
         }
-      } catch (_) {}
+      } catch (docQueryError) {
+        console.error('Error querying original document:', docQueryError);
+      }
 
       try {
         const [assignRows] = await db.promise().query(
@@ -279,7 +288,9 @@ router.post('/documents/reply', requireAuth, async (req, res) => {
             if (a?.assigned_to_department_id) audience.departments.push(Number(a.assigned_to_department_id));
           }
         }
-      } catch (_) {}
+      } catch (assignQueryError) {
+        console.error('Error querying assignments:', assignQueryError);
+      }
 
       // Deduplicate
       audience.users = Array.from(new Set(audience.users.filter(Boolean)));
@@ -370,13 +381,23 @@ router.get('/documents/answered', requireAuth, async (req, res) => {
     if (!isAdmin) {
       if (isDean) {
         // Deans: see all completed requests within their department, plus public and role assignments
-        sql += ` AND (
-            (dd.department_id IS NOT NULL AND dd.department_id = ?)
-            OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-            OR (d.visible_to_all = 1)
-          )`;
-        params.push(deptId, deptId, roleUpper);
+        if (deptId) {
+          sql += ` AND (
+              (dd.department_id = ?)
+              OR (da.assigned_to_department_id = ?)
+              OR (da.assigned_to_role = ?)
+              OR (da.assigned_to_user_id = ?)
+              OR (d.visible_to_all = 1)
+            )`;
+          params.push(deptId, deptId, roleUpper, userId);
+        } else {
+          sql += ` AND (
+              (da.assigned_to_role = ?)
+              OR (da.assigned_to_user_id = ?)
+              OR (d.visible_to_all = 1)
+            )`;
+          params.push(roleUpper, userId);
+        }
       } else {
         // Other users: only those they completed or were assigned to
         sql += ` AND (
@@ -451,6 +472,54 @@ router.get('/documents/answered', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching answered documents:', error);
     res.status(500).json({ success: false, message: 'Database error.' });
+  }
+});
+
+// Debug endpoint to check document_actions table
+router.get('/documents/requests/debug', requireAuth, async (req, res) => {
+  try {
+    const userId = req.currentUser?.id || req.currentUser?.user_id || null;
+    const deptId = req.currentUser?.department_id || null;
+    const roleUpper = (req.currentUser?.role || '').toString().toUpperCase();
+
+    // Get all document actions
+    const [allActions] = await db.promise().query(
+      `SELECT da.*, d.title, d.doc_id 
+       FROM document_actions da 
+       INNER JOIN dms_documents d ON d.doc_id = da.doc_id 
+       WHERE (d.deleted IS NULL OR d.deleted = 0)
+       ORDER BY da.doc_id DESC 
+       LIMIT 20`
+    );
+
+    // Get document_departments
+    const [docDepts] = await db.promise().query(
+      `SELECT dd.*, d.title 
+       FROM document_departments dd 
+       INNER JOIN dms_documents d ON d.doc_id = dd.doc_id 
+       WHERE (d.deleted IS NULL OR d.deleted = 0)
+       LIMIT 20`
+    );
+
+    res.json({
+      success: true,
+      currentUser: {
+        userId,
+        deptId,
+        role: roleUpper
+      },
+      documentActions: allActions,
+      documentDepartments: docDepts,
+      counts: {
+        totalActions: allActions.length,
+        assignedToYourDept: allActions.filter(a => a.assigned_to_department_id === deptId).length,
+        assignedToYourRole: allActions.filter(a => a.assigned_to_role === roleUpper).length,
+        assignedToYou: allActions.filter(a => a.assigned_to_user_id === userId).length
+      }
+    });
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

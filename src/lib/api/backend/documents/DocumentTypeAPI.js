@@ -83,7 +83,8 @@ router.get('/document-types', requireAuth, async (req, res) => {
         "SHOW COLUMNS FROM document_types LIKE 'description'"
       );
       descriptionColumn = columns.length > 0 ? ', description' : ', NULL as description';
-    } catch (e) {
+    } catch (columnError) {
+      console.error('Error checking description column:', columnError);
       descriptionColumn = ', NULL as description';
     }
 
@@ -145,7 +146,8 @@ router.post('/document-types', requireAuth, async (req, res) => {
         insertParams = [name];
         selectQuery = 'SELECT type_id, name as type_name, NULL as description, created_at, updated_at FROM document_types WHERE type_id = ?';
       }
-    } catch (e) {
+    } catch (columnCheckError) {
+      console.error('Error checking description column:', columnCheckError);
       // Fallback to basic insert
       insertQuery = 'INSERT INTO document_types (name) VALUES (?)';
       insertParams = [name];
