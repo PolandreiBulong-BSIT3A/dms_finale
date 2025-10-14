@@ -1,11 +1,6 @@
-<<<<<<< HEAD
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useMemo } from 'react';
 import { FiCheck, FiAlertCircle } from 'react-icons/fi';
-=======
-import React, { useEffect, useMemo, useState } from 'react';
-import { FiCheck, FiAlertCircle, FiMaximize2, FiExternalLink } from 'react-icons/fi';
->>>>>>> 34c31f29d478ee772418465801b52a58f58a084c
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 
 const Reply = ({ onNavigateToDocuments }) => {
