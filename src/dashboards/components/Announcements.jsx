@@ -698,14 +698,14 @@ const Announcements = ({ setActiveTab }) => {
           </>
         )}
 
-        {/* Carousel Content */}
+        {visibleAnnouncements.length > 0 && (
         <div
           style={{
             overflow: 'hidden',
             borderRadius: 12,
             border: '1px solid #e5e7eb',
             width: '100%',
-            minHeight: 'auto',
+            minHeight: '400px',
             background: '#fff'
           }}
         >
@@ -740,7 +740,7 @@ const Announcements = ({ setActiveTab }) => {
                       justifyContent: 'flex-start',
                       alignItems: 'stretch',
                       padding: 'clamp(16px,3vw,24px)',
-                      minHeight: 'auto',
+                      minHeight: '400px',
                       width: '100%'
                     }}
                   >
@@ -910,6 +910,7 @@ const Announcements = ({ setActiveTab }) => {
             })}
           </div>
         </div>
+        )}
 
         {visibleAnnouncements.length > 1 && (
           <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>

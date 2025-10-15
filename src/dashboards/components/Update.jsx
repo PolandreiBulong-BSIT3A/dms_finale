@@ -22,8 +22,17 @@ const Update = ({ role, onNavigateToDocuments, id }) => {
         const d = data.document;
         setLinkTitle(d.title || '');
         setDocReference(d.reference || '');
-        setFromField(d.from_field || '');
-        setToField(d.to_field || '');
+        const fromVal = d.from_field || '';
+        const toVal = d.to_field || '';
+        setFromField(fromVal);
+        setToField(toVal);
+        // Parse comma-separated values into chips
+        if (fromVal) {
+          setFromChips(fromVal.split(',').map(s => s.trim()).filter(Boolean));
+        }
+        if (toVal) {
+          setToChips(toVal.split(',').map(s => s.trim()).filter(Boolean));
+        }
         setDateTimeReceived(d.date_received ? String(d.date_received).slice(0,10) : '');
         setDocType(d.doc_type || '');
         setSelectedFolder(d.folder || '');
@@ -35,6 +44,7 @@ const Update = ({ role, onNavigateToDocuments, id }) => {
             .filter(Boolean);
           setSelectedFolderIds(ids);
         }
+        setSubject(d.subject || '');
         setDescription(d.description || '');
         setAvailableCopy(d.available_copy || 'soft_copy');
         setRevision(d.revision || '');
@@ -62,6 +72,10 @@ const Update = ({ role, onNavigateToDocuments, id }) => {
   const [docReference, setDocReference] = useState('');
   const [fromField, setFromField] = useState('');
   const [toField, setToField] = useState('');
+  const [fromChips, setFromChips] = useState([]);
+  const [toChips, setToChips] = useState([]);
+  const [fromInputValue, setFromInputValue] = useState('');
+  const [toInputValue, setToInputValue] = useState('');
   const [fromHistory, setFromHistory] = useState([]); // recent "From" entries
   const [toHistory, setToHistory] = useState([]);     // recent "To" entries
   const [fromOpen, setFromOpen] = useState(false);    // combobox open state
@@ -76,6 +90,7 @@ const Update = ({ role, onNavigateToDocuments, id }) => {
   const [revision, setRevision] = useState('');
   const [revisionDate, setRevisionDate] = useState('');
   const [docType, setDocType] = useState('');
+  const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [documentTypes, setDocumentTypes] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -509,6 +524,7 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
             from_field: fromField,
             to_field: toField,
             date_received: dateTimeReceived || null,
+            subject,
             description,
             available_copy: availableCopy,
             category: docType,
@@ -1059,42 +1075,126 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
               <div style={styles.inputRow}>
                 <div style={styles.inputLabel}>From</div>
                 <div style={{ position: 'relative', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      style={{ ...styles.input, flex: 1 }}
-                      type="text"
-                      value={fromField}
-                      onChange={(e) => { setFromField(e.target.value); setFromOpen(true); }}
-                      onFocus={() => setFromOpen(true)}
-                      placeholder=" "
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setFromOpen((v) => !v)}
-                      style={{ ...styles.pill, ...styles.pillAll, padding: '6px 10px' }}
-                      aria-label="Toggle from suggestions"
-                      title="Show suggestions"
-                    >
-                      <FiChevronDown />
-                    </button>
+                  <div style={{ 
+                    ...styles.input, 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    gap: 6, 
+                    padding: '8px',
+                    minHeight: '42px',
+                    alignItems: 'center'
+                  }}>
+                    {fromChips.map((chip, idx) => (
+                      <span key={`from-chip-${idx}`} style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        background: '#3b82f6',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '16px',
+                        fontSize: '14px',
+                        fontWeight: 500
+                      }}>
+                        {chip}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newChips = fromChips.filter((_, i) => i !== idx);
+                            setFromChips(newChips);
+                            setFromField(newChips.join(', '));
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'white',
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '16px'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    <div style={{ position: 'relative', flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        style={{ 
+                          border: 'none', 
+                          outline: 'none', 
+                          flex: 1,
+                          fontSize: '15px',
+                          background: 'transparent',
+                          padding: '4px'
+                        }}
+                        type="text"
+                        value={fromInputValue}
+                        onChange={(e) => { setFromInputValue(e.target.value); setFromOpen(true); }}
+                        onFocus={() => setFromOpen(true)}
+                        onKeyDown={(e) => {
+                          if ((e.key === 'Enter' || e.key === ',' || e.key === 'Tab') && fromInputValue.trim()) {
+                            e.preventDefault();
+                            const newChips = [...fromChips, fromInputValue.trim()];
+                            setFromChips(newChips);
+                            setFromField(newChips.join(', '));
+                            setFromInputValue('');
+                            setFromOpen(false);
+                          } else if (e.key === 'Backspace' && !fromInputValue && fromChips.length > 0) {
+                            const newChips = fromChips.slice(0, -1);
+                            setFromChips(newChips);
+                            setFromField(newChips.join(', '));
+                          }
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => setFromOpen(false), 200);
+                          if (fromInputValue.trim()) {
+                            const newChips = [...fromChips, fromInputValue.trim()];
+                            setFromChips(newChips);
+                            setFromField(newChips.join(', '));
+                            setFromInputValue('');
+                          }
+                        }}
+                        placeholder={fromChips.length === 0 ? 'Type and press Enter, comma, or Tab' : ''}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFromOpen((v) => !v)}
+                        style={{ ...styles.pill, ...styles.pillAll, padding: '6px 10px' }}
+                        aria-label="Toggle from suggestions"
+                        title="Show suggestions"
+                      >
+                        <FiChevronDown />
+                      </button>
+                    </div>
                   </div>
                   {fromOpen && (
                     <div style={{ position: 'absolute', top: '110%', left: 0, right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.08)', zIndex: 10, maxHeight: 220, overflow: 'auto' }}>
                       {(() => {
-                        const q = (fromField || '').trim().toLowerCase();
+                        const q = (fromInputValue || '').trim().toLowerCase();
                         const options = (fromHistory || [])
-                          .filter(v => !q || String(v).toLowerCase().includes(q));
+                          .filter(v => !q || String(v).toLowerCase().includes(q))
+                          .filter(v => !fromChips.includes(v));
                         if (options.length === 0) {
                           return (
-                            <div style={{ padding: 10, color: '#6b7280' }}>No matches. Press Enter to use "{fromField}".</div>
+                            <div style={{ padding: 10, color: '#6b7280' }}>No matches. Press Enter to add "{fromInputValue}".</div>
                           );
                         }
                         return options.map((item, idx) => (
                           <button
                             key={`from-opt-${idx}`}
                             type="button"
-                            onClick={() => { setFromField(item); setFromOpen(false); }}
+                            onClick={() => { 
+                              const newChips = [...fromChips, item];
+                              setFromChips(newChips);
+                              setFromField(newChips.join(', '));
+                              setFromInputValue('');
+                              setFromOpen(false); 
+                            }}
                             style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', background: '#fff', border: 'none', cursor: 'pointer' }}
+                            onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                            onMouseLeave={(e) => e.target.style.background = '#fff'}
                           >
                             {item}
                           </button>
@@ -1108,42 +1208,126 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
               <div style={styles.inputRow}>
                 <div style={styles.inputLabel}>To</div>
                 <div style={{ position: 'relative', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      style={{ ...styles.input, flex: 1 }}
-                      type="text"
-                      value={toField}
-                      onChange={(e) => { setToField(e.target.value); setToOpen(true); }}
-                      onFocus={() => setToOpen(true)}
-                      placeholder=" "
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setToOpen((v) => !v)}
-                      style={{ ...styles.pill, ...styles.pillAll, padding: '6px 10px' }}
-                      aria-label="Toggle to suggestions"
-                      title="Show suggestions"
-                    >
-                      <FiChevronDown />
-                    </button>
+                  <div style={{ 
+                    ...styles.input, 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    gap: 6, 
+                    padding: '8px',
+                    minHeight: '42px',
+                    alignItems: 'center'
+                  }}>
+                    {toChips.map((chip, idx) => (
+                      <span key={`to-chip-${idx}`} style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        background: '#10b981',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '16px',
+                        fontSize: '14px',
+                        fontWeight: 500
+                      }}>
+                        {chip}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newChips = toChips.filter((_, i) => i !== idx);
+                            setToChips(newChips);
+                            setToField(newChips.join(', '));
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'white',
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '16px'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    <div style={{ position: 'relative', flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        style={{ 
+                          border: 'none', 
+                          outline: 'none', 
+                          flex: 1,
+                          fontSize: '15px',
+                          background: 'transparent',
+                          padding: '4px'
+                        }}
+                        type="text"
+                        value={toInputValue}
+                        onChange={(e) => { setToInputValue(e.target.value); setToOpen(true); }}
+                        onFocus={() => setToOpen(true)}
+                        onKeyDown={(e) => {
+                          if ((e.key === 'Enter' || e.key === ',' || e.key === 'Tab') && toInputValue.trim()) {
+                            e.preventDefault();
+                            const newChips = [...toChips, toInputValue.trim()];
+                            setToChips(newChips);
+                            setToField(newChips.join(', '));
+                            setToInputValue('');
+                            setToOpen(false);
+                          } else if (e.key === 'Backspace' && !toInputValue && toChips.length > 0) {
+                            const newChips = toChips.slice(0, -1);
+                            setToChips(newChips);
+                            setToField(newChips.join(', '));
+                          }
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => setToOpen(false), 200);
+                          if (toInputValue.trim()) {
+                            const newChips = [...toChips, toInputValue.trim()];
+                            setToChips(newChips);
+                            setToField(newChips.join(', '));
+                            setToInputValue('');
+                          }
+                        }}
+                        placeholder={toChips.length === 0 ? 'Type and press Enter, comma, or Tab' : ''}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setToOpen((v) => !v)}
+                        style={{ ...styles.pill, ...styles.pillAll, padding: '6px 10px' }}
+                        aria-label="Toggle to suggestions"
+                        title="Show suggestions"
+                      >
+                        <FiChevronDown />
+                      </button>
+                    </div>
                   </div>
                   {toOpen && (
                     <div style={{ position: 'absolute', top: '110%', left: 0, right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.08)', zIndex: 10, maxHeight: 220, overflow: 'auto' }}>
                       {(() => {
-                        const q = (toField || '').trim().toLowerCase();
+                        const q = (toInputValue || '').trim().toLowerCase();
                         const options = (toHistory || [])
-                          .filter(v => !q || String(v).toLowerCase().includes(q));
+                          .filter(v => !q || String(v).toLowerCase().includes(q))
+                          .filter(v => !toChips.includes(v));
                         if (options.length === 0) {
                           return (
-                            <div style={{ padding: 10, color: '#6b7280' }}>No matches. Press Enter to use "{toField}".</div>
+                            <div style={{ padding: 10, color: '#6b7280' }}>No matches. Press Enter to add "{toInputValue}".</div>
                           );
                         }
                         return options.map((item, idx) => (
                           <button
                             key={`to-opt-${idx}`}
                             type="button"
-                            onClick={() => { setToField(item); setToOpen(false); }}
+                            onClick={() => { 
+                              const newChips = [...toChips, item];
+                              setToChips(newChips);
+                              setToField(newChips.join(', '));
+                              setToInputValue('');
+                              setToOpen(false); 
+                            }}
                             style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', background: '#fff', border: 'none', cursor: 'pointer' }}
+                            onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                            onMouseLeave={(e) => e.target.style.background = '#fff'}
                           >
                             {item}
                           </button>
@@ -1172,6 +1356,20 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
                   placeholder="mm/dd/yyyy"
                 />
                 {errors.dateTimeReceived && <div style={styles.error}>{errors.dateTimeReceived}</div>}
+              </div>
+            </div>
+            <div style={styles.divider} />
+            {/* Subject */}
+            <div style={styles.section}>
+              <div style={styles.inputRow}>
+                <div style={styles.inputLabel}>Subject <span style={{ color: '#888', fontWeight: 400 }}>(optional)</span></div>
+                <input
+                  style={styles.input}
+                  type="text"
+                  value={subject}
+                  onChange={e => setSubject(e.target.value)}
+                  placeholder="Enter document subject..."
+                />
               </div>
             </div>
             <div style={styles.divider} />

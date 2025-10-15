@@ -379,6 +379,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       'title': 'Title',
       'type': 'Type',
       'reference': 'Reference',
+      'subject': 'Subject',
       'status': 'Status',
       'created_at': 'Created',
       'updated_at': 'Last Updated',
@@ -2794,6 +2795,9 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                 <button onClick={() => handleSort('doc_type')} style={styles.sortBtn}>Doc Type {getSortIcon('doc_type')}</button>
               </th>
               <th style={styles.th} className="hide-on-medium">
+                <button onClick={() => handleSort('description')} style={styles.sortBtn}>Subject {getSortIcon('description')}</button>
+              </th>
+              <th style={styles.th} className="hide-on-medium">
                 <button onClick={() => handleSort('created_by_name')} style={styles.sortBtn}>Created By {getSortIcon('created_by_name')}</button>
               </th>
               <th style={styles.th} className="hide-on-small">
@@ -2836,6 +2840,11 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                   </div>
                 </td>
                <td style={styles.td} className="hide-on-small">{doc.doc_type || '-'}</td>
+               <td style={styles.td} className="hide-on-medium" title={doc.subject || '-'}>
+                 <div style={{maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                   {doc.subject || '-'}
+                 </div>
+               </td>
                                    <td style={{...styles.td, ...styles.tableRowLastCell}} className="hide-on-medium">
                      <div style={{display:'flex', alignItems:'center', gap:8}}>
                       {doc.created_by_profile_pic ? (

@@ -260,6 +260,7 @@ router.get('/documents/:id', requireAuth, async (req, res) => {
         f.name AS folder,
         d.reference,
         d.title,
+        d.subject,
         d.revision,
         d.rev_date,
         d.from_field,
@@ -301,6 +302,7 @@ router.get('/documents/:id', requireAuth, async (req, res) => {
       folder: r.folder || '',
       reference: r.reference || '',
       title: r.title || '',
+      subject: r.subject || '',
       revision: r.revision || '',
       rev_date: r.rev_date || null,
       from_field: r.from_field || '',
@@ -383,6 +385,7 @@ router.get('/documents', requireAuth, async (req, res) => {
         f.name AS folder,
         d.reference,
         d.title,
+        d.subject,
         d.revision,
         d.rev_date,
         d.from_field,
@@ -424,6 +427,7 @@ router.get('/documents', requireAuth, async (req, res) => {
       folder: r.folder || '',
       reference: r.reference || '',
       title: r.title || '',
+      subject: r.subject || '',
       revision: r.revision || '',
       rev_date: r.rev_date || null,
       from_field: r.from_field || '',
@@ -509,6 +513,7 @@ router.post('/documents', requireAuth, async (req, res) => {
       folder_ids: folderIdsInput = [],
       reference,
       title,
+      subject,
       revision,
       rev_date,
       from_field,
@@ -552,13 +557,14 @@ router.post('/documents', requireAuth, async (req, res) => {
 
     const insertDoc = async (docTypeId, folderId) => {
       const sql = `INSERT INTO dms_documents 
-        (doc_type, folder_id, reference, title, revision, rev_date, from_field, to_field, date_received, google_drive_link, description, available_copy, visible_to_all, allowed_user_ids, allowed_roles, created_by_user_id, created_by_name, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        (doc_type, folder_id, reference, title, subject, revision, rev_date, from_field, to_field, date_received, google_drive_link, description, available_copy, visible_to_all, allowed_user_ids, allowed_roles, created_by_user_id, created_by_name, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         docTypeId || null,
         folderId || null,
         reference || null,
         resolvedTitle,
+        subject || null,
         revision || null,
         resolvedRevDate || null,
         resolvedFrom || null,
@@ -727,7 +733,7 @@ router.post('/documents', requireAuth, async (req, res) => {
 
         // Fetch the created document summary
         const [rows] = await db.promise().query(
-          `SELECT d.doc_id AS id, dt.name AS doc_type, d.reference, d.title, d.revision, d.rev_date, d.from_field, d.to_field, d.date_received, d.google_drive_link, d.description, d.visible_to_all, d.created_at, d.updated_at,
+          `SELECT d.doc_id AS id, dt.name AS doc_type, d.reference, d.title, d.subject, d.revision, d.rev_date, d.from_field, d.to_field, d.date_received, d.google_drive_link, d.description, d.visible_to_all, d.created_at, d.updated_at,
            GROUP_CONCAT(DISTINCT dept.name ORDER BY dept.name SEPARATOR ', ') AS department_names,
            GROUP_CONCAT(DISTINCT dept.department_id ORDER BY dept.name SEPARATOR ', ') AS department_ids,
            GROUP_CONCAT(DISTINCT ar.action_name ORDER BY ar.action_name SEPARATOR ', ') AS action_required_names
@@ -825,6 +831,7 @@ router.put('/documents/:id', requireAuth, (req, res) => {
     // Only allow specific fields to be updated
     const allowedFields = {
       title: 'title',
+      subject: 'subject',
       reference: 'reference',
       from_field: 'from_field',
       to_field: 'to_field',

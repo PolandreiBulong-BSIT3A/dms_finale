@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiLayout, FiUser, FiFileText, FiUpload, FiUsers, FiBarChart2, FiSettings, FiStar, FiAlertCircle, FiX } from 'react-icons/fi';
+import { FiLayout, FiUser, FiFileText, FiUpload, FiUsers, FiBarChart2, FiSettings, FiStar, FiAlertCircle, FiX, FiDatabase } from 'react-icons/fi';
 import './sidebar.css';
 import Logo from '../../../assets/logos/logo.png';
 

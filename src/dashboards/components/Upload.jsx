@@ -50,6 +50,10 @@ const Upload = ({ role, onNavigateToDocuments }) => {
   const [docReference, setDocReference] = useState('');
   const [fromField, setFromField] = useState('');
   const [toField, setToField] = useState('');
+  const [fromChips, setFromChips] = useState([]);
+  const [toChips, setToChips] = useState([]);
+  const [fromInputValue, setFromInputValue] = useState('');
+  const [toInputValue, setToInputValue] = useState('');
   const [fromHistory, setFromHistory] = useState([]); // recent "From" entries
   const [toHistory, setToHistory] = useState([]);     // recent "To" entries
   const [fromOpen, setFromOpen] = useState(false);    // combobox open state
@@ -73,6 +77,7 @@ const Upload = ({ role, onNavigateToDocuments }) => {
   const [showAddFolderModal, setShowAddFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [addingFolder, setAddingFolder] = useState(false);
+  const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [departments, setDepartments] = useState([]); // { department_id, name, code }
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
@@ -149,19 +154,18 @@ const Upload = ({ role, onNavigateToDocuments }) => {
         : Array.isArray(data.departments)
           ? data.departments
           : [];
-      // Normalize field names
-      let normalized = list.map(d => ({
-        department_id: d.department_id ?? d.id ?? d.departmentId ?? d.value,
-        name: d.name ?? d.department_name ?? d.label ?? d.code,
-        code: (d.code ?? d.department_code ?? d.abbr)?.toString().toUpperCase()
-      })).filter(d => d.department_id && d.name);
-      // Sort by code if present, else by name
-      normalized = normalized.sort((a, b) => {
-        const aKey = (a.code || a.name || '').toString();
-        const bKey = (b.code || b.name || '').toString();
-        return aKey.localeCompare(bKey);
-      });
-      setDepartments(normalized);
+        const normalized = list.map(d => ({
+          department_id: d.department_id ?? d.id ?? d.departmentId ?? d.value,
+          name: d.name ?? d.department_name ?? d.label ?? d.code,
+          code: (d.code ?? d.department_code ?? d.abbr)?.toString().toUpperCase()
+        })).filter(d => d.department_id && d.name);
+        // Sort by code if present, else by name
+        normalized = normalized.sort((a, b) => {
+          const aKey = (a.code || a.name || '').toString();
+          const bKey = (b.code || b.name || '').toString();
+          return aKey.localeCompare(bKey);
+        });
+        setDepartments(normalized);
     } catch (error) {
       console.error('Error fetching departments:', error);
     } finally {
@@ -193,7 +197,7 @@ const Upload = ({ role, onNavigateToDocuments }) => {
         for (const u of arr) {
           const id = u.user_id ?? u.id ?? u.userId;
           if (!id) continue;
-          if (!byId.has(id)) byId.set(id, u);
+          if (!byId.has(id)) { byId.set(id, u); }
         }
         return Array.from(byId.values());
       };
@@ -751,6 +755,7 @@ const Upload = ({ role, onNavigateToDocuments }) => {
         to_field: toField,
         date_received: dateTimeReceived,
           google_drive_link: linkData.link, // Fixed field name
+        subject: subject,
         description: description,
         available_copy: availableCopy, // Add available copy field
         // Backend visibility fields
@@ -858,37 +863,6 @@ const Upload = ({ role, onNavigateToDocuments }) => {
         // Refresh notifications immediately after successful document creation
         refreshNotificationsImmediately();
         
-        // Set flag to show success message when returning to documents
-        sessionStorage.setItem('returningFromUpload', 'true');
-        
-        // Show toast notification
-        const successMessage = document.createElement('div');
-        successMessage.style.cssText = `
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          background: #10b981;
-          color: white;
-          padding: 12px 20px;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          z-index: 9999;
-          font-weight: 500;
-          animation: slideIn 0.3s ease-out;
-        `;
-      const toastTitleList = validLinks.length > 1 
-        ? validLinks.map((_, i) => `${linkTitle} - Link ${i + 1}`).join(', ')
-        : linkTitle;
-      successMessage.textContent = `✅ ${validLinks.length} document(s) uploaded: ${toastTitleList}`;
-        document.body.appendChild(successMessage);
-        
-        // Remove the message after 3 seconds
-        setTimeout(() => {
-          if (successMessage.parentNode) {
-            successMessage.parentNode.removeChild(successMessage);
-          }
-        }, 3000);
-
         // Auto-navigate back to documents after 2 seconds
         setTimeout(() => {
           if (onNavigateToDocuments) {
@@ -1237,42 +1211,126 @@ const Upload = ({ role, onNavigateToDocuments }) => {
               <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
                 <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>From</div>
                 <div style={{ position: 'relative', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      style={{ ...styles.input, flex: 1, fontSize: 'clamp(14px, 2.5vw, 15px)' }}
-                      type="text"
-                      value={fromField}
-                      onChange={(e) => { setFromField(e.target.value); setFromOpen(true); }}
-                      onFocus={() => setFromOpen(true)}
-                      placeholder=" "
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setFromOpen((v) => !v)}
-                      style={{ ...styles.pill, ...styles.pillAll, padding: '6px 10px' }}
-                      aria-label="Toggle from suggestions"
-                      title="Show suggestions"
-                    >
-                      <FiChevronDown />
-                    </button>
+                  <div style={{ 
+                    ...styles.input, 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    gap: 6, 
+                    padding: '8px',
+                    minHeight: '42px',
+                    alignItems: 'center'
+                  }}>
+                    {fromChips.map((chip, idx) => (
+                      <span key={`from-chip-${idx}`} style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        background: '#3b82f6',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '16px',
+                        fontSize: '14px',
+                        fontWeight: 500
+                      }}>
+                        {chip}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newChips = fromChips.filter((_, i) => i !== idx);
+                            setFromChips(newChips);
+                            setFromField(newChips.join(', '));
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'white',
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '16px'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    <div style={{ position: 'relative', flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        style={{ 
+                          border: 'none', 
+                          outline: 'none', 
+                          flex: 1,
+                          fontSize: 'clamp(14px, 2.5vw, 15px)',
+                          background: 'transparent',
+                          padding: '4px'
+                        }}
+                        type="text"
+                        value={fromInputValue}
+                        onChange={(e) => { setFromInputValue(e.target.value); setFromOpen(true); }}
+                        onFocus={() => setFromOpen(true)}
+                        onKeyDown={(e) => {
+                          if ((e.key === 'Enter' || e.key === ',' || e.key === 'Tab') && fromInputValue.trim()) {
+                            e.preventDefault();
+                            const newChips = [...fromChips, fromInputValue.trim()];
+                            setFromChips(newChips);
+                            setFromField(newChips.join(', '));
+                            setFromInputValue('');
+                            setFromOpen(false);
+                          } else if (e.key === 'Backspace' && !fromInputValue && fromChips.length > 0) {
+                            const newChips = fromChips.slice(0, -1);
+                            setFromChips(newChips);
+                            setFromField(newChips.join(', '));
+                          }
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => setFromOpen(false), 200);
+                          if (fromInputValue.trim()) {
+                            const newChips = [...fromChips, fromInputValue.trim()];
+                            setFromChips(newChips);
+                            setFromField(newChips.join(', '));
+                            setFromInputValue('');
+                          }
+                        }}
+                        placeholder={fromChips.length === 0 ? 'Type and press Enter, comma, or Tab' : ''}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFromOpen((v) => !v)}
+                        style={{ ...styles.pill, ...styles.pillAll, padding: '6px 10px' }}
+                        aria-label="Toggle from suggestions"
+                        title="Show suggestions"
+                      >
+                        <FiChevronDown />
+                      </button>
+                    </div>
                   </div>
                   {fromOpen && (
                     <div style={{ position: 'absolute', top: '110%', left: 0, right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.08)', zIndex: 10, maxHeight: 220, overflow: 'auto' }}>
                       {(() => {
-                        const q = (fromField || '').trim().toLowerCase();
+                        const q = (fromInputValue || '').trim().toLowerCase();
                         const options = (fromHistory || [])
-                          .filter(v => !q || String(v).toLowerCase().includes(q));
+                          .filter(v => !q || String(v).toLowerCase().includes(q))
+                          .filter(v => !fromChips.includes(v));
                         if (options.length === 0) {
                           return (
-                            <div style={{ padding: 10, color: '#6b7280' }}>No matches. Press Enter to use "{fromField}".</div>
+                            <div style={{ padding: 10, color: '#6b7280' }}>No matches. Press Enter to add "{fromInputValue}".</div>
                           );
                         }
                         return options.map((item, idx) => (
                           <button
                             key={`from-opt-${idx}`}
                             type="button"
-                            onClick={() => { setFromField(item); setFromOpen(false); }}
+                            onClick={() => { 
+                              const newChips = [...fromChips, item];
+                              setFromChips(newChips);
+                              setFromField(newChips.join(', '));
+                              setFromInputValue('');
+                              setFromOpen(false); 
+                            }}
                             style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', background: '#fff', border: 'none', cursor: 'pointer' }}
+                            onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                            onMouseLeave={(e) => e.target.style.background = '#fff'}
                           >
                             {item}
                           </button>
@@ -1286,42 +1344,126 @@ const Upload = ({ role, onNavigateToDocuments }) => {
               <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
                 <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>To</div>
                 <div style={{ position: 'relative', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      style={{ ...styles.input, flex: 1, fontSize: 'clamp(14px, 2.5vw, 15px)' }}
-                      type="text"
-                      value={toField}
-                      onChange={(e) => { setToField(e.target.value); setToOpen(true); }}
-                      onFocus={() => setToOpen(true)}
-                      placeholder=" "
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setToOpen((v) => !v)}
-                      style={{ ...styles.pill, ...styles.pillAll, padding: '6px 10px' }}
-                      aria-label="Toggle to suggestions"
-                      title="Show suggestions"
-                    >
-                      <FiChevronDown />
-                    </button>
+                  <div style={{ 
+                    ...styles.input, 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    gap: 6, 
+                    padding: '8px',
+                    minHeight: '42px',
+                    alignItems: 'center'
+                  }}>
+                    {toChips.map((chip, idx) => (
+                      <span key={`to-chip-${idx}`} style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        background: '#10b981',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '16px',
+                        fontSize: '14px',
+                        fontWeight: 500
+                      }}>
+                        {chip}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newChips = toChips.filter((_, i) => i !== idx);
+                            setToChips(newChips);
+                            setToField(newChips.join(', '));
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'white',
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '16px'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    <div style={{ position: 'relative', flex: 1, minWidth: '120px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        style={{ 
+                          border: 'none', 
+                          outline: 'none', 
+                          flex: 1,
+                          fontSize: 'clamp(14px, 2.5vw, 15px)',
+                          background: 'transparent',
+                          padding: '4px'
+                        }}
+                        type="text"
+                        value={toInputValue}
+                        onChange={(e) => { setToInputValue(e.target.value); setToOpen(true); }}
+                        onFocus={() => setToOpen(true)}
+                        onKeyDown={(e) => {
+                          if ((e.key === 'Enter' || e.key === ',' || e.key === 'Tab') && toInputValue.trim()) {
+                            e.preventDefault();
+                            const newChips = [...toChips, toInputValue.trim()];
+                            setToChips(newChips);
+                            setToField(newChips.join(', '));
+                            setToInputValue('');
+                            setToOpen(false);
+                          } else if (e.key === 'Backspace' && !toInputValue && toChips.length > 0) {
+                            const newChips = toChips.slice(0, -1);
+                            setToChips(newChips);
+                            setToField(newChips.join(', '));
+                          }
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => setToOpen(false), 200);
+                          if (toInputValue.trim()) {
+                            const newChips = [...toChips, toInputValue.trim()];
+                            setToChips(newChips);
+                            setToField(newChips.join(', '));
+                            setToInputValue('');
+                          }
+                        }}
+                        placeholder={toChips.length === 0 ? 'Type and press Enter, comma, or Tab' : ''}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setToOpen((v) => !v)}
+                        style={{ ...styles.pill, ...styles.pillAll, padding: '6px 10px' }}
+                        aria-label="Toggle to suggestions"
+                        title="Show suggestions"
+                      >
+                        <FiChevronDown />
+                      </button>
+                    </div>
                   </div>
                   {toOpen && (
                     <div style={{ position: 'absolute', top: '110%', left: 0, right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.08)', zIndex: 10, maxHeight: 220, overflow: 'auto' }}>
                       {(() => {
-                        const q = (toField || '').trim().toLowerCase();
+                        const q = (toInputValue || '').trim().toLowerCase();
                         const options = (toHistory || [])
-                          .filter(v => !q || String(v).toLowerCase().includes(q));
+                          .filter(v => !q || String(v).toLowerCase().includes(q))
+                          .filter(v => !toChips.includes(v));
                         if (options.length === 0) {
                           return (
-                            <div style={{ padding: 10, color: '#6b7280' }}>No matches. Press Enter to use "{toField}".</div>
+                            <div style={{ padding: 10, color: '#6b7280' }}>No matches. Press Enter to add "{toInputValue}".</div>
                           );
                         }
                         return options.map((item, idx) => (
                           <button
                             key={`to-opt-${idx}`}
                             type="button"
-                            onClick={() => { setToField(item); setToOpen(false); }}
+                            onClick={() => { 
+                              const newChips = [...toChips, item];
+                              setToChips(newChips);
+                              setToField(newChips.join(', '));
+                              setToInputValue('');
+                              setToOpen(false); 
+                            }}
                             style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', background: '#fff', border: 'none', cursor: 'pointer' }}
+                            onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                            onMouseLeave={(e) => e.target.style.background = '#fff'}
                           >
                             {item}
                           </button>
@@ -1348,6 +1490,20 @@ const Upload = ({ role, onNavigateToDocuments }) => {
                   placeholder="mm/dd/yyyy"
                 />
                 {errors.dateTimeReceived && <div style={styles.error}>{errors.dateTimeReceived}</div>}
+              </div>
+            </div>
+            <div style={styles.divider} />
+            {/* Subject */}
+            <div style={styles.section}>
+              <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
+                <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>Subject <span style={{ color: '#888', fontWeight: 400 }}>(optional)</span></div>
+                <input
+                  style={{...styles.input, fontSize: 'clamp(14px, 2.5vw, 15px)'}}
+                  type="text"
+                  value={subject}
+                  onChange={e => setSubject(e.target.value)}
+                  placeholder="Enter document subject..."
+                />
               </div>
             </div>
             <div style={styles.divider} />
