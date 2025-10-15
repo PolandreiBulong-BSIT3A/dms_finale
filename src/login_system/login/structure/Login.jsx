@@ -1207,7 +1207,7 @@ const Login = () => {
                 Continue (Admin)
               </Button>
               {/* Debug toggle - show in development or when URL has debug parameter */}
-              {(process.env.NODE_ENV === 'development' || new URLSearchParams(window.location.search).get('debug') === 'true') && (
+              {(import.meta.env.DEV || new URLSearchParams(window.location.search).get('debug') === 'true') && (
                 <Button 
                   variant="outline-warning" 
                   size="sm" 

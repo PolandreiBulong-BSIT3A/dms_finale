@@ -154,7 +154,7 @@ const Upload = ({ role, onNavigateToDocuments }) => {
         : Array.isArray(data.departments)
           ? data.departments
           : [];
-        const normalized = list.map(d => ({
+        let normalized = list.map(d => ({
           department_id: d.department_id ?? d.id ?? d.departmentId ?? d.value,
           name: d.name ?? d.department_name ?? d.label ?? d.code,
           code: (d.code ?? d.department_code ?? d.abbr)?.toString().toUpperCase()
