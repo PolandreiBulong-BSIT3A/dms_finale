@@ -3,6 +3,7 @@ import './AdminPanel.css';
 // Removed react-bootstrap modal/components
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import OthersManagement from './OthersManagement.jsx';
+import PositionsManagement from './PositionsManagement.jsx';
 import { 
   FiUsers, 
   FiSettings, 
@@ -22,7 +23,8 @@ import {
   FiFilter,
   FiDownload,
   FiRefreshCw,
-  FiChevronDown
+  FiChevronDown,
+  FiBriefcase
 } from 'react-icons/fi';
 
 const AdminPanel = ({ role }) => {
@@ -728,6 +730,7 @@ const AdminPanel = ({ role }) => {
     const allTabs = [
       { id: 'documents', label: 'Document Management', icon: FiFileText },
       { id: 'departments', label: 'Departments', icon: FiSettings },
+      { id: 'positions', label: 'User Positions', icon: FiBriefcase },
       { id: 'actions', label: 'Actions', icon: FiActivity },
       { id: 'maintenance', label: 'Maintenance', icon: FiAlertTriangle },
       { id: 'system', label: 'System Settings', icon: FiShield }
@@ -2036,6 +2039,11 @@ const AdminPanel = ({ role }) => {
     switch (activeTab) {
       case 'documents': return <DocumentsTab />;
       case 'departments': return <DepartmentsTab />;
+      case 'positions': 
+        if (normalizedRole === 'admin') {
+          return <PositionsManagement />;
+        }
+        return <div style={styles.tabContent}><p>Access denied. Only administrators can manage positions.</p></div>;
       case 'actions': return <ActionsTab />;
       case 'maintenance': 
         if (normalizedRole === 'admin') {

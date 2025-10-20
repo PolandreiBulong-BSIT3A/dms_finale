@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import db from '../../db.js';
+import { requireAuth, requireAdmin } from '../../middleware/auth.js';
+
 const router = express.Router();
-const db = require('../../db.js');
-const { requireAuth, requireAdmin } = require('../../middleware/auth.js');
 
 // GET /api/positions - Get all positions (with optional filters)
 router.get('/positions', requireAuth, async (req, res) => {
@@ -211,4 +212,4 @@ router.delete('/positions/:id', requireAdmin, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
