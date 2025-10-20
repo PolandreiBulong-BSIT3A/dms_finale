@@ -7,17 +7,26 @@ const router = express.Router();
 
 // VAPID keys for web push (generate with: npx web-push generate-vapid-keys)
 // In production, store these in environment variables
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BNxJvXxz7V8kQ9Z8KqH5Yv5rYxQ8Z8KqH5Yv5rYxQ8Z8KqH5Yv5rYxQ8Z8KqH5Yv5rYxQ8Z8KqH5Yv5rYxQ';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'your-private-key-here';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@ispsctagudindms.com';
 
-// Configure web-push
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    VAPID_SUBJECT,
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY
-  );
+// Configure web-push only if keys are provided
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_PUBLIC_KEY.length > 50) {
+  try {
+    webpush.setVapidDetails(
+      VAPID_SUBJECT,
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+    console.log('✅ Push notifications configured successfully');
+  } catch (error) {
+    console.error('❌ Failed to configure push notifications:', error.message);
+    console.error('Please check your VAPID keys in .env file');
+  }
+} else {
+  console.warn('⚠️  Push notifications disabled: VAPID keys not configured');
+  console.warn('Generate keys with: npx web-push generate-vapid-keys');
 }
 
 // Get notifications (department/role/user scoped)

@@ -31,6 +31,7 @@ self.addEventListener('push', (event) => {
   // Parse push data if available
   if (event.data) {
     try {
+      // Try to parse as JSON first
       const payload = event.data.json();
       notificationData = {
         title: payload.title || notificationData.title,
@@ -46,7 +47,14 @@ self.addEventListener('push', (event) => {
         }
       };
     } catch (error) {
-      console.error('[Service Worker] Error parsing push data:', error);
+      // If JSON parsing fails, treat as plain text
+      console.log('[Service Worker] Using plain text push data');
+      try {
+        const textData = event.data.text();
+        notificationData.body = textData || notificationData.body;
+      } catch (textError) {
+        console.error('[Service Worker] Error parsing push data:', error);
+      }
     }
   }
 

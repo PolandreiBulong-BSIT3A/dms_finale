@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Push Notifications - ISPSC DMS</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 10px 10px 0;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .info-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔔 Push Notification Test</h1>
+        <p>Test your push notification setup for ISPSC DMS</p>
+
+        <div id="status"></div>
+
+        <div class="info-box">
+            <strong>Current Status:</strong>
+            <div id="permission-status">Checking...</div>
+            <div id="sw-status">Checking service worker...</div>
+            <div id="subscription-status">Checking subscription...</div>
+        </div>
+
+        <div>
+            <button id="requestPermission">1. Request Permission</button>
+            <button id="registerSW">2. Register Service Worker</button>
+            <button id="subscribe">3. Subscribe to Push</button>
+            <button id="testNotification">4. Test Notification</button>
+        </div>
+
+        <div id="details" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const permissionStatus = document.getElementById('permission-status');
+        const swStatus = document.getElementById('sw-status');
+        const subscriptionStatus = document.getElementById('subscription-status');
+        const detailsDiv = document.getElementById('details');
+
+        function showStatus(message, type = 'info') {
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function updateStatus() {
+            // Check permission
+            const permission = Notification.permission;
+            permissionStatus.innerHTML = `Permission: <strong>${permission}</strong>`;
+            
+            // Check service worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(regs => {
+                    swStatus.innerHTML = `Service Worker: <strong>${regs.length > 0 ? 'Registered ✅' : 'Not registered ❌'}</strong>`;
+                });
+            } else {
+                swStatus.innerHTML = 'Service Worker: <strong>Not supported ❌</strong>';
+            }
+
+            // Check subscription
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                navigator.serviceWorker.ready.then(reg => {
+                    reg.pushManager.getSubscription().then(sub => {
+                        subscriptionStatus.innerHTML = `Push Subscription: <strong>${sub ? 'Active ✅' : 'Not subscribed ❌'}</strong>`;
+                    });
+                });
+            }
+        }
+
+        // Initial status check
+        updateStatus();
+        setInterval(updateStatus, 2000);
+
+        // 1. Request Permission
+        document.getElementById('requestPermission').addEventListener('click', async () => {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    showStatus('✅ Notification permission granted!', 'success');
+                } else {
+                    showStatus('❌ Notification permission denied', 'error');
+                }
+                updateStatus();
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        });
+
+        // 2. Register Service Worker
+        document.getElementById('registerSW').addEventListener('click', async () => {
+            try {
+                if (!('serviceWorker' in navigator)) {
+                    throw new Error('Service workers not supported');
+                }
+
+                const registration = await navigator.serviceWorker.register('/sw.js', {
+                    scope: '/'
+                });
+                
+                await navigator.serviceWorker.ready;
+                showStatus('✅ Service Worker registered successfully!', 'success');
+                detailsDiv.innerHTML = `<pre>Scope: ${registration.scope}</pre>`;
+                updateStatus();
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        });
+
+        // 3. Subscribe to Push
+        document.getElementById('subscribe').addEventListener('click', async () => {
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                
+                // Get VAPID public key from server
+                const response = await fetch('/api/notifications/vapid-public-key');
+                const data = await response.json();
+                const vapidPublicKey = data.publicKey;
+
+                if (!vapidPublicKey) {
+                    throw new Error('VAPID public key not available from server');
+                }
+
+                // Convert VAPID key
+                function urlBase64ToUint8Array(base64String) {
+                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+                    const rawData = window.atob(base64);
+                    const outputArray = new Uint8Array(rawData.length);
+                    for (let i = 0; i < rawData.length; ++i) {
+                        outputArray[i] = rawData.charCodeAt(i);
+                    }
+                    return outputArray;
+                }
+
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+                });
+
+                showStatus('✅ Subscribed to push notifications!', 'success');
+                detailsDiv.innerHTML = `<pre>${JSON.stringify(subscription.toJSON(), null, 2)}</pre>`;
+                updateStatus();
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        });
+
+        // 4. Test Notification
+        document.getElementById('testNotification').addEventListener('click', async () => {
+            try {
+                if (Notification.permission !== 'granted') {
+                    throw new Error('Permission not granted. Click "Request Permission" first.');
+                }
+
+                const registration = await navigator.serviceWorker.ready;
+                
+                await registration.showNotification('ISPSC DMS Test', {
+                    body: 'This is a test notification. Push notifications are working! 🎉',
+                    icon: '/icons/favicon.ico',
+                    badge: '/icons/favicon.ico',
+                    tag: 'test-notification',
+                    requireInteraction: false,
+                    vibrate: [200, 100, 200],
+                    data: {
+                        url: '/#/dashboard'
+                    }
+                });
+
+                showStatus('✅ Test notification sent!', 'success');
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
