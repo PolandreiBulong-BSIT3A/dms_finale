@@ -26,6 +26,7 @@ const User = ({ role }) => {
     position: ''
   });
   const [departmentOptions, setDepartmentOptions] = useState([]);
+  const [positionOptions, setPositionOptions] = useState([]);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
@@ -318,6 +319,25 @@ const fetchDepartments = async () => {
   }
 };
 
+// Fetch positions for update modal
+const fetchPositions = async (roleType = null) => {
+  try {
+    const url = roleType 
+      ? buildUrl(`positions?role_type=${roleType}&is_active=true`)
+      : buildUrl('positions?is_active=true');
+    const resp = await fetchJson(url, { method: 'GET' });
+    
+    if (resp && resp.success && Array.isArray(resp.positions)) {
+      setPositionOptions(resp.positions);
+    } else {
+      setPositionOptions([]);
+    }
+  } catch (error) {
+    console.error('Error fetching positions:', error);
+    setPositionOptions([]);
+  }
+};
+
   // Open update modal
   function handleUpdateUser(user) {
     setSelectedUser(user);
@@ -329,6 +349,8 @@ const fetchDepartments = async () => {
     setShowUpdateModal(true);
     setUpdateError('');
     setUpdateSuccess('');
+    // Fetch positions based on user's role
+    fetchPositions(user.roleRaw);
   }
 
   function handleCloseModal() {
@@ -345,6 +367,16 @@ const fetchDepartments = async () => {
       ...prev,
       [field]: value
     }));
+    
+    // If role changes, refetch positions for that role
+    if (field === 'role') {
+      fetchPositions(value);
+      // Clear position when role changes
+      setUpdateForm(prev => ({
+        ...prev,
+        position: ''
+      }));
+    }
   }
 
   // Submit update
@@ -1160,15 +1192,22 @@ const fetchDepartments = async () => {
                     <FiUser size={16} style={styles.fieldIcon} />
                     <span>Position/Designation</span>
                   </div>
-                  <input
-                    type="text"
+                  <select
                     value={updateForm.position}
                     onChange={(e) => handleFormChange('position', e.target.value)}
-                    placeholder="e.g., Secretary, Assistant Dean, Department Head"
-                    style={styles.modernInput}
-                  />
+                    style={styles.modernSelect}
+                  >
+                    <option value="">Select Position (Optional)</option>
+                    {positionOptions.map((pos) => (
+                      <option key={pos.position_id} value={pos.name}>
+                        {pos.name}
+                      </option>
+                    ))}
+                  </select>
                   <div style={styles.roleDescription}>
-                    Specific position or designation within the role
+                    {positionOptions.length === 0 
+                      ? 'No positions available for this role' 
+                      : 'Select a position or leave blank'}
                   </div>
                 </div>
               </div>
