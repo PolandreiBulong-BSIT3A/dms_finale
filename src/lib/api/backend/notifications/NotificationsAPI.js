@@ -1,8 +1,24 @@
 import express from 'express';
+import webpush from 'web-push';
 import db from '../connections/connection.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// VAPID keys for web push (generate with: npx web-push generate-vapid-keys)
+// In production, store these in environment variables
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BNxJvXxz7V8kQ9Z8KqH5Yv5rYxQ8Z8KqH5Yv5rYxQ8Z8KqH5Yv5rYxQ8Z8KqH5Yv5rYxQ8Z8KqH5Yv5rYxQ';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'your-private-key-here';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@ispsctagudindms.com';
+
+// Configure web-push
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    VAPID_SUBJECT,
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+}
 
 // Get notifications (department/role/user scoped)
 router.get('/notifications', requireAuth, (req, res) => {
@@ -181,5 +197,121 @@ router.post('/notifications/mark-all-read', requireAuth, (req, res) => {
     res.status(500).json({ success: false, message: 'Server error.' });
   }
 });
+
+// Get VAPID public key for push notification subscription
+router.get('/notifications/vapid-public-key', (req, res) => {
+  res.json({ 
+    success: true, 
+    publicKey: VAPID_PUBLIC_KEY 
+  });
+});
+
+// Subscribe to push notifications
+router.post('/notifications/subscribe', requireAuth, async (req, res) => {
+  try {
+    const { subscription, userId } = req.body;
+    const currentUserId = req.currentUser?.user_id ?? req.currentUser?.id;
+
+    if (!subscription || !userId || userId !== currentUserId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid subscription data' 
+      });
+    }
+
+    // Store subscription in database
+    const sql = `
+      INSERT INTO push_subscriptions (user_id, subscription_data, created_at)
+      VALUES (?, ?, NOW())
+      ON DUPLICATE KEY UPDATE 
+        subscription_data = VALUES(subscription_data),
+        updated_at = NOW()
+    `;
+
+    await db.promise().query(sql, [userId, JSON.stringify(subscription)]);
+
+    res.json({ 
+      success: true, 
+      message: 'Push notification subscription saved' 
+    });
+  } catch (error) {
+    console.error('Error saving push subscription:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to save subscription' 
+    });
+  }
+});
+
+// Unsubscribe from push notifications
+router.post('/notifications/unsubscribe', requireAuth, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const currentUserId = req.currentUser?.user_id ?? req.currentUser?.id;
+
+    if (!userId || userId !== currentUserId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid user ID' 
+      });
+    }
+
+    // Remove subscription from database
+    const sql = 'DELETE FROM push_subscriptions WHERE user_id = ?';
+    await db.promise().query(sql, [userId]);
+
+    res.json({ 
+      success: true, 
+      message: 'Push notification subscription removed' 
+    });
+  } catch (error) {
+    console.error('Error removing push subscription:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to remove subscription' 
+    });
+  }
+});
+
+// Helper function to send push notifications to users
+export const sendPushNotification = async (userIds, payload) => {
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    console.log('No user IDs provided for push notification');
+    return;
+  }
+
+  try {
+    // Get subscriptions for the specified users
+    const placeholders = userIds.map(() => '?').join(',');
+    const sql = `SELECT user_id, subscription_data FROM push_subscriptions WHERE user_id IN (${placeholders})`;
+    const [subscriptions] = await db.promise().query(sql, userIds);
+
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log('No push subscriptions found for users:', userIds);
+      return;
+    }
+
+    // Send push notification to each subscription
+    const pushPromises = subscriptions.map(async (sub) => {
+      try {
+        const subscription = JSON.parse(sub.subscription_data);
+        await webpush.sendNotification(subscription, JSON.stringify(payload));
+        console.log(`Push notification sent to user ${sub.user_id}`);
+      } catch (error) {
+        console.error(`Failed to send push to user ${sub.user_id}:`, error);
+        
+        // If subscription is invalid/expired, remove it
+        if (error.statusCode === 410 || error.statusCode === 404) {
+          await db.promise().query('DELETE FROM push_subscriptions WHERE user_id = ?', [sub.user_id]);
+          console.log(`Removed invalid subscription for user ${sub.user_id}`);
+        }
+      }
+    });
+
+    await Promise.allSettled(pushPromises);
+  } catch (error) {
+    console.error('Error sending push notifications:', error);
+  }
+};
 
 export default router;

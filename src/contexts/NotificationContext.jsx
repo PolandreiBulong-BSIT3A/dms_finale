@@ -3,6 +3,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import socket from '../lib/realtime/socket.js';
 import { useUser } from './UserContext.jsx';
 import { buildUrl, fetchJson } from '../lib/api/frontend/client.js';
+import { 
+  registerServiceWorker, 
+  subscribeToPushNotifications, 
+  requestNotificationPermission,
+  getNotificationPermission,
+  isPushNotificationSupported
+} from '../lib/utils/pushNotifications.js';
 
 const NotificationContext = createContext();
 
@@ -169,6 +176,32 @@ export const NotificationProvider = ({ children }) => {
     };
     socket.on('notification:new', onNewNotification);
 
+    // Initialize push notifications for background notifications
+    const initPushNotifications = async () => {
+      if (!user) return;
+      
+      try {
+        // Register service worker
+        await registerServiceWorker();
+        
+        // Check if user has already granted permission
+        const permission = getNotificationPermission();
+        
+        if (permission === 'granted') {
+          // Subscribe to push notifications
+          const userId = user.id || user.user_id;
+          await subscribeToPushNotifications(userId);
+        } else if (permission === 'default') {
+          // Don't auto-request, let user enable it manually
+          console.log('Push notifications available but not enabled. User can enable in settings.');
+        }
+      } catch (error) {
+        console.error('Error initializing push notifications:', error);
+      }
+    };
+
+    initPushNotifications();
+
     // Cleanup listeners only (keep socket alive). Also reset unread for user change by recomputing.
     return () => {
       try {
@@ -255,6 +288,10 @@ export const NotificationProvider = ({ children }) => {
     getNotificationCountOnly,
     clearNotificationSession, // Add debug function
     refreshNotificationsImmediately, // Add immediate refresh function
+    // Push notification functions
+    requestNotificationPermission,
+    getNotificationPermission,
+    isPushNotificationSupported,
   };
 
   return (
