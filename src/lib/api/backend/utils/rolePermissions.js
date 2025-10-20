@@ -22,9 +22,9 @@ export const USER_ROLES = {
  * @param {string} role - The role to check
  * @returns {boolean}
  */
-export const isDeanLevel = (role) => {
+const isDeanLevel = (role) => {
   if (!role) return false;
-  const roleUpper = role.toString().toUpperCase();
+  const roleUpper = String(role).toUpperCase();
   return DEAN_LEVEL_ROLES.includes(roleUpper);
 };
 

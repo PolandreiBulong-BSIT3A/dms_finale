@@ -33,7 +33,9 @@ export const ROLE_DISPLAY_NAMES = {
  * @returns {boolean}
  */
 export const isDeanLevel = (role) => {
-  return DEAN_LEVEL_ROLES.includes(role);
+  if (!role) return false;
+  const roleUpper = String(role).toUpperCase();
+  return DEAN_LEVEL_ROLES.includes(roleUpper);
 };
 
 /**
@@ -42,7 +44,9 @@ export const isDeanLevel = (role) => {
  * @returns {boolean}
  */
 export const isAdminLevel = (role) => {
-  return ADMIN_LEVEL_ROLES.includes(role);
+  if (!role) return false;
+  const roleUpper = String(role).toUpperCase();
+  return ADMIN_LEVEL_ROLES.includes(roleUpper);
 };
 
 /**
