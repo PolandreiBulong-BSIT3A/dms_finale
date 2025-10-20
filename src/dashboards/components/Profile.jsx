@@ -64,6 +64,10 @@ const Profile = () => {
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
 
+  // Position options - will be fetched from API
+  const [positionOptions, setPositionOptions] = useState([]);
+  const [positionsLoading, setPositionsLoading] = useState(false);
+
   // Role options - matching database schema
   const roleOptions = [
             { value: 'FACULTY', label: 'Faculty' },
@@ -124,11 +128,36 @@ const Profile = () => {
     }
   }, [contextUser]);
 
+  // Fetch positions from API
+  const fetchPositions = async (roleType = null) => {
+    try {
+      setPositionsLoading(true);
+      const url = roleType 
+        ? buildUrl(`positions?role_type=${roleType}&is_active=true`)
+        : buildUrl('positions?is_active=true');
+      const data = await fetchJson(url);
+      if (data.success && data.positions) {
+        setPositionOptions(data.positions);
+      } else {
+        setPositionOptions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching positions:', error);
+      setPositionOptions([]);
+    } finally {
+      setPositionsLoading(false);
+    }
+  };
+
   // Fetch departments and icons on component mount
   useEffect(() => {
     fetchDepartments();
     fetchProfileIcons();
-  }, []);
+    // Fetch positions based on user's role
+    if (contextUser?.role) {
+      fetchPositions(contextUser.role);
+    }
+  }, [contextUser?.role]);
 
   // Convert image links to proper format
   const convertImageLink = (url) => {
@@ -1020,22 +1049,56 @@ const getDepartmentDisplayName = (departmentId) => {
                     marginBottom: '0.75rem'
                   }}>
                     Position/Designation
+                    {positionsLoading && (
+                      <span className="ms-2 text-muted" style={{ fontSize: '0.8rem' }}>
+                        (Loading...)
+                      </span>
+                    )}
                   </Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.position}
-                    onChange={(e) => handleInputChange('position', e.target.value)}
-                    disabled={!isEditing}
-                    placeholder="e.g., Secretary, Dean, Assistant Dean"
-                    style={{ 
-                      borderRadius: '50px', 
-                      border: '2px solid #dee2e6',
-                      padding: '1rem 1.5rem',
-                      fontSize: '0.9rem',
-                      backgroundColor: isEditing ? '#ffffff' : '#f8f9fa',
-                      transition: 'all 0.3s ease'
-                    }}
-                  />
+                  {isEditing ? (
+                    <Form.Select
+                      value={formData.position}
+                      onChange={(e) => handleInputChange('position', e.target.value)}
+                      disabled={positionsLoading}
+                      style={{ 
+                        borderRadius: '50px', 
+                        border: '2px solid #dee2e6',
+                        padding: '1rem 1.5rem',
+                        fontSize: '0.9rem',
+                        backgroundColor: '#ffffff',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <option value="">
+                        {positionsLoading ? 'Loading positions...' : 'Select position (Optional)'}
+                      </option>
+                      {positionOptions.map(option => (
+                        <option key={option.position_id} value={option.name}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  ) : (
+                    <Form.Control
+                      type="text"
+                      value={formData.position || '-'}
+                      disabled
+                      style={{ 
+                        borderRadius: '50px', 
+                        border: '2px solid #dee2e6',
+                        padding: '1rem 1.5rem',
+                        fontSize: '0.9rem',
+                        backgroundColor: '#f8f9fa',
+                        color: '#6c757d',
+                        transition: 'all 0.3s ease'
+                      }}
+                    />
+                  )}
+                  <Form.Text style={{ fontSize: '0.8rem', color: '#6c757d' }}>
+                    {positionOptions.length === 0 && !positionsLoading
+                      ? 'No positions available for your role' 
+                      : 'Select your specific position or designation'}
+                  </Form.Text>
                 </Form.Group>
               </Col>
 

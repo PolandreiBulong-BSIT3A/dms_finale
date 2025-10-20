@@ -2001,7 +2001,7 @@ const Upload = ({ role, onNavigateToDocuments }) => {
                                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                                             <span style={{ fontSize: 14, color: '#111827' }}>{user.email || '—'}</span>
                                             <span style={{ fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                              {user.full_name} ({String(user.role || '').toUpperCase()})
+                                              {user.full_name} ({user.position || String(user.role || '').toUpperCase()})
                                               {admin && (
                                                 <span style={{
                                                   display: 'inline-block',

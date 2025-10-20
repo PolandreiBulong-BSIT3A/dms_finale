@@ -10,6 +10,7 @@ const User = ({ role }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
+  const [selectedPosition, setSelectedPosition] = useState('');
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -472,6 +473,7 @@ const fetchPositions = async (roleType = null) => {
   // Derive filters from loaded data
   const departments = useMemo(() => [...new Set(users.map(u => u.department).filter(Boolean))], [users]);
   const roles = useMemo(() => [...new Set(users.map(u => u.role).filter(Boolean))], [users]);
+  const positions = useMemo(() => [...new Set(users.map(u => u.position).filter(Boolean))], [users]);
 
   const filteredUsers = users.filter(user => {
     // Exclude admin users only for non-admin, non-dean viewers
@@ -481,7 +483,8 @@ const fetchPositions = async (roleType = null) => {
     // Apply search filter
     const matchesSearch = (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
            (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-           (user.department || '').toLowerCase().includes(searchTerm.toLowerCase());
+           (user.department || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+           (user.position || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     // Apply department filter
     const matchesDepartment = !selectedDepartment || String(user.department || '').toLowerCase() === String(selectedDepartment || '').toLowerCase();
@@ -489,7 +492,10 @@ const fetchPositions = async (roleType = null) => {
     // Apply role filter
     const matchesRole = !selectedRole || String(user.role || '').toLowerCase() === String(selectedRole || '').toLowerCase();
     
-    return matchesSearch && matchesDepartment && matchesRole;
+    // Apply position filter
+    const matchesPosition = !selectedPosition || String(user.position || '').toLowerCase() === String(selectedPosition || '').toLowerCase();
+    
+    return matchesSearch && matchesDepartment && matchesRole && matchesPosition;
   });
 
   const sortedUsers = useMemo(() => {
@@ -777,6 +783,12 @@ const fetchPositions = async (roleType = null) => {
             <option value="ADMIN">Administrator</option>
             <option value="DEAN">Dean</option>
             <option value="FACULTY">Faculty</option>
+          </select>
+          <select value={selectedPosition} onChange={(e) => setSelectedPosition(e.target.value)} style={styles.filterSelect}>
+            <option value="">All Positions</option>
+            {positions.map(pos => (
+              <option key={pos} value={pos}>{pos}</option>
+            ))}
           </select>
           {/* View Trash removed from filter bar to avoid duplicates and to hide from Faculty */}
         </div>

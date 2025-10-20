@@ -445,7 +445,7 @@ const Navbar = ({ setSidebarOpen, isMobile }) => {
               <div className="user-info">
                 <span className="user-name">{user?.Username || user?.username || 'User'}</span>
                 <span className="user-role">
-                  {user?.role || 'User'}
+                  {user?.position || user?.role || 'User'}
                   {departmentName ? ` | ${departmentName}` : ''}
                 </span>
               </div>
