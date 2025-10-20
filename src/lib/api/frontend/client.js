@@ -9,8 +9,14 @@ export const API_BASE_URL = (() => {
     return import.meta.env.VITE_API_BASE_URL;
   }
   // 2) Production: always use Render backend
-  if (typeof window !== 'undefined' && window.location && window.location.hostname === 'ispsctagudindms.com') {
-    return 'https://dms-finale.onrender.com/api';
+  if (typeof window !== 'undefined' && window.location) {
+    const hostname = window.location.hostname;
+    // Match ispsctagudindms.com with or without www, or partial domain
+    if (hostname === 'ispsctagudindms.com' || 
+        hostname === 'www.ispsctagudindms.com' ||
+        hostname.includes('ispsctagudindms')) {
+      return 'https://dms-finale.onrender.com/api';
+    }
   }
   // 3) Development: use localhost
   return 'http://localhost:5000/api';
