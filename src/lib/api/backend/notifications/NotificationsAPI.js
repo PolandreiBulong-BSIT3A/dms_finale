@@ -209,6 +209,14 @@ router.post('/notifications/mark-all-read', requireAuth, (req, res) => {
 
 // Get VAPID public key for push notification subscription
 router.get('/notifications/vapid-public-key', (req, res) => {
+  if (!VAPID_PUBLIC_KEY) {
+    return res.status(500).json({ 
+      success: false, 
+      message: 'VAPID public key not configured on server. Please add VAPID_PUBLIC_KEY to environment variables.',
+      publicKey: null
+    });
+  }
+  
   res.json({ 
     success: true, 
     publicKey: VAPID_PUBLIC_KEY 
