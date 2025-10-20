@@ -4,7 +4,6 @@ import { Row, Col, Card, Badge, Form, Nav } from 'react-bootstrap';
 import Announcements from './Announcements.jsx';
 import './Dashboard.css';
 import { useUser } from '../../contexts/UserContext.jsx';
-import { isDeanLevel } from '../../lib/utils/rolePermissions.js';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 import { 
   FiUsers, 
@@ -26,7 +25,7 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
   const roleLower = (role || currentUser?.role || '').toString().toLowerCase();
       const isDean = roleLower === 'dean';
       const isUser = roleLower === 'faculty';
-      const effectiveIsDean = isDeanLevel(currentUser?.role || role);
+      const effectiveIsDean = isDean || (currentUser?.role === 'DEAN' || currentUser?.role === 'dean');
   
   // Tab state
   const [activeTab, setActiveTab] = useState('announcements');

@@ -1,19 +1,16 @@
-// Role Permission Utilities (Backend)
+// Role Permission Utilities
 // Centralized role permission checks for backend
 
 // Roles that have DEAN-level permissions
-const DEAN_LEVEL_ROLES = ['DEAN', 'PRINCIPAL', 'DEPT_SECRETARY', 'PRESIDENT'];
+const DEAN_LEVEL_ROLES = ['DEAN'];
 
 // Roles that have ADMIN-level permissions
-const ADMIN_LEVEL_ROLES = ['ADMIN', 'ADMINISTRATOR'];
+const ADMIN_LEVEL_ROLES = ['ADMIN'];
 
 // All available roles
-export const USER_ROLES = {
+const USER_ROLES = {
   ADMIN: 'ADMIN',
   DEAN: 'DEAN',
-  PRINCIPAL: 'PRINCIPAL',
-  DEPT_SECRETARY: 'DEPT_SECRETARY',
-  PRESIDENT: 'PRESIDENT',
   FACULTY: 'FACULTY'
 };
 
@@ -22,9 +19,9 @@ export const USER_ROLES = {
  * @param {string} role - The role to check
  * @returns {boolean}
  */
-const isDeanLevel = (role) => {
+export const isDeanLevel = (role) => {
   if (!role) return false;
-  const roleUpper = String(role).toUpperCase();
+  const roleUpper = role.toString().toUpperCase();
   return DEAN_LEVEL_ROLES.includes(roleUpper);
 };
 

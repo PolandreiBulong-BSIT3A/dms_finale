@@ -6,7 +6,6 @@ import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import { useUser } from '../../contexts/UserContext.jsx';
 import { fetchUserPreferences, fetchFavoriteDocuments, toggleFavorite, togglePin } from '../../lib/api/frontend/DocumentPreferencesClient.js';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
-import { isDeanLevel } from '../../lib/utils/rolePermissions.js';
 
 const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate }) => {
   // State management
@@ -681,7 +680,7 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const isAdmin = roleLower === 'admin' || roleLower === 'administrator';
       const isDean = roleLower === 'dean';
       const isUser = roleLower === 'faculty';
-      const effectiveIsDean = isDeanLevel(currentUser?.role || role);
+      const effectiveIsDean = isDean || (currentUser?.role === 'DEAN' || currentUser?.role === 'dean');
 
   // Sorting functionality
   const handleSort = (key) => {

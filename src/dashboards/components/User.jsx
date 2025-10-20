@@ -5,7 +5,6 @@ import { FiX, FiEdit, FiEdit2, FiTrash2, FiPlus, FiSearch, FiFilter, FiDownload,
 import { useUser } from '../../contexts/UserContext';
 import socket from '../../lib/realtime/socket.js';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
-import { isDeanLevel, ROLE_DISPLAY_NAMES } from '../../lib/utils/rolePermissions.js';
 
 const User = ({ role }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -99,10 +98,6 @@ const User = ({ role }) => {
     const nameFromParts = `${firstname || ''} ${lastname || ''}`.trim();
     const name = nameFromParts || username || email || 'Unknown';
 
-    const roleUpper = (roleVal || '').toString().toUpperCase();
-    const roleDisplay = ROLE_DISPLAY_NAMES[roleUpper] || 
-                       (roleVal || '').toString().charAt(0).toUpperCase() + (roleVal || '').toString().slice(1).toLowerCase();
-    
     return {
       id,
       name,
@@ -110,8 +105,8 @@ const User = ({ role }) => {
       phone: contactNumber || '',
       department,
       department_id: departmentId,
-      role: roleDisplay,
-      roleRaw: roleUpper,
+      role: (roleVal || '').toString().charAt(0).toUpperCase() + (roleVal || '').toString().slice(1).toLowerCase(),
+      roleRaw: (roleVal || '').toString().toUpperCase(),
       status: (status || '').toString().charAt(0).toUpperCase() + (status || '').toString().slice(1),
       statusRaw: (status || '').toString().toLowerCase(),
       lastLogin: updatedAt ? new Date(updatedAt).toLocaleDateString() : '',
@@ -454,8 +449,8 @@ const fetchDepartments = async () => {
     // Apply department filter
     const matchesDepartment = !selectedDepartment || String(user.department || '').toLowerCase() === String(selectedDepartment || '').toLowerCase();
     
-    // Apply role filter (compare using roleRaw to match the filter value)
-    const matchesRole = !selectedRole || String(user.roleRaw || '').toUpperCase() === String(selectedRole || '').toUpperCase();
+    // Apply role filter
+    const matchesRole = !selectedRole || String(user.role || '').toLowerCase() === String(selectedRole || '').toLowerCase();
     
     return matchesSearch && matchesDepartment && matchesRole;
   });
@@ -744,9 +739,6 @@ const fetchDepartments = async () => {
             <option value="">All Roles</option>
             <option value="ADMIN">Administrator</option>
             <option value="DEAN">Dean</option>
-            <option value="PRINCIPAL">Principal</option>
-            <option value="DEPT_SECRETARY">Department Secretary</option>
-            <option value="PRESIDENT">President</option>
             <option value="FACULTY">Faculty</option>
           </select>
           {/* View Trash removed from filter bar to avoid duplicates and to hide from Faculty */}
@@ -1146,14 +1138,11 @@ const fetchDepartments = async () => {
                     <option value="">Select Role</option>
                     {(!effectiveIsDean || isAdmin) && <option value="ADMIN">Administrator</option>}
                     <option value="DEAN">Dean</option>
-                    <option value="PRINCIPAL">Principal</option>
-                    <option value="DEPT_SECRETARY">Department Secretary</option>
-                    <option value="PRESIDENT">President</option>
                     <option value="FACULTY">Faculty</option>
                   </select>
                   <div style={styles.roleDescription}>
                     {updateForm.role === 'FACULTY' && 'Teaching and academic responsibilities'}
-                    {isDeanLevel(updateForm.role) && 'Administrative and leadership responsibilities'}
+                    {updateForm.role === 'DEAN' && 'Administrative and leadership responsibilities'}
                     {updateForm.role === 'ADMIN' && 'System administration and management'}
                   </div>
                 </div>

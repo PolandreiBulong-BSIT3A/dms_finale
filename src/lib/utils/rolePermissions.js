@@ -2,7 +2,7 @@
 // Centralized role permission checks
 
 // Roles that have DEAN-level permissions
-const DEAN_LEVEL_ROLES = ['DEAN', 'PRINCIPAL', 'DEPT_SECRETARY', 'PRESIDENT'];
+const DEAN_LEVEL_ROLES = ['DEAN'];
 
 // Roles that have ADMIN-level permissions
 const ADMIN_LEVEL_ROLES = ['ADMIN'];
@@ -11,9 +11,6 @@ const ADMIN_LEVEL_ROLES = ['ADMIN'];
 export const USER_ROLES = {
   ADMIN: 'ADMIN',
   DEAN: 'DEAN',
-  PRINCIPAL: 'PRINCIPAL',
-  DEPT_SECRETARY: 'DEPT_SECRETARY',
-  PRESIDENT: 'PRESIDENT',
   FACULTY: 'FACULTY'
 };
 
@@ -21,9 +18,6 @@ export const USER_ROLES = {
 export const ROLE_DISPLAY_NAMES = {
   ADMIN: 'Administrator',
   DEAN: 'Dean',
-  PRINCIPAL: 'Principal',
-  DEPT_SECRETARY: 'Department Secretary',
-  PRESIDENT: 'President',
   FACULTY: 'Faculty'
 };
 
@@ -33,9 +27,7 @@ export const ROLE_DISPLAY_NAMES = {
  * @returns {boolean}
  */
 export const isDeanLevel = (role) => {
-  if (!role) return false;
-  const roleUpper = String(role).toUpperCase();
-  return DEAN_LEVEL_ROLES.includes(roleUpper);
+  return DEAN_LEVEL_ROLES.includes(role);
 };
 
 /**
@@ -44,9 +36,7 @@ export const isDeanLevel = (role) => {
  * @returns {boolean}
  */
 export const isAdminLevel = (role) => {
-  if (!role) return false;
-  const roleUpper = String(role).toUpperCase();
-  return ADMIN_LEVEL_ROLES.includes(roleUpper);
+  return ADMIN_LEVEL_ROLES.includes(role);
 };
 
 /**
