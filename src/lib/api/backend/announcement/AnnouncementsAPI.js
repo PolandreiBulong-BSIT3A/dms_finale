@@ -2,7 +2,6 @@
 import express from 'express';
 import db from '../connections/connection.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
-import { isDeanLevel } from '../utils/rolePermissions.js';
 
 const router = express.Router();
 
@@ -133,7 +132,9 @@ router.post('/announcements', (req, res) => {
     const userDept = deriveUserDept(req.user);
     let scopedIsPublic = isPublic;
     let scopedTargetDepts = Array.isArray(target_departments) ? target_departments : [];
-    if (isDeanLevel(role)) {
+    const roleUpper = (role || '').toString().toUpperCase();
+    const isDean = roleUpper === 'DEAN';
+    if (isDean) {
       scopedIsPublic = false;
       scopedTargetDepts = userDept != null ? [userDept] : [];
     }
@@ -142,7 +143,7 @@ router.post('/announcements', (req, res) => {
     const requestedRoles = Array.isArray(target_roles) ? target_roles : [];
     const requestedUsers = Array.isArray(target_users) ? target_users : [];
     if (!scopedIsPublic) {
-      const hasTargets = (isDeanLevel(role) && deriveUserDept(req.user) != null) ||
+      const hasTargets = (isDean && deriveUserDept(req.user) != null) ||
                         (requestedTargets && requestedTargets.length) ||
                         (requestedRoles && requestedRoles.length) ||
                         (requestedUsers && requestedUsers.length);
@@ -283,8 +284,10 @@ router.put('/announcements/:id', (req, res) => {
       // Scope for DEAN: cannot be public and must target own department
       const isPublicReq = visible_to_all === true || visible_to_all === 1 || String(visible_to_all).toLowerCase() === 'true';
       const userDept = deriveUserDept(req.user);
-      const scopedIsPublic = isDeanLevel(role) ? false : isPublicReq;
-      const tDepts = isDeanLevel(role) ? (userDept != null ? [userDept] : []) : (Array.isArray(target_departments) ? target_departments : []);
+      const roleUpper = (role || '').toString().toUpperCase();
+      const isDean = roleUpper === 'DEAN';
+      const scopedIsPublic = isDean ? false : isPublicReq;
+      const tDepts = isDean ? (userDept != null ? [userDept] : []) : (Array.isArray(target_departments) ? target_departments : []);
       const tRoles = Array.isArray(target_roles) ? target_roles : [];
       const tUsers = Array.isArray(target_users) ? target_users : [];
 

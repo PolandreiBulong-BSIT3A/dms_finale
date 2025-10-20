@@ -2,7 +2,6 @@
 import express from 'express';
 import db from '../connections/connection.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
-import { isAdminLevel, isDeanLevel, isFaculty } from '../utils/rolePermissions.js';
 
 const router = express.Router();
 
@@ -51,10 +50,10 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
     const userId = req.currentUser?.id || req.currentUser?.user_id || null;
     const deptId = req.currentUser?.department_id || null;
     const userRole = req.currentUser?.role || '';
-    const isAdmin = isAdminLevel(userRole);
-    const isDean = isDeanLevel(userRole);
-    const isFacultyRole = isFaculty(userRole);
     const roleUpper = userRole.toString().toUpperCase();
+    const isAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
+    const isDean = roleUpper === 'DEAN';
+    const isFacultyRole = roleUpper === 'FACULTY';
 
     // Base SQL selects documents that have any action rows with pending status
     let sql = `
@@ -344,9 +343,9 @@ router.get('/documents/answered', requireAuth, async (req, res) => {
     const userId = req.currentUser?.id || req.currentUser?.user_id || null;
     const deptId = req.currentUser?.department_id || null;
     const userRole = req.currentUser?.role || '';
-    const isAdmin = isAdminLevel(userRole);
-    const isDean = isDeanLevel(userRole);
     const roleUpper = userRole.toString().toUpperCase();
+    const isAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
+    const isDean = roleUpper === 'DEAN';
 
     // Query to get documents with completed actions and their replies
     let sql = `
