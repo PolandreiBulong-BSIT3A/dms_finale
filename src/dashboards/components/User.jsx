@@ -5,6 +5,7 @@ import { FiX, FiEdit, FiEdit2, FiTrash2, FiPlus, FiSearch, FiFilter, FiDownload,
 import { useUser } from '../../contexts/UserContext';
 import socket from '../../lib/realtime/socket.js';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
+import { isDeanLevel, ROLE_DISPLAY_NAMES } from '../../lib/utils/rolePermissions.js';
 
 const User = ({ role }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,8 +76,8 @@ const User = ({ role }) => {
   const isDean = roleLower === 'dean';
   const isFaculty = roleLower === 'faculty';
 
-  // Use session-based user role for dean detection
-      const effectiveIsDean = isDean || (currentUser?.role === 'DEAN' || currentUser?.role === 'dean');
+  // Use session-based user role for dean detection (includes all dean-level roles)
+  const effectiveIsDean = isDeanLevel(currentUser?.role || role);
 
   // Normalize API user row to UI shape
   const normalizeUser = (row) => {
@@ -737,9 +738,12 @@ const fetchDepartments = async () => {
           )}
           <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} style={styles.filterSelect}>
             <option value="">All Roles</option>
-            <option value="Faculty">Faculty</option>
-            <option value="Dean">Dean</option>
-            <option value="Admin">Admin</option>
+            <option value="ADMIN">Administrator</option>
+            <option value="DEAN">Dean</option>
+            <option value="PRINCIPAL">Principal</option>
+            <option value="DEPT_SECRETARY">Department Secretary</option>
+            <option value="PRESIDENT">President</option>
+            <option value="FACULTY">Faculty</option>
           </select>
           {/* View Trash removed from filter bar to avoid duplicates and to hide from Faculty */}
         </div>
@@ -1136,13 +1140,16 @@ const fetchDepartments = async () => {
                     style={styles.modernSelect}
                   >
                     <option value="">Select Role</option>
-                    {(!effectiveIsDean || isAdmin) && <option value="ADMIN">Admin</option>}
+                    {(!effectiveIsDean || isAdmin) && <option value="ADMIN">Administrator</option>}
                     <option value="DEAN">Dean</option>
+                    <option value="PRINCIPAL">Principal</option>
+                    <option value="DEPT_SECRETARY">Department Secretary</option>
+                    <option value="PRESIDENT">President</option>
                     <option value="FACULTY">Faculty</option>
                   </select>
                   <div style={styles.roleDescription}>
                     {updateForm.role === 'FACULTY' && 'Teaching and academic responsibilities'}
-                    {updateForm.role === 'DEAN' && 'Administrative and leadership responsibilities'}
+                    {isDeanLevel(updateForm.role) && 'Administrative and leadership responsibilities'}
                     {updateForm.role === 'ADMIN' && 'System administration and management'}
                   </div>
                 </div>

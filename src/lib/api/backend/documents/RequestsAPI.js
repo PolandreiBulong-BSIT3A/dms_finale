@@ -2,6 +2,7 @@
 import express from 'express';
 import db from '../connections/connection.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
+import { isAdminLevel, isDeanLevel, isFaculty } from '../utils/rolePermissions.js';
 
 const router = express.Router();
 
@@ -49,10 +50,11 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
   try {
     const userId = req.currentUser?.id || req.currentUser?.user_id || null;
     const deptId = req.currentUser?.department_id || null;
-    const roleUpper = (req.currentUser?.role || '').toString().toUpperCase();
-    const isAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
-    const isDean = roleUpper === 'DEAN';
-    const isFaculty = roleUpper === 'FACULTY';
+    const userRole = req.currentUser?.role || '';
+    const isAdmin = isAdminLevel(userRole);
+    const isDean = isDeanLevel(userRole);
+    const isFacultyRole = isFaculty(userRole);
+    const roleUpper = userRole.toString().toUpperCase();
 
     // Base SQL selects documents that have any action rows with pending status
     let sql = `
@@ -95,8 +97,8 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
     const params = [];
 
     if (!isAdmin) {
-      if (isDean || isFaculty) {
-        // Dean and Faculty: see all pending requests (no filtering by assignment)
+      if (isDean || isFacultyRole) {
+        // Dean-level roles (DEAN, PRINCIPAL, DEPT_SECRETARY, PRESIDENT) and Faculty: see all pending requests
         // This shows all pending requests in the system
         sql += ` AND (d.visible_to_all = 1 OR dd.department_id IS NOT NULL OR da.assigned_to_department_id IS NOT NULL OR da.assigned_to_role IS NOT NULL OR da.assigned_to_user_id IS NOT NULL)`;
       } else {
@@ -341,9 +343,10 @@ router.get('/documents/answered', requireAuth, async (req, res) => {
   try {
     const userId = req.currentUser?.id || req.currentUser?.user_id || null;
     const deptId = req.currentUser?.department_id || null;
-    const roleUpper = (req.currentUser?.role || '').toString().toUpperCase();
-    const isAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
-    const isDean = roleUpper === 'DEAN';
+    const userRole = req.currentUser?.role || '';
+    const isAdmin = isAdminLevel(userRole);
+    const isDean = isDeanLevel(userRole);
+    const roleUpper = userRole.toString().toUpperCase();
 
     // Query to get documents with completed actions and their replies
     let sql = `
