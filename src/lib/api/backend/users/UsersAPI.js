@@ -398,9 +398,9 @@ router.put('/users/:id', requireAuth, async (req, res) => {
     // Validate and normalize role
     if (role !== undefined) {
       const normalizedRole = String(role).toUpperCase();
-      const allowedRoles = ['ADMIN', 'ADMINISTRATOR', 'DEAN', 'FACULTY'];
+      const allowedRoles = ['ADMIN', 'ADMINISTRATOR', 'DEAN', 'PRINCIPAL', 'DEPT_SECRETARY', 'PRESIDENT', 'FACULTY'];
       if (!allowedRoles.includes(normalizedRole)) {
-        return res.status(400).json({ success: false, message: 'Invalid role.' });
+        return res.status(400).json({ success: false, message: 'Invalid role. Allowed roles: ' + allowedRoles.join(', ') });
       }
       fields.push('role = ?');
       values.push(normalizedRole);

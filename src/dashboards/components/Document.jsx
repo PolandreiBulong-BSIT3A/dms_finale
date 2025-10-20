@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useDocuments } from '../../contexts/DocumentContext.jsx';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import { useUser } from '../../contexts/UserContext.jsx';
+import { isDeanLevel } from '../../lib/utils/rolePermissions.js';
 import { fetchUserPreferences, toggleFavorite, togglePin } from '../../lib/api/frontend/DocumentPreferencesClient.js';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
 
@@ -499,7 +500,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const isAdmin = roleLower === 'admin' || roleLower === 'administrator';
       const isDean = roleLower === 'dean';
       const isUser = roleLower === 'faculty';
-      const effectiveIsDean = isDean || (currentUser?.role === 'DEAN' || currentUser?.role === 'dean');
+      const effectiveIsDean = isDeanLevel(currentUser?.role || role);
 
   // Sorting functionality
   const handleSort = (key) => {
