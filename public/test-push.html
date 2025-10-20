@@ -180,7 +180,11 @@
                 const registration = await navigator.serviceWorker.ready;
                 
                 // Get VAPID public key from server
-                const response = await fetch('/api/notifications/vapid-public-key');
+                const apiUrl = window.location.hostname === 'ispsctagudindms.com' 
+                    ? 'https://dms-finale.onrender.com/api/notifications/vapid-public-key'
+                    : 'http://localhost:5000/api/notifications/vapid-public-key';
+                
+                const response = await fetch(apiUrl);
                 const data = await response.json();
                 const vapidPublicKey = data.publicKey;
 
