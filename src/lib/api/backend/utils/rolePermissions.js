@@ -108,7 +108,7 @@ export const getRoleSQLCondition = (userRole, roleColumn = 'role') => {
     return '1=1';
   }
   if (isDeanLevel(userRole)) {
-    // Dean-level sees DEAN, PRINCIPAL, DEPT_SECRETARY, PRESIDENT, FACULTY
+    // Dean sees DEAN and FACULTY
     const roles = [...DEAN_LEVEL_ROLES, 'FACULTY'].map(r => `'${r}'`).join(',');
     return `${roleColumn} IN (${roles})`;
   }

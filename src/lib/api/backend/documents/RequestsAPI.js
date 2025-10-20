@@ -98,7 +98,7 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
 
     if (!isAdmin) {
       if (isDean || isFacultyRole) {
-        // Dean-level roles (DEAN, PRINCIPAL, DEPT_SECRETARY, PRESIDENT) and Faculty: see all pending requests
+        // Dean and Faculty: see all pending requests
         // This shows all pending requests in the system
         sql += ` AND (d.visible_to_all = 1 OR dd.department_id IS NOT NULL OR da.assigned_to_department_id IS NOT NULL OR da.assigned_to_role IS NOT NULL OR da.assigned_to_user_id IS NOT NULL)`;
       } else {
