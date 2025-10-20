@@ -99,6 +99,10 @@ const User = ({ role }) => {
     const nameFromParts = `${firstname || ''} ${lastname || ''}`.trim();
     const name = nameFromParts || username || email || 'Unknown';
 
+    const roleUpper = (roleVal || '').toString().toUpperCase();
+    const roleDisplay = ROLE_DISPLAY_NAMES[roleUpper] || 
+                       (roleVal || '').toString().charAt(0).toUpperCase() + (roleVal || '').toString().slice(1).toLowerCase();
+    
     return {
       id,
       name,
@@ -106,8 +110,8 @@ const User = ({ role }) => {
       phone: contactNumber || '',
       department,
       department_id: departmentId,
-      role: (roleVal || '').toString().charAt(0).toUpperCase() + (roleVal || '').toString().slice(1).toLowerCase(),
-      roleRaw: (roleVal || '').toString().toUpperCase(),
+      role: roleDisplay,
+      roleRaw: roleUpper,
       status: (status || '').toString().charAt(0).toUpperCase() + (status || '').toString().slice(1),
       statusRaw: (status || '').toString().toLowerCase(),
       lastLogin: updatedAt ? new Date(updatedAt).toLocaleDateString() : '',
@@ -450,8 +454,8 @@ const fetchDepartments = async () => {
     // Apply department filter
     const matchesDepartment = !selectedDepartment || String(user.department || '').toLowerCase() === String(selectedDepartment || '').toLowerCase();
     
-    // Apply role filter
-    const matchesRole = !selectedRole || String(user.role || '').toLowerCase() === String(selectedRole || '').toLowerCase();
+    // Apply role filter (compare using roleRaw to match the filter value)
+    const matchesRole = !selectedRole || String(user.roleRaw || '').toUpperCase() === String(selectedRole || '').toUpperCase();
     
     return matchesSearch && matchesDepartment && matchesRole;
   });
