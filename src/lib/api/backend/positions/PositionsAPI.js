@@ -1,6 +1,6 @@
 import express from 'express';
-import db from '../../db.js';
-import { requireAuth, requireAdmin } from '../../middleware/auth.js';
+import db from '../connections/connection.js';
+import { requireAuth, requireAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
