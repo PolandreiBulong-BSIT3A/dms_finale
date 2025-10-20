@@ -207,8 +207,12 @@ router.post('/notifications/mark-all-read', requireAuth, (req, res) => {
   }
 });
 
-// Get VAPID public key for push notification subscription
+// Get VAPID public key for push notification subscription (PUBLIC - no auth required)
 router.get('/notifications/vapid-public-key', (req, res) => {
+  // Set CORS headers explicitly for this public endpoint
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  
   if (!VAPID_PUBLIC_KEY) {
     return res.status(500).json({ 
       success: false, 
