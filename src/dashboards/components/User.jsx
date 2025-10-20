@@ -22,7 +22,8 @@ const User = ({ role }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [updateForm, setUpdateForm] = useState({
     department: '',
-    role: ''
+    role: '',
+    position: ''
   });
   const [departmentOptions, setDepartmentOptions] = useState([]);
   const [updateLoading, setUpdateLoading] = useState(false);
@@ -75,8 +76,8 @@ const User = ({ role }) => {
   const isDean = roleLower === 'dean';
   const isFaculty = roleLower === 'faculty';
 
-  // Use session-based user role for dean detection (includes all dean-level roles)
-  const effectiveIsDean = isDeanLevel(currentUser?.role || role);
+  // Use session-based user role for dean detection
+  const effectiveIsDean = isDean || (currentUser?.role === 'DEAN' || currentUser?.role === 'dean');
 
   // Normalize API user row to UI shape
   const normalizeUser = (row) => {
@@ -90,7 +91,8 @@ const User = ({ role }) => {
     const departmentCode = row?.department_code ?? row?.dept_code ?? '';
     const department = departmentName || departmentCode;
     const departmentId = row?.department_id ?? row?.departmentId ?? row?.dept_id ?? '';
-    const roleVal = row?.role ?? row?.position ?? '';
+    const roleVal = row?.role ?? '';
+    const positionVal = row?.position ?? '';
     const status = row?.status ?? row?.user_status ?? '';
     const updatedAt = row?.updated_at ?? row?.updatedAt ?? row?.updated;
     const profilePic = row?.profilePic ?? row?.profile_pic ?? row?.avatar_url ?? row?.avatar;
@@ -107,6 +109,7 @@ const User = ({ role }) => {
       department_id: departmentId,
       role: (roleVal || '').toString().charAt(0).toUpperCase() + (roleVal || '').toString().slice(1).toLowerCase(),
       roleRaw: (roleVal || '').toString().toUpperCase(),
+      position: positionVal || '',
       status: (status || '').toString().charAt(0).toUpperCase() + (status || '').toString().slice(1),
       statusRaw: (status || '').toString().toLowerCase(),
       lastLogin: updatedAt ? new Date(updatedAt).toLocaleDateString() : '',
@@ -320,7 +323,8 @@ const fetchDepartments = async () => {
     setSelectedUser(user);
     setUpdateForm({
       department: effectiveIsDean ? (currentUser?.department_id || '') : (user.department_id || ''),
-      role: user.roleRaw || ''
+      role: user.roleRaw || '',
+      position: user.position || ''
     });
     setShowUpdateModal(true);
     setUpdateError('');
@@ -330,7 +334,7 @@ const fetchDepartments = async () => {
   function handleCloseModal() {
     setShowUpdateModal(false);
     setSelectedUser(null);
-    setUpdateForm({ department: '', role: '' });
+    setUpdateForm({ department: '', role: '', position: '' });
     setUpdateError('');
     setUpdateSuccess('');
   }
@@ -380,7 +384,8 @@ const fetchDepartments = async () => {
 
       const body = {
         department_id: deptIdNum,
-        role: String(updateForm.role).toUpperCase()
+        role: String(updateForm.role).toUpperCase(),
+        position: updateForm.position || ''
       };
 
       const data = await fetchJson(buildUrl(`users/${selectedUser.id}`), {
@@ -824,6 +829,7 @@ const fetchDepartments = async () => {
                     <th style={styles.tableHeaderCell}><button onClick={() => handleSort('email')} style={styles.sortBtn}>Email {getSortIcon('email')}</button></th>
                     <th style={styles.tableHeaderCell}><button onClick={() => handleSort('department')} style={styles.sortBtn}>Department {getSortIcon('department')}</button></th>
                     <th style={styles.tableHeaderCell}><button onClick={() => handleSort('role')} style={styles.sortBtn}>Role {getSortIcon('role')}</button></th>
+                    <th style={styles.tableHeaderCell}><button onClick={() => handleSort('position')} style={styles.sortBtn}>Position {getSortIcon('position')}</button></th>
                     {(isAdmin || effectiveIsDean) && <th style={styles.tableHeaderCell}>Actions</th>}
                   </tr>
                 </thead>
@@ -872,6 +878,7 @@ const fetchDepartments = async () => {
                       </td>
                       <td style={styles.tableCell}>{user.department}</td>
                       <td style={styles.tableCell}>{user.role}</td>
+                      <td style={styles.tableCell}>{user.position || '-'}</td>
                       <td style={styles.tableCell}>
                         {isAdmin && (
                           <div style={styles.actionButtons}>
@@ -1144,6 +1151,24 @@ const fetchDepartments = async () => {
                     {updateForm.role === 'FACULTY' && 'Teaching and academic responsibilities'}
                     {updateForm.role === 'DEAN' && 'Administrative and leadership responsibilities'}
                     {updateForm.role === 'ADMIN' && 'System administration and management'}
+                  </div>
+                </div>
+
+                {/* Position Field */}
+                <div style={styles.formFieldGroup}>
+                  <div style={styles.fieldLabel}>
+                    <FiUser size={16} style={styles.fieldIcon} />
+                    <span>Position/Designation</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={updateForm.position}
+                    onChange={(e) => handleFormChange('position', e.target.value)}
+                    placeholder="e.g., Secretary, Assistant Dean, Department Head"
+                    style={styles.modernInput}
+                  />
+                  <div style={styles.roleDescription}>
+                    Specific position or designation within the role
                   </div>
                 </div>
               </div>

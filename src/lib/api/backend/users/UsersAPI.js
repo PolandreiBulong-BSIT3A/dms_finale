@@ -65,6 +65,7 @@ router.get('/users', requireAuth, async (req, res) => {
         d.name AS department_name,
         d.code AS department_code,
         u.role,
+        u.position,
         u.status,
         u.is_verified AS isVerified,
         u.profile_pic AS profilePic,
@@ -202,7 +203,7 @@ router.get('/users/by-email', requireAuth, async (req, res) => {
 // PUT /api/users/update-profile
 router.put('/users/update-profile', requireAuth, async (req, res) => {
   try {
-    const { email, username, firstname, lastname, department, contactNumber } = req.body;
+    const { email, username, firstname, lastname, department, contactNumber, position } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
 
     const fields = [];
@@ -224,6 +225,7 @@ router.put('/users/update-profile', requireAuth, async (req, res) => {
     if (firstname !== undefined) { fields.push('firstname = ?'); values.push(firstname); }
     if (lastname !== undefined) { fields.push('lastname = ?'); values.push(lastname); }
     if (contactNumber !== undefined) { fields.push('Contact_number = ?'); values.push(contactNumber); }
+    if (position !== undefined) { fields.push('position = ?'); values.push(position || null); }
 
     if (department !== undefined) {
       if (isNaN(department)) {
@@ -361,7 +363,7 @@ router.put('/users/update-profile-picture', requireAuth, async (req, res) => {
 router.put('/users/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    let { department_id, role } = req.body || {};
+    let { department_id, role, position } = req.body || {};
 
     const fields = [];
     const values = [];
@@ -404,6 +406,13 @@ router.put('/users/:id', requireAuth, async (req, res) => {
       }
       fields.push('role = ?');
       values.push(normalizedRole);
+    }
+
+    // Handle position field
+    if (position !== undefined) {
+      const trimmedPosition = String(position || '').trim();
+      fields.push('position = ?');
+      values.push(trimmedPosition || null);
     }
 
     if (fields.length === 0) {

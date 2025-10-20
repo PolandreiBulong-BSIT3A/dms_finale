@@ -210,7 +210,10 @@ router.post('/notifications/mark-all-read', requireAuth, (req, res) => {
 // Get VAPID public key for push notification subscription (PUBLIC - no auth required)
 router.get('/notifications/vapid-public-key', (req, res) => {
   // Set CORS headers explicitly for this public endpoint
-  res.header('Access-Control-Allow-Origin', '*');
+  // Use specific origin instead of wildcard when credentials are included
+  const origin = req.headers.origin || 'https://ispsctagudindms.com';
+  res.header('Access-Control-Allow-Origin', origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET');
   
   if (!VAPID_PUBLIC_KEY) {

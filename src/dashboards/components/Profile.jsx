@@ -47,6 +47,7 @@ const Profile = () => {
     contactNumber: '',
     profilePic: '',
     role: '',
+    position: '',
     status: '',
     isVerified: false,
     createdAt: '',
@@ -114,6 +115,7 @@ const Profile = () => {
         contactNumber: contextUser.contactNumber || '',
         profilePic: contextUser.profilePic || '',
         role: contextUser.role || '',
+        position: contextUser.position || '',
         status: contextUser.status || '',
         isVerified: contextUser.isVerified || false,
         createdAt: contextUser.createdAt || '',
@@ -249,7 +251,8 @@ const Profile = () => {
         firstname: formData.firstname,
         lastname: formData.lastname,
         department: formData.department, // This will be department_id as string
-        contactNumber: formData.contactNumber
+        contactNumber: formData.contactNumber,
+        position: formData.position
       };
       const data = await fetchJson(buildUrl('users/update-profile'), {
         method: 'PUT',
@@ -264,7 +267,8 @@ const Profile = () => {
           firstname: formData.firstname,
           lastname: formData.lastname,
           department_id: formData.department, // Convert to department_id
-          contactNumber: formData.contactNumber
+          contactNumber: formData.contactNumber,
+          position: formData.position
         };
         
         // Update the context user
@@ -307,6 +311,7 @@ const Profile = () => {
         department: contextUser.department_id?.toString() || contextUser.department || '',
         contactNumber: contextUser.contactNumber || '',
         role: contextUser.role || '',
+        position: contextUser.position || '',
         status: contextUser.status || '',
         isVerified: contextUser.isVerified || false,
         createdAt: contextUser.createdAt || '',
@@ -626,7 +631,7 @@ const getDepartmentDisplayName = (departmentId) => {
                     {getStatusDisplayName(formData.status)} ({formData.status || 'undefined'})
                   </span>
                   <span className="badge bg-info" style={{ whiteSpace: 'nowrap' }}>
-                    {getRoleDisplayName(formData.role)} ({formData.role || 'undefined'})
+                    {getRoleDisplayName(formData.role)} {formData.position && `| ${formData.position}`}
                   </span>
                   <span className="badge bg-secondary" style={{ whiteSpace: 'nowrap' }}>
                     {formData.isVerified ? 'Verified' : 'Not Verified'} ({formData.isVerified ? 'true' : 'false'})
@@ -990,7 +995,7 @@ const getDepartmentDisplayName = (departmentId) => {
                   </Form.Label>
                   <Form.Control
                     type="text"
-                    value={`${getRoleDisplayName(formData.role)} (${formData.role || 'undefined'})`}
+                    value={getRoleDisplayName(formData.role)}
                     disabled
                     style={{ 
                       borderRadius: '50px', 
@@ -999,6 +1004,35 @@ const getDepartmentDisplayName = (departmentId) => {
                       fontSize: '0.9rem',
                       backgroundColor: '#f8f9fa',
                       color: '#6c757d',
+                      transition: 'all 0.3s ease'
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+
+              {/* Position (Editable) */}
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label style={{ 
+                    fontSize: '0.9rem', 
+                    fontWeight: 600,
+                    color: '#495057',
+                    marginBottom: '0.75rem'
+                  }}>
+                    Position/Designation
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={formData.position}
+                    onChange={(e) => handleInputChange('position', e.target.value)}
+                    disabled={!isEditing}
+                    placeholder="e.g., Secretary, Dean, Assistant Dean"
+                    style={{ 
+                      borderRadius: '50px', 
+                      border: '2px solid #dee2e6',
+                      padding: '1rem 1.5rem',
+                      fontSize: '0.9rem',
+                      backgroundColor: isEditing ? '#ffffff' : '#f8f9fa',
                       transition: 'all 0.3s ease'
                     }}
                   />
