@@ -96,12 +96,25 @@ router.get('/users/latest', requireAuth, async (req, res) => {
     const { limit = 5 } = req.query;
     const current = req.currentUser || {};
     const viewerRole = (current.role || '').toString().toLowerCase();
+    const isAdmin = viewerRole === 'admin' || viewerRole === 'administrator';
+    
+    const filters = [];
+    const values = [];
     
     // Allow DEAN and FACULTY to see pending users, others only see active
-    let statusFilter = "u.status = 'active'";
     if (viewerRole === 'dean' || viewerRole === 'faculty') {
-      statusFilter = "u.status IN ('active', 'pending')";
+      filters.push("u.status IN ('active', 'pending')");
+    } else {
+      filters.push("u.status = 'active'");
     }
+    
+    // Filter by department for non-admin users
+    if (!isAdmin && current.department_id) {
+      filters.push('u.department_id = ?');
+      values.push(current.department_id);
+    }
+    
+    const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
     
     const sql = `
       SELECT 
@@ -112,16 +125,18 @@ router.get('/users/latest', requireAuth, async (req, res) => {
         u.lastname,
         u.role,
         u.status,
+        u.department_id,
         u.profile_pic AS profilePic,
         u.created_at,
         d.name AS department_name
       FROM dms_user u
       LEFT JOIN departments d ON u.department_id = d.department_id
-      WHERE ${statusFilter}
+      ${whereClause}
       ORDER BY u.created_at DESC
       LIMIT ?
     `;
-    const [rows] = await db.promise().query(sql, [parseInt(limit)]);
+    values.push(parseInt(limit));
+    const [rows] = await db.promise().query(sql, values);
     const users = rows.map(r => ({
       ...r,
       name: (r.firstname || r.lastname) ? `${r.firstname || ''} ${r.lastname || ''}`.trim() : r.username
