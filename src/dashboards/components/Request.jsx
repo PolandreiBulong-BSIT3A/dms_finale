@@ -770,7 +770,7 @@ const Request = ({ onNavigateToUpload }) => {
                           fontWeight: 700,
                           border: `1px solid ${d.action_status.toLowerCase() === 'completed' ? '#16a34a' : d.action_status.toLowerCase() === 'in_progress' ? '#d97706' : '#dc2626'}`
                         }}>
-                          {d.action_status === 'completed' ? '✓ Replied' : d.action_status === 'in_progress' ? '⏳ In Progress' : '⏱️ Pending'}
+                          {d.action_status === 'completed' ? 'Replied' : d.action_status === 'in_progress' ? 'In Progress' : 'Pending'}
                         </span>
                       </div>
                     )}
@@ -988,7 +988,7 @@ const Request = ({ onNavigateToUpload }) => {
                             fontWeight: 700,
                             fontSize: 14
                           }}>
-                            ⏳ In Progress
+                            In Progress
                           </span>
                         ) : (
                           <span style={{ 
@@ -999,7 +999,7 @@ const Request = ({ onNavigateToUpload }) => {
                             fontWeight: 700,
                             fontSize: 14
                           }}>
-                            ⏱️ Pending
+                            Pending
                           </span>
                         )}
                       </td>
@@ -1328,8 +1328,8 @@ const ReplyModal = ({ document, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!replyTitle.trim() || !replyLink.trim()) {
-      setError('Title and Google Drive link are required');
+    if (!replyTitle.trim()) {
+      setError('Title is required');
       return;
     }
 
@@ -1441,14 +1441,13 @@ const ReplyModal = ({ document, onClose, onSuccess }) => {
             </div>
             
             <div style={formGroup}>
-              <label style={formLabel}>Google Drive Link *</label>
+              <label style={formLabel}>Google Drive Link (Optional)</label>
               <input
                 type="url"
                 value={replyLink}
                 onChange={(e) => setReplyLink(e.target.value)}
                 placeholder="https://drive.google.com/file/d/..."
                 style={formInput}
-                required
               />
             </div>
             

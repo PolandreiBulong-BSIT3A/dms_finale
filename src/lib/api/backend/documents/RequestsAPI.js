@@ -169,21 +169,23 @@ router.post('/documents/reply', requireAuth, async (req, res) => {
     const { original_doc_id, title, description, google_drive_link, reply_type } = req.body;
     const userId = req.currentUser?.id || req.currentUser?.user_id;
 
-    if (!original_doc_id || !title || !google_drive_link) {
+    if (!original_doc_id || !title) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
-    // Validate Google Drive link
-    const drivePatterns = [
-      /^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view/,
-      /^https:\/\/drive\.google\.com\/open\?id=[a-zA-Z0-9_-]+/,
-      /^https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+\/edit/,
-      /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9_-]+\/edit/,
-      /^https:\/\/docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+\/edit/
-    ];
-    
-    if (!drivePatterns.some(pattern => pattern.test(google_drive_link))) {
-      return res.status(400).json({ success: false, message: 'Invalid Google Drive link format' });
+    // Validate Google Drive link if provided
+    if (google_drive_link) {
+      const drivePatterns = [
+        /^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view/,
+        /^https:\/\/drive\.google\.com\/open\?id=[a-zA-Z0-9_-]+/,
+        /^https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+\/edit/,
+        /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9_-]+\/edit/,
+        /^https:\/\/docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+\/edit/
+      ];
+      
+      if (!drivePatterns.some(pattern => pattern.test(google_drive_link))) {
+        return res.status(400).json({ success: false, message: 'Invalid Google Drive link format' });
+      }
     }
 
     // Get current user's name

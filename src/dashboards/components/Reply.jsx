@@ -407,8 +407,7 @@ const Reply = ({ onNavigateToDocuments }) => {
     }
     const errs = {};
     if (!replyTitle.trim()) errs.replyTitle = 'Title is required';
-    if (!replyLink.trim()) errs.replyLink = 'Google Drive link is required';
-    else if (!isValidDriveLink(replyLink)) errs.replyLink = 'Please enter a valid Google Drive link';
+    if (replyLink.trim() && !isValidDriveLink(replyLink)) errs.replyLink = 'Please enter a valid Google Drive link';
     if (Object.keys(errs).length) { setFieldErrors(errs); return; }
     setSubmitting(true);
     try {
@@ -594,7 +593,7 @@ const Reply = ({ onNavigateToDocuments }) => {
               {/* Google Drive Link */}
               <div style={styles.section}>
                 <div style={{...styles.inputRow, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center'}}>
-                  <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>Google Drive Link *</div>
+                  <div style={{...styles.inputLabel, minWidth: isMobile ? 'auto' : '120px'}}>Google Drive Link (Optional)</div>
                   <div style={styles.linkInputContainer}>
                     <input 
                       style={{...styles.linkInput, borderBottom: `1px solid ${fieldErrors.replyLink ? '#fca5a5' : '#ddd'}`}} 

@@ -136,21 +136,26 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     if (isAdmin) {
       // no additional filter
     } else if (dean && current.department_id) {
-      // Dean: public OR department OR explicitly allowed (user/role)
-      filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0))');
+      // Dean: public OR department OR explicitly allowed (user/role) OR created by them
+      filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
       values.push(current.department_id);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
+      values.push(current.user_id || current.id);
     } else {
-      // Non-admin non-dean: public OR dept (if any) OR explicitly allowed (user/role)
+      // Non-admin non-dean: public OR dept (if any) OR explicitly allowed (user/role) OR created by them
       if (current?.department_id) {
-        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0))');
+        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
         values.push(current.department_id);
+        values.push(String(current.user_id || current.id || ''));
+        values.push(roleLower);
+        values.push(current.user_id || current.id);
       } else {
-        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0))');
+        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
+        values.push(String(current.user_id || current.id || ''));
+        values.push(roleLower);
+        values.push(current.user_id || current.id);
       }
-      values.push(String(current.user_id || current.id || ''));
-      values.push(roleLower);
     }
 
     // For ALL users, exclude documents that have action requirements OR are replies to action-required documents
@@ -354,19 +359,27 @@ router.get('/documents', requireAuth, async (req, res) => {
     if (isAdmin) {
       // no restriction
     } else if (dean && current.department_id) {
-      filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0))');
+      // Dean: public OR department OR explicitly allowed (user/role) OR created by them
+      filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
       values.push(current.department_id);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
+      values.push(current.user_id || current.id);
     } else {
       if (current?.department_id) {
-        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0))');
+        // Non-admin non-dean with dept: public OR dept OR explicitly allowed (user/role) OR created by them
+        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
         values.push(current.department_id);
+        values.push(String(current.user_id || current.id || ''));
+        values.push(roleLower);
+        values.push(current.user_id || current.id);
       } else {
-        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0))');
+        // No dept: public OR explicitly allowed (user/role) OR created by them
+        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
+        values.push(String(current.user_id || current.id || ''));
+        values.push(roleLower);
+        values.push(current.user_id || current.id);
       }
-      values.push(String(current.user_id || current.id || ''));
-      values.push(roleLower);
     }
 
     // Exclude action-required documents or replies (reserved for Requests page)
