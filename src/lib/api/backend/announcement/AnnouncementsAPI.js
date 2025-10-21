@@ -172,7 +172,7 @@ router.post('/announcements', (req, res) => {
         }));
       }
       if (!scopedIsPublic && tRoles.length > 0) {
-        const values = tRoles.map(r => [id, r]);
+        const values = tRoles.map(r => [id, String(r).toUpperCase()]);
         tasks.push(new Promise((resolve, reject) => {
           db.query('INSERT INTO announcement_roles (announcement_id, role) VALUES ?', [values], (e) => e ? reject(e) : resolve());
         }));
@@ -205,7 +205,7 @@ router.post('/announcements', (req, res) => {
                 }));
               }
               if (tRoles.length) {
-                const v = tRoles.map(r => [notificationId, r]);
+                const v = tRoles.map(r => [notificationId, String(r).toUpperCase()]);
                 nTasks.push(new Promise((resolve, reject) => {
                   db.query('INSERT INTO notification_roles (notification_id, role) VALUES ?', [v], (e) => e ? reject(e) : resolve());
                 }));
@@ -246,7 +246,7 @@ router.post('/announcements', (req, res) => {
           created_by: createdBy,
           created_at: new Date().toISOString(),
           target_departments: tDepts,
-          target_roles: tRoles,
+          target_roles: tRoles.map(r => String(r).toUpperCase()),
           target_users: tUsers,
           created_by_profile_pic: req.user?.profile_pic || null,
         };
@@ -311,7 +311,7 @@ router.put('/announcements/:id', (req, res) => {
           }
           if (!scopedIsPublic && tRoles.length) {
             insertTasks.push(new Promise((resolve, reject) => {
-              const values = tRoles.map(r => [id, r]);
+              const values = tRoles.map(r => [id, String(r).toUpperCase()]);
               db.query('INSERT INTO announcement_roles (announcement_id, role) VALUES ?', [values], (e)=> e?reject(e):resolve());
             }));
           }
@@ -329,7 +329,7 @@ router.put('/announcements/:id', (req, res) => {
               visible_to_all: scopedIsPublic ? 1 : 0,
               created_by: creator,
               target_departments: tDepts,
-              target_roles: tRoles,
+              target_roles: tRoles.map(r => String(r).toUpperCase()),
               target_users: tUsers,
               created_by_profile_pic: req.user?.profile_pic || null,
             };

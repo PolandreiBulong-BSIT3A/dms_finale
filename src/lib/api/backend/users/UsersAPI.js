@@ -94,6 +94,15 @@ router.get('/users', requireAuth, async (req, res) => {
 router.get('/users/latest', requireAuth, async (req, res) => {
   try {
     const { limit = 5 } = req.query;
+    const current = req.currentUser || {};
+    const viewerRole = (current.role || '').toString().toLowerCase();
+    
+    // Allow DEAN and FACULTY to see pending users, others only see active
+    let statusFilter = "u.status = 'active'";
+    if (viewerRole === 'dean' || viewerRole === 'faculty') {
+      statusFilter = "u.status IN ('active', 'pending')";
+    }
+    
     const sql = `
       SELECT 
         u.user_id AS id,
@@ -108,7 +117,7 @@ router.get('/users/latest', requireAuth, async (req, res) => {
         d.name AS department_name
       FROM dms_user u
       LEFT JOIN departments d ON u.department_id = d.department_id
-      WHERE u.status = 'active'
+      WHERE ${statusFilter}
       ORDER BY u.created_at DESC
       LIMIT ?
     `;

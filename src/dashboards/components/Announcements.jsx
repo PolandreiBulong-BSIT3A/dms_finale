@@ -149,7 +149,7 @@ const Announcements = ({ setActiveTab }) => {
         message: formMessage.trim(),
         visible_to_all: formIsPublic,
         target_departments: formIsPublic ? [] : (selectedDeptIds.length ? selectedDeptIds : parseDeptIds(deptInput)),
-        target_roles: [], // Removed target roles
+        target_roles: formIsPublic ? [] : (selectedRoles.length ? selectedRoles : []),
         target_users: [],
       };
       

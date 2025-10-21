@@ -227,11 +227,11 @@ router.get('/documents/:id/visibility', requireAuth, async (req, res) => {
       .map(s => Number(String(s).trim()))
       .filter(Boolean);
 
-    // Roles (CSV -> array uppercase)
+    // Roles (CSV -> array lowercase to match storage)
     const roles = (d.allowed_roles || '')
       .toString()
       .split(',')
-      .map(s => String(s).trim().toUpperCase())
+      .map(s => String(s).trim().toLowerCase())
       .filter(Boolean);
 
     return res.json({
