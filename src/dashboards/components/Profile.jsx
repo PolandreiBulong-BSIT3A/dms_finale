@@ -1071,28 +1071,61 @@ const getDepartmentDisplayName = (departmentId) => {
                     )}
                   </Form.Label>
                   {isEditing ? (
-                    <Form.Select
-                      value={formData.position}
-                      onChange={(e) => handleInputChange('position', e.target.value)}
-                      disabled={positionsLoading}
-                      style={{ 
-                        borderRadius: '50px', 
-                        border: '2px solid #dee2e6',
-                        padding: '1rem 1.5rem',
-                        fontSize: '0.9rem',
-                        backgroundColor: '#ffffff',
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-                      <option value="">
-                        {positionsLoading ? 'Loading positions...' : 'Select position (Optional)'}
-                      </option>
-                      {positionOptions.map(option => (
-                        <option key={option.position_id} value={option.name}>
-                          {option.name}
-                        </option>
-                      ))}
-                    </Form.Select>
+                    <>
+                      {positionsLoading ? (
+                        <Form.Control
+                          type="text"
+                          value={formData.position}
+                          disabled
+                          placeholder="Loading positions..."
+                          style={{ 
+                            borderRadius: '50px', 
+                            border: '2px solid #dee2e6',
+                            padding: '1rem 1.5rem',
+                            fontSize: '0.9rem',
+                            backgroundColor: '#f8f9fa',
+                            transition: 'all 0.3s ease'
+                          }}
+                        />
+                      ) : positionOptions && positionOptions.length > 0 ? (
+                        <Form.Select
+                          value={formData.position}
+                          onChange={(e) => handleInputChange('position', e.target.value)}
+                          style={{ 
+                            borderRadius: '50px', 
+                            border: '2px solid #dee2e6',
+                            padding: '1rem 1.5rem',
+                            fontSize: '0.9rem',
+                            backgroundColor: '#ffffff',
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
+                          <option value="">
+                            Select position (Optional)
+                          </option>
+                          {positionOptions.map(option => (
+                            <option key={option.position_id} value={option.name}>
+                              {option.name}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      ) : (
+                        <Form.Control
+                          type="text"
+                          value={formData.position}
+                          onChange={(e) => handleInputChange('position', e.target.value)}
+                          placeholder="Enter your position/designation"
+                          style={{ 
+                            borderRadius: '50px', 
+                            border: '2px solid #dee2e6',
+                            padding: '1rem 1.5rem',
+                            fontSize: '0.9rem',
+                            backgroundColor: '#ffffff',
+                            transition: 'all 0.3s ease'
+                          }}
+                        />
+                      )}
+                    </>
                   ) : (
                     <Form.Control
                       type="text"
@@ -1110,9 +1143,11 @@ const getDepartmentDisplayName = (departmentId) => {
                     />
                   )}
                   <Form.Text style={{ fontSize: '0.8rem', color: '#6c757d' }}>
-                    {positionOptions.length === 0 && !positionsLoading
-                      ? 'No positions available for your role' 
-                      : 'Select your specific position or designation'}
+                    {positionsLoading
+                      ? 'Loading positions...'
+                      : positionOptions.length === 0
+                        ? 'No predefined positions for your role. You can type your designation.'
+                        : 'Select your specific position/designation or leave blank.'}
                   </Form.Text>
                 </Form.Group>
               </Col>

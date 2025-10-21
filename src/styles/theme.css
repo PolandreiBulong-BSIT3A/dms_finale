@@ -29,6 +29,15 @@
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
   --color-info: #0EA5E9;
+
+  /* Bootstrap root tokens mapping */
+  --bs-primary: var(--color-primary);
+  --bs-warning: var(--color-accent);
+  --bs-success: var(--color-success);
+  --bs-danger: var(--color-danger);
+  --bs-info: var(--color-info);
+  --bs-body-bg: var(--color-bg);
+  --bs-body-color: var(--color-text);
 }
 
 /* Base application surfaces */
@@ -54,3 +63,47 @@ hr, .divider {
 }
 
 .text-muted { color: var(--color-text-muted) !important; }
+
+/* Bootstrap overrides for immediate visual impact */
+.btn-primary {
+  --bs-btn-bg: var(--color-primary);
+  --bs-btn-border-color: var(--color-primary);
+  --bs-btn-hover-bg: var(--color-primary-hover);
+  --bs-btn-hover-border-color: var(--color-primary-hover);
+  --bs-btn-active-bg: var(--color-primary-hover);
+  --bs-btn-active-border-color: var(--color-primary-hover);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--color-primary);
+  --bs-btn-border-color: var(--color-primary);
+  --bs-btn-hover-bg: var(--color-primary);
+  --bs-btn-hover-border-color: var(--color-primary);
+  --bs-btn-active-bg: var(--color-primary);
+  --bs-btn-active-border-color: var(--color-primary);
+}
+
+.btn-warning {
+  --bs-btn-bg: var(--color-accent);
+  --bs-btn-border-color: var(--color-accent);
+  --bs-btn-hover-bg: var(--color-accent-hover);
+  --bs-btn-hover-border-color: var(--color-accent-hover);
+  --bs-btn-active-bg: var(--color-accent-hover);
+  --bs-btn-active-border-color: var(--color-accent-hover);
+  color: #1f2937;
+}
+
+.btn-outline-warning {
+  --bs-btn-color: var(--color-accent);
+  --bs-btn-border-color: var(--color-accent);
+  --bs-btn-hover-bg: var(--color-accent);
+  --bs-btn-hover-border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.badge.bg-primary, .badge.text-bg-primary {
+  background-color: var(--color-primary) !important;
+}
+
+a { color: var(--color-primary); }
+a:hover { color: var(--color-primary-hover); }
