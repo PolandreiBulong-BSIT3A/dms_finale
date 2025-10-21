@@ -523,12 +523,24 @@ const getDepartmentDisplayName = (departmentId) => {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      padding: isMobile ? '1rem 1rem' : '2rem 0',
-      boxSizing: 'border-box'
-    }}>
-      <Container style={{ maxWidth: '1000px' }}>
+    <>
+      <style>{`
+        .contact-number-input:focus {
+          border: 2px solid #dee2e6 !important;
+          outline: none !important;
+          box-shadow: none !important;
+        }
+        .contact-number-input.form-control:focus {
+          border-color: #dee2e6 !important;
+          box-shadow: none !important;
+        }
+      `}</style>
+      <div style={{
+        minHeight: '100vh',
+        padding: isMobile ? '1rem 1rem' : '2rem 0',
+        boxSizing: 'border-box'
+      }}>
+        <Container style={{ maxWidth: '1000px' }}>
         {/* Alert Messages */}
         {message.show && (
           <div className="mb-4">
@@ -955,13 +967,16 @@ const getDepartmentDisplayName = (departmentId) => {
                     disabled={!isEditing}
                     placeholder="09XX XXX XXXX"
                     maxLength={11}
+                    className="contact-number-input"
                     style={{ 
-                      borderRadius: '50px', 
-                      border: `2px solid ${formData.contactNumber.length === 11 ? '#28a745' : '#dee2e6'}`,
+                      borderRadius: '50px !important', 
+                      border: '2px solid #dee2e6 !important',
                       padding: '1rem 1.5rem',
                       fontSize: '0.9rem',
                       backgroundColor: isEditing ? '#ffffff' : '#f8f9fa',
-                      transition: 'all 0.3s ease'
+                      transition: 'all 0.3s ease',
+                      outline: 'none !important',
+                      boxShadow: 'none !important'
                     }}
                   />
                   <Form.Text style={{ 
@@ -1441,7 +1456,8 @@ const getDepartmentDisplayName = (departmentId) => {
 
       </Container>
     </div>
+    </>
   );
 };
 
-export default Profile; 
+export default Profile;

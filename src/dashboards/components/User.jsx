@@ -69,7 +69,7 @@ const User = ({ role }) => {
       6: 'Graduate School',
       7: 'Student Council'
     };
-    return departmentMap[departmentId] || `Department ID: ${departmentId}`;
+    return departmentMap[departmentId] || departmentId;
   };
 
   // Determine access level - use session-based user data
@@ -832,7 +832,7 @@ const fetchPositions = async (roleType = null) => {
                             <h6 className="mb-0 fw-bold" style={{ fontSize: '1rem' }}>{user.name}</h6>
                             <span className="badge bg-light text-dark me-2" style={{ fontSize: '0.75rem' }}>{user.role}</span>
                           </div>
-                          {isAdmin && (
+                          {(isAdmin || effectiveIsDean) && (
                             <div className="d-flex gap-1">
                               <button className="btn btn-sm btn-outline-secondary border-0" aria-label="Edit user" title="Edit user" onClick={() => handleUpdateUser(user)}><FiEdit2 size={15} /></button>
                               <button className="btn btn-sm btn-outline-danger border-0" aria-label="Delete user" title="Delete user" onClick={() => handleDeleteClick(user)}><FiTrash2 size={15} /></button>
@@ -923,8 +923,8 @@ const fetchPositions = async (roleType = null) => {
                       <td style={styles.tableCell}>{user.department}</td>
                       <td style={styles.tableCell}>{user.role}</td>
                       <td style={styles.tableCell}>{user.position || '-'}</td>
-                      <td style={styles.tableCell}>
-                        {isAdmin && (
+                      {(isAdmin || effectiveIsDean) && (
+                        <td style={styles.tableCell}>
                           <div style={styles.actionButtons}>
                             <button 
                               style={{
@@ -952,8 +952,8 @@ const fetchPositions = async (roleType = null) => {
                               <FiTrash2 size={14} />
                             </button>
                           </div>
-                        )}
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

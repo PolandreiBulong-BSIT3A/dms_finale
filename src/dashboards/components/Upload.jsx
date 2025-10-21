@@ -697,15 +697,7 @@ const Upload = ({ role, onNavigateToDocuments }) => {
         finalVisibility = 'ALL';
       }
 
-      // Hard enforce dean rule regardless of UI selections
-      if (role?.toLowerCase() === 'dean') {
-        const deanDeptId = currentUser?.department_id ? Number(currentUser.department_id) : undefined;
-        if (deanDeptId) {
-          finalVisibility = [deanDeptId];
-          // include Admins to allowed_roles
-          finalRoles = Array.from(new Set([...(finalRoles || []), 'ADMIN']));
-        }
-      }
+      // Dean can now choose any visibility. Do not override selections.
 
       // Derive readable action names for frontend-only Requests view
       const actionRequiredNames = selectedActions.map(id => {

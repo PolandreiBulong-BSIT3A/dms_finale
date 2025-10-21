@@ -200,60 +200,6 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     
     res.json({ success: true, documents: results });
 
-// Visibility info for a specific document
-// Returns a normalized shape used by the frontend:
-// { visible_to_all: boolean, department_ids: number[], user_ids: number[], roles: string[] }
-router.get('/documents/:id/visibility', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    // Fetch base document
-    const [docs] = await db.promise().query(
-      'SELECT visible_to_all, allowed_user_ids, allowed_roles FROM dms_documents WHERE doc_id = ? LIMIT 1',
-      [id]
-    );
-    if (docs.length === 0) {
-      return res.status(404).json({ success: false, message: 'Document not found' });
-    }
-    const d = docs[0];
-
-    // Departments
-    const [deptRows] = await db.promise().query(
-      'SELECT department_id FROM document_departments WHERE doc_id = ?',
-      [id]
-    );
-    const department_ids = Array.isArray(deptRows)
-      ? deptRows.map(r => Number(r.department_id)).filter(Boolean)
-      : [];
-
-    // Users (CSV -> array of numbers)
-    const user_ids = (d.allowed_user_ids || '')
-      .toString()
-      .split(',')
-      .map(s => Number(String(s).trim()))
-      .filter(Boolean);
-
-    // Roles (CSV -> array lowercase to match storage)
-    const roles = (d.allowed_roles || '')
-      .toString()
-      .split(',')
-      .map(s => String(s).trim().toLowerCase())
-      .filter(Boolean);
-
-    return res.json({
-      success: true,
-      visibility: {
-        visible_to_all: d.visible_to_all === 1 || d.visible_to_all === true,
-        department_ids,
-        user_ids,
-        roles,
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching document visibility:', error);
-    return res.status(500).json({ success: false, message: 'Server error - Please try again later' });
-  }
-});
-
 // Get a single document by ID (for edit screen prefill)
 router.get('/documents/:id', requireAuth, async (req, res) => {
   try {
@@ -338,6 +284,60 @@ router.get('/documents/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching latest documents:', error);
     res.status(500).json({ success: false, message: 'Database error.' });
+  }
+});
+
+// Visibility info for a specific document
+// Returns a normalized shape used by the frontend:
+// { visible_to_all: boolean, department_ids: number[], user_ids: number[], roles: string[] }
+router.get('/documents/:id/visibility', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Fetch base document
+    const [docs] = await db.promise().query(
+      'SELECT visible_to_all, allowed_user_ids, allowed_roles FROM dms_documents WHERE doc_id = ? LIMIT 1',
+      [id]
+    );
+    if (docs.length === 0) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+    const d = docs[0];
+
+    // Departments
+    const [deptRows] = await db.promise().query(
+      'SELECT department_id FROM document_departments WHERE doc_id = ?',
+      [id]
+    );
+    const department_ids = Array.isArray(deptRows)
+      ? deptRows.map(r => Number(r.department_id)).filter(Boolean)
+      : [];
+
+    // Users (CSV -> array of numbers)
+    const user_ids = (d.allowed_user_ids || '')
+      .toString()
+      .split(',')
+      .map(s => Number(String(s).trim()))
+      .filter(Boolean);
+
+    // Roles (CSV -> array lowercase to match storage)
+    const roles = (d.allowed_roles || '')
+      .toString()
+      .split(',')
+      .map(s => String(s).trim().toLowerCase())
+      .filter(Boolean);
+
+    return res.json({
+      success: true,
+      visibility: {
+        visible_to_all: d.visible_to_all === 1 || d.visible_to_all === true,
+        department_ids,
+        user_ids,
+        roles,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching document visibility:', error);
+    return res.status(500).json({ success: false, message: 'Server error - Please try again later' });
   }
 });
 
