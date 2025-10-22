@@ -445,8 +445,13 @@ const Navbar = ({ setSidebarOpen, isMobile }) => {
               <div className="user-info">
                 <span className="user-name">{user?.Username || user?.username || 'User'}</span>
                 <span className="user-role">
-                  {user?.position || 'User'}
-                  {departmentName ? ` | ${departmentName}` : ''}
+                  {(() => {
+                    const r = (user?.role || '').toString().toUpperCase();
+                    const roleDisplay = r === 'ADMIN' ? 'Admin' : r === 'DEAN' ? 'Dean' : r === 'FACULTY' ? 'Faculty' : (user?.role || 'User');
+                    const pos = user?.position ? ` | ${user.position}` : '';
+                    const dept = departmentName ? ` | ${departmentName}` : '';
+                    return `${roleDisplay}${pos}${dept}`;
+                  })()}
                 </span>
               </div>
             </button>
