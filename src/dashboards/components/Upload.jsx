@@ -1719,12 +1719,9 @@ const Upload = ({ role, onNavigateToDocuments }) => {
                             justifyContent: 'space-between',
                             alignItems: 'center'
                           }}
-                          disabled={role?.toLowerCase() === 'dean'}
                         >
                           <span>
-                            {role?.toLowerCase() === 'dean'
-                              ? 'Your Department (locked)'
-                              : selectedVisibility.length > 0
+                            {selectedVisibility.length > 0
                               ? `${selectedVisibility.length} department${selectedVisibility.length > 1 ? 's' : ''} selected`
                               : 'Choose departments...'}
                           </span>
@@ -1803,7 +1800,6 @@ const Upload = ({ role, onNavigateToDocuments }) => {
                                               );
                                             }}
                                             style={{ width: 16, height: 16, borderRadius: '50%', accentColor: '#111' }}
-                                            disabled={role?.toLowerCase() === 'dean'}
                                           />
                                           <div style={{ display: 'flex', flexDirection: 'column' }}>
                                             <span style={{ fontSize: 14, color: '#111827' }}>{dept.name}</span>

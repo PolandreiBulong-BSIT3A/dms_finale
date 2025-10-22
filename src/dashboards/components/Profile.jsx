@@ -952,7 +952,7 @@ const getDepartmentDisplayName = (departmentId) => {
                     {isEditing && (
                       <span style={{ 
                         fontSize: '0.8rem', 
-                        color: formData.contactNumber.length === 11 ? '#28a745' : '#6c757d',
+                        color: '#6c757d',
                         marginLeft: '0.5rem',
                         fontWeight: 'normal'
                       }}>
@@ -981,7 +981,7 @@ const getDepartmentDisplayName = (departmentId) => {
                   />
                   <Form.Text style={{ 
                     fontSize: '0.8rem', 
-                    color: formData.contactNumber.length === 11 ? '#28a745' : '#6c757d'
+                    color: '#6c757d'
                   }}>
                     Philippine mobile number format (11 digits required)
                     {formData.contactNumber.length > 0 && formData.contactNumber.length < 11 && (
