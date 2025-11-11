@@ -868,12 +868,25 @@ router.put('/documents/:id', requireAuth, (req, res) => {
       return String(v).split(',').map(s => s.trim()).filter(Boolean).join(',');
     };
 
+    // Helper to normalize booleans from varied payloads
+    const normalizeBoolean = (val) => {
+      if (typeof val === 'boolean') return val ? 1 : 0;
+      if (typeof val === 'number') return val === 1 ? 1 : 0;
+      if (typeof val === 'string') {
+        const s = val.trim().toLowerCase();
+        if (['1','true','yes','on'].includes(s)) return 1;
+        if (['0','false','no','off',''].includes(s)) return 0;
+        return 0;
+      }
+      return 0;
+    };
+
     // Apply standard fields
     Object.entries(updates).forEach(([k, v]) => {
       if (!allowedFields[k] || v === undefined || v === null) return;
       // Normalize special fields
       if (k === 'visible_to_all') {
-        const normalized = v ? 1 : 0;
+        const normalized = normalizeBoolean(v);
         fields.push(`${allowedFields[k]} = ?`);
         values.push(normalized);
         return;
@@ -910,14 +923,7 @@ router.put('/documents/:id', requireAuth, (req, res) => {
         fields.push('doc_type = ?');
         values.push(typeId);
       }
-      if (fields.length === 0) {
-        return res.status(400).json({ success: false, message: 'No updatable fields provided.' });
-      }
-      db.query(`UPDATE dms_documents SET ${fields.join(', ')}, updated_at = NOW() WHERE doc_id = ?`, [...values, id], async (updateErr) => {
-        if (updateErr) {
-          console.error('Database error updating document:', updateErr);
-          return res.status(500).json({ success: false, message: 'Database error while updating document.' });
-        }
+      const runPostUpdate = async () => {
         // Apply multi-folder changes if provided
         if (folderIdsUpdate) {
           try {
@@ -1022,6 +1028,25 @@ router.put('/documents/:id', requireAuth, (req, res) => {
         }
 
         return res.json({ success: true, message: 'Document updated successfully.' });
+      };
+
+      if (fields.length === 0) {
+        // No direct field updates, but we may still need to update associations
+        return db.query('UPDATE dms_documents SET updated_at = NOW() WHERE doc_id = ?', [id], async (updateErr) => {
+          if (updateErr) {
+            console.error('Database error updating document (timestamp):', updateErr);
+            return res.status(500).json({ success: false, message: 'Database error while updating document.' });
+          }
+          await runPostUpdate();
+        });
+      }
+
+      db.query(`UPDATE dms_documents SET ${fields.join(', ')}, updated_at = NOW() WHERE doc_id = ?`, [...values, id], async (updateErr) => {
+        if (updateErr) {
+          console.error('Database error updating document:', updateErr);
+          return res.status(500).json({ success: false, message: 'Database error while updating document.' });
+        }
+        await runPostUpdate();
       });
     };
 
