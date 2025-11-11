@@ -79,8 +79,17 @@ export const DocumentProvider = ({ children }) => {
       const data = await apiCall(`/documents?${queryParams}`);
       
       if (data.success) {
-        setDocuments(data.documents);
-        setFilteredDocuments(data.documents);
+        const docs = (data.documents || []).map(d => {
+          let dep = d?.department_ids;
+          if (Array.isArray(dep)) {
+            dep = dep.map(x => (x == null ? '' : String(x))).filter(Boolean).join(',');
+          } else if (typeof dep !== 'string') {
+            dep = dep == null ? '' : String(dep);
+          }
+          return { ...d, department_ids: dep };
+        });
+        setDocuments(docs);
+        setFilteredDocuments(docs);
       } else {
         throw new Error(data.message || 'Failed to fetch documents');
       }
@@ -258,10 +267,19 @@ export const DocumentProvider = ({ children }) => {
         // Use the document returned from the API, or create updated version
         const updatedDocument = data.document || { id: documentId, ...updates };
 
+        // Normalize department_ids to CSV string for consistency across components
+        let dep = updatedDocument?.department_ids;
+        if (Array.isArray(dep)) {
+          dep = dep.map(x => (x == null ? '' : String(x))).filter(Boolean).join(',');
+        } else if (typeof dep !== 'string') {
+          dep = dep == null ? '' : String(dep);
+        }
+
         // Ensure updated timestamp is present for immediate UI feedback
         const nowIso = new Date().toISOString();
         const stamped = {
           ...updatedDocument,
+          department_ids: dep,
           updated_at: updatedDocument.updated_at || updatedDocument.updatedAt || nowIso,
           updatedAt: updatedDocument.updatedAt || updatedDocument.updated_at || nowIso,
         };

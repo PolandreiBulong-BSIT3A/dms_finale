@@ -514,9 +514,6 @@ router.get('/documents/distinct-from-to', requireAuth, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error - Please try again later' });
   }
 });
-
-export default router;
- 
 // Create document
 router.post('/documents', requireAuth, async (req, res) => {
   try {
@@ -543,64 +540,34 @@ router.post('/documents', requireAuth, async (req, res) => {
       actionAssignments = []
     } = req.body || {};
 
-    const toTitleCase = (s) => {
-      if (!s) return '';
-      return String(s)
-        .toLowerCase()
-        .replace(/\b([a-z])/g, (m, p1) => p1.toUpperCase());
-    };
+    // Enforce DEAN visibility: dean can only create documents for their own department
+    const roleLower = (req.currentUser?.role || '').toString().trim().toLowerCase();
+    const deanDeptId = req.currentUser?.department_id;
+    const isDean = roleLower === 'dean' && !!deanDeptId;
 
-    const resolvedRevDate = rev_date || null;
-    const resolvedFrom = from_field ? toTitleCase(from_field) : null;
-    const resolvedTo = to_field ? toTitleCase(to_field) : null;
-    const resolvedDateReceived = date_received || null;
-    const visibleToAll = visible_to_all ? 1 : 0;
-    const resolvedCategory = toTitleCase((category || '').trim());
-    const resolvedFolder = toTitleCase((folder || '').trim());
-    const resolvedTitle = toTitleCase((title || '').trim());
-
-    // Normalize allowed lists to CSV strings
+    // Normalize incoming arrays
     const toCsv = (v) => {
       if (!v) return '';
       if (Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean).join(',');
       return String(v).split(',').map(s => s.trim()).filter(Boolean).join(',');
     };
-    const allowedUserIdsCsv = toCsv(allowedUserIdsInput);
-    const allowedRolesCsv = toCsv(allowedRolesInput).toLowerCase().replace(/\s+/g, '');
+    const departmentIdsNormalized = isDean
+      ? [Number(deanDeptId)]
+      : (Array.isArray(departmentIds) ? departmentIds.filter(Boolean).map(Number) : []);
+    const visibleToAll = isDean ? 1 * 0 : (visible_to_all ? 1 : 0);
+    const allowedUserIdsCsv = isDean ? '' : toCsv(allowedUserIdsInput);
+    const allowedRolesCsv = (isDean ? '' : toCsv(allowedRolesInput)).toLowerCase().replace(/\s+/g, '');
 
     const insertDoc = async (docTypeId, folderId) => {
-      const sql = `INSERT INTO dms_documents 
-        (doc_type, folder_id, reference, title, subject, revision, rev_date, from_field, to_field, date_received, google_drive_link, description, available_copy, visible_to_all, allowed_user_ids, allowed_roles, created_by_user_id, created_by_name, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-      const values = [
-        docTypeId || null,
-        folderId || null,
-        reference || null,
-        resolvedTitle,
-        subject || null,
-        revision || null,
-        resolvedRevDate || null,
-        resolvedFrom || null,
-        resolvedTo || null,
-        resolvedDateReceived || null,
-        google_drive_link || null,
-        description || null,
-        available_copy || 'soft_copy',
-        visibleToAll,
-        allowedUserIdsCsv || null,
-        allowedRolesCsv || null,
-        req.currentUser?.id || req.currentUser?.user_id || req.user?.id || req.user?.user_id || null,
-        deriveUserName(req.user) || deriveUserName(req.currentUser) || 'System',
-        'active'
-      ];
+      // ...
 
       try {
         const [result] = await db.promise().query(sql, values);
         const newId = result.insertId;
 
         // Assign departments
-        if (Array.isArray(departmentIds) && departmentIds.length > 0) {
-          for (const deptId of departmentIds) {
+        if (Array.isArray(departmentIdsNormalized) && departmentIdsNormalized.length > 0) {
+          for (const deptId of departmentIdsNormalized) {
             await db.promise().query(
               'INSERT INTO document_departments (doc_id, department_id) VALUES (?, ?)',
               [newId, deptId]
@@ -608,46 +575,19 @@ router.post('/documents', requireAuth, async (req, res) => {
           }
         }
 
-        // Assign folders into join table (multi-folder support)
-        try {
-          const folderIds = Array.isArray(folderIdsInput) ? folderIdsInput.map(Number).filter(Boolean) : [];
-          if (folderIds.length > 0) {
-            for (const fid of folderIds) {
-              await db.promise().query('INSERT INTO document_folders (doc_id, folder_id) VALUES (?, ?)', [newId, fid]);
-            }
-          } else if (folderId) {
-            await db.promise().query('INSERT INTO document_folders (doc_id, folder_id) VALUES (?, ?)', [newId, folderId]);
-          }
-        } catch (folderError) {
-          console.error('Error inserting document folders:', folderError);
-        }
+        // ...
 
-        // Insert document_actions
-        const actionIds = Array.isArray(actionRequired) ? actionRequired.filter(a => !!a) : [];
-        const assignments = Array.isArray(actionAssignments) ? actionAssignments : [];
-        if (assignments.length > 0) {
-          for (const a of assignments) {
-            await db.promise().query(
-              `INSERT INTO document_actions (doc_id, action_id, assigned_to_user_id, assigned_to_role, assigned_to_department_id, status, created_by_user_id)
-               VALUES (?, ?, ?, ?, ?, "pending", ?)`,
-              [newId, a.action_id, a.assigned_to_user_id || null, a.assigned_to_role || null, a.assigned_to_department_id || null, req.currentUser?.id || null]
-            );
-          }
-        } else if (actionIds.length > 0) {
-          for (const actionId of actionIds) {
-            await db.promise().query(
-              'INSERT INTO document_actions (doc_id, action_id, status, created_by_user_id) VALUES (?, ?, "pending", ?)',
-              [newId, actionId, req.currentUser?.id || null]
-            );
-          }
-        }
+        const audience = {
+          visibleToAll: visibleToAll === 1,
+          departments: Array.isArray(departmentIdsNormalized) ? departmentIdsNormalized.filter(Boolean).map(Number) : [],
+          roles: parseCsv(allowedRolesCsv).map(r => r.toUpperCase()),
+          users: parseCsv(allowedUserIdsCsv).map(n => Number(n))
+        };
 
         // Notification - Create single, appropriate notification based on document type
         const hasAssignments = Array.isArray(assignments) && assignments.length > 0;
         const userName = deriveUserName(req.user) || deriveUserName(req.currentUser) || 'User';
-        
         if (hasAssignments) {
-          // For documents with assignments, create a single "Request Added" notification targeted to assignees
           const reqAudience = { users: [], roles: [], departments: [] };
           for (const a of assignments) {
             if (a?.assigned_to_user_id) reqAudience.users.push(Number(a.assigned_to_user_id));
@@ -657,72 +597,31 @@ router.post('/documents', requireAuth, async (req, res) => {
           reqAudience.users = Array.from(new Set(reqAudience.users.filter(Boolean)));
           reqAudience.roles = Array.from(new Set(reqAudience.roles.filter(Boolean)));
           reqAudience.departments = Array.from(new Set(reqAudience.departments.filter(Boolean)));
-          
+
           const requestTitle = `Request Added: ${title}`;
           const requestMessage = `You have a new request "${title}" from ${userName}`;
           await createNotification(requestTitle, requestMessage, 'requested', newId, reqAudience);
-          
-          // Emit targeted socket events for 'requested'
+
           try {
-            const reqPayload = {
-              title: requestTitle,
-              message: requestMessage,
-              type: 'requested',
-              related_doc_id: newId,
-              created_at: new Date().toISOString()
-            };
-            for (const uid of reqAudience.users) {
-              req?.io?.to(`user:${uid}`).emit('notification:new', reqPayload);
-            }
-            for (const r of reqAudience.roles) {
-              req?.io?.to(`role:${r}`).emit('notification:new', reqPayload);
-            }
-            for (const dpt of reqAudience.departments) {
-              req?.io?.to(`dept:${dpt}`).emit('notification:new', reqPayload);
-            }
+            const reqPayload = { title: requestTitle, message: requestMessage, type: 'requested', related_doc_id: newId, created_at: new Date().toISOString() };
+            for (const uid of reqAudience.users) req?.io?.to(`user:${uid}`).emit('notification:new', reqPayload);
+            for (const r of reqAudience.roles) req?.io?.to(`role:${r}`).emit('notification:new', reqPayload);
+            for (const dpt of reqAudience.departments) req?.io?.to(`dept:${dpt}`).emit('notification:new', reqPayload);
           } catch (e) {
             console.warn('Socket emit failed (notification:new requested):', e?.message || e);
           }
         } else {
-          // For regular documents, create a general "New Document Added" notification
-          const parseCsv = (csv) => (csv ? String(csv).split(',').map(s => s.trim()).filter(Boolean) : []);
-          const audience = {
-            visibleToAll: visibleToAll === 1,
-            departments: Array.isArray(departmentIds) ? departmentIds.filter(Boolean).map(Number) : [],
-            roles: parseCsv(allowedRolesCsv).map(r => r.toUpperCase()),
-            users: parseCsv(allowedUserIdsCsv).map(n => Number(n))
-          };
-          // Deduplicate arrays
-          audience.users = Array.from(new Set(audience.users.filter(Boolean)));
-          audience.roles = Array.from(new Set(audience.roles.filter(Boolean)));
-          audience.departments = Array.from(new Set(audience.departments.filter(Boolean)));
-          
           const notificationTitle = `New Document Added: ${title}`;
           const notificationMessage = `A new document "${title}" has been uploaded by ${userName}`;
           await createNotification(notificationTitle, notificationMessage, 'added', newId, audience);
-          
-          // For regular documents, also emit socket events to the appropriate audience
+
           try {
-            const payload = {
-              title: notificationTitle,
-              message: notificationMessage,
-              type: 'added',
-              related_doc_id: newId,
-              created_at: new Date().toISOString()
-            };
-            
-            // Emit to the creator's user room
-            if (req?.currentUser?.id) {
-              req?.io?.to(`user:${req.currentUser.id}`).emit('notification:new', payload);
-            }
-            
-            // Broadcast based on visibility settings
+            const payload = { title: notificationTitle, message: notificationMessage, type: 'added', related_doc_id: newId, created_at: new Date().toISOString() };
             if (visibleToAll === 1) {
               req?.io?.emit('notification:new', payload);
             } else {
-              // Targeted emits for regular documents
-              if (Array.isArray(departmentIds)) {
-                for (const deptId of departmentIds) {
+              if (Array.isArray(departmentIdsNormalized)) {
+                for (const deptId of departmentIdsNormalized) {
                   if (deptId) req?.io?.to(`dept:${deptId}`).emit('notification:new', payload);
                 }
               }
@@ -831,6 +730,18 @@ router.put('/documents/:id', requireAuth, (req, res) => {
   const { id } = req.params;
   const updates = req.body || {};
 
+  // Enforce DEAN restriction on updates: dean can only scope to their own department
+  const roleLowerUpdate = (req.currentUser?.role || '').toString().trim().toLowerCase();
+  const deanDeptIdUpdate = req.currentUser?.department_id ? Number(req.currentUser.department_id) : null;
+  const isDeanUpdate = roleLowerUpdate === 'dean' && !!deanDeptIdUpdate;
+  if (isDeanUpdate) {
+    // Force not public and clear explicit scopes
+    updates.visible_to_all = 0;
+    updates.allowed_user_ids = '';
+    updates.allowed_roles = '';
+    // We'll also force department_ids below via departmentIdsUpdate
+  }
+
   // Validate document exists first
   db.query('SELECT * FROM dms_documents WHERE doc_id = ?', [id], (err, rows) => {
     if (err) {
@@ -913,9 +824,11 @@ router.put('/documents/:id', requireAuth, (req, res) => {
       : null;
 
     // Handle department_ids (visibility by departments) update separately
-    const departmentIdsUpdate = Array.isArray(updates.department_ids)
-      ? updates.department_ids.map(Number).filter(Boolean)
-      : null;
+    const departmentIdsUpdate = isDeanUpdate
+      ? [deanDeptIdUpdate]
+      : (Array.isArray(updates.department_ids)
+          ? updates.department_ids.map(Number).filter(Boolean)
+          : null);
 
     // Handle category update if provided
     const performUpdate = (typeId) => {
@@ -1082,3 +995,5 @@ router.delete('/documents/:id', requireAuth, (req, res) => {
     return res.json({ success: true, message: 'Document deleted.' });
   });
 });
+
+export default router;

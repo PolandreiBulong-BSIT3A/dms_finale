@@ -973,7 +973,12 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
 
         // Check if document belongs to user's department
         const belongsToUserDept = (userDeptId && doc.department_ids) ? 
-          doc.department_ids.split(',').map(id => id.trim()).includes(userDeptId.toString()) :
+          (Array.isArray(doc.department_ids)
+            ? doc.department_ids.map(id => id?.toString().trim())
+            : (typeof doc.department_ids === 'string'
+                ? doc.department_ids.split(',').map(id => id.trim())
+                : [])
+          ).includes(userDeptId.toString()) :
           (userDept && doc.department_names) ?
           doc.department_names.toLowerCase().includes(userDept.toLowerCase()) : false;
 
@@ -1862,9 +1867,15 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       documentsToUse = documents.filter(doc => {
         const isVisibleToAll = doc.visible_to_all === 1 || doc.visible_to_all === true;
         const belongsToDeanDept = (currentUser.department_id && doc.department_ids) ? 
-          doc.department_ids.split(',').map(id => id.trim()).includes(currentUser.department_id.toString()) :
+          (Array.isArray(doc.department_ids)
+            ? doc.department_ids.map(id => id?.toString().trim())
+            : (typeof doc.department_ids === 'string'
+                ? doc.department_ids.split(',').map(id => id.trim())
+                : [])
+          ).includes(currentUser.department_id.toString()) :
           (currentUser.department || currentUser.department_name) ?
           doc.department_names?.toLowerCase().includes((currentUser.department || currentUser.department_name).toLowerCase()) : false;
+        
         return isVisibleToAll || belongsToDeanDept;
       });
     }
@@ -1914,7 +1925,12 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       documentsToUse = documents.filter(doc => {
         const isVisibleToAll = doc.visible_to_all === 1 || doc.visible_to_all === true;
         const belongsToDeanDept = (currentUser.department_id && doc.department_ids) ? 
-          doc.department_ids.split(',').map(id => id.trim()).includes(currentUser.department_id.toString()) :
+          (Array.isArray(doc.department_ids)
+            ? doc.department_ids.map(id => id?.toString().trim())
+            : (typeof doc.department_ids === 'string'
+                ? doc.department_ids.split(',').map(id => id.trim())
+                : [])
+          ).includes(currentUser.department_id.toString()) :
           (currentUser.department || currentUser.department_name) ?
           doc.department_names?.toLowerCase().includes((currentUser.department || currentUser.department_name).toLowerCase()) : false;
         return isVisibleToAll || belongsToDeanDept;
@@ -1932,7 +1948,12 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       documentsToUse = documents.filter(doc => {
         const isVisibleToAll = doc.visible_to_all === 1 || doc.visible_to_all === true;
         const belongsToDeanDept = (currentUser.department_id && doc.department_ids) ? 
-          doc.department_ids.split(',').map(id => id.trim()).includes(currentUser.department_id.toString()) :
+          (Array.isArray(doc.department_ids)
+            ? doc.department_ids.map(id => id?.toString().trim())
+            : (typeof doc.department_ids === 'string'
+                ? doc.department_ids.split(',').map(id => id.trim())
+                : [])
+          ).includes(currentUser.department_id.toString()) :
           (currentUser.department || currentUser.department_name) ?
           doc.department_names?.toLowerCase().includes((currentUser.department || currentUser.department_name).toLowerCase()) : false;
         return isVisibleToAll || belongsToDeanDept;
@@ -1950,7 +1971,12 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       documentsToUse = documents.filter(doc => {
         const isVisibleToAll = doc.visible_to_all === 1 || doc.visible_to_all === true;
         const belongsToDeanDept = (currentUser.department_id && doc.department_ids) ? 
-          doc.department_ids.split(',').map(id => id.trim()).includes(currentUser.department_id.toString()) :
+          (Array.isArray(doc.department_ids)
+            ? doc.department_ids.map(id => id?.toString().trim())
+            : (typeof doc.department_ids === 'string'
+                ? doc.department_ids.split(',').map(id => id.trim())
+                : [])
+          ).includes(currentUser.department_id.toString()) :
           (currentUser.department || currentUser.department_name) ?
           doc.department_names?.toLowerCase().includes((currentUser.department || currentUser.department_name).toLowerCase()) : false;
         return isVisibleToAll || belongsToDeanDept;

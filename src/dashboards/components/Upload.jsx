@@ -505,7 +505,7 @@ const Upload = ({ role, onNavigateToDocuments }) => {
       // Default to 'specific', but do not lock the mode so dean can choose other allowed modes
       if (!visibilityMode) setVisibilityMode('specific');
       setSelectedVisibility([Number(deanDeptId)]);
-      setSelectedRoles(['ADMIN']); // ensure Admins always included
+      // Do not pre-add any roles for dean; enforce strict dept-only visibility
     }
   }, [role, currentUser]);
 
@@ -697,7 +697,17 @@ const Upload = ({ role, onNavigateToDocuments }) => {
         finalVisibility = 'ALL';
       }
 
-      // Dean can now choose any visibility. Do not override selections.
+      // Hard enforce dean rule regardless of UI selections: dean can upload ONLY to their own department
+      if (role?.toLowerCase() === 'dean') {
+        const deanDeptId = currentUser?.department_id ? Number(currentUser.department_id) : undefined;
+        if (deanDeptId) {
+          finalVisibility = [deanDeptId];
+          // Clear any user/role-based visibility to prevent escalation
+          finalUsers = [];
+          finalRoles = [];
+          finalRoleDept = null;
+        }
+      }
 
       // Derive readable action names for frontend-only Requests view
       const actionRequiredNames = selectedActions.map(id => {

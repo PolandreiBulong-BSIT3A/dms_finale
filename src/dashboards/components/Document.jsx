@@ -710,93 +710,60 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       // Check if document was created by the current user (for toggle functionality)
       const isCreatedByCurrentUser = doc.created_by_name && currentUser && (
         doc.created_by_name === currentUser.username ||
-        doc.created_by_name === currentUser.firstname + ' ' + currentUser.lastname ||
+        doc.created_by_name === `${currentUser.firstname || ''} ${currentUser.lastname || ''}`.trim() ||
         doc.created_by_name === currentUser.email ||
         doc.created_by_name === currentUser.Username ||
-        doc.created_by_name === (currentUser.firstname && currentUser.lastname ? 
-          `${currentUser.firstname} ${currentUser.lastname}`.trim() : '') ||
         doc.created_by_name === currentUser.firstname ||
         doc.created_by_name === currentUser.lastname ||
         doc.created_by_name === currentUser.name ||
         doc.created_by_name === currentUser.full_name ||
         doc.created_by_name === currentUser.display_name ||
         doc.created_by_name === currentUser.user_name ||
-        doc.created_by_name === currentUser.user_id?.toString() ||
-        doc.created_by_name === currentUser.id?.toString()
+        doc.created_by_name === (currentUser.user_id || currentUser.id)?.toString()
       );
-      
-      // If toggle is active, only show documents created by the current user (regardless of role)
-      if (showOnlyMyDocuments && !isCreatedByCurrentUser) {
-        console.log('Filtering out document:', doc.title, 'because toggle is active and user did not create it');
-        console.log('Document created by:', doc.created_by_name);
-        console.log('Current user details:', {
-          username: currentUser?.username,
-          firstname: currentUser?.firstname,
-          lastname: currentUser?.lastname,
-          email: currentUser?.email,
-          id: currentUser?.id,
-          name: currentUser?.name
-        });
-        return false;
-      }
-      
-      // If toggle is active, log documents that are being shown
-      if (showOnlyMyDocuments && isCreatedByCurrentUser) {
-        console.log('Showing document:', doc.title, 'because user created it');
-      }
-      
-          // Dean/Admin/User filtering: Only show documents from their department OR visible to all OR documents they created
-    if ((effectiveIsDean || isAdmin || isUser) && currentUser?.department_id) {
-        const userDeptId = currentUser?.department_id;
-        const userDept = currentUser?.department || 
-                              currentUser?.department_name || 
-                              currentUser?.dept_name ||
-                              currentUser?.dept_code ||
-                              currentUser?.college ||
-                              currentUser?.college_name ||
-                              currentUser?.faculty ||
-                              currentUser?.faculty_name ||
-                              currentUser?.unit ||
-                              currentUser?.unit_name ||
-                              '';
-        
-        // Public visibility
+
+      // If toggle is active, only show documents created by the current user
+      if (showOnlyMyDocuments && !isCreatedByCurrentUser) return false;
+
+      // Role-based baseline visibility gating
+      if ((effectiveIsDean || isAdmin || isUser) && currentUser?.department_id) {
+        const userDeptId = currentUser.department_id;
+        const userDept = currentUser?.department || currentUser?.department_name || '';
         const visibleAll = isPublic(doc);
-
-        // Check if document belongs to user's department
-        const belongsToUserDept = (userDeptId && doc.department_ids) ? 
-          doc.department_ids.split(',').map(id => id.trim()).includes(userDeptId.toString()) :
-          (userDept && doc.department_names) ?
-          doc.department_names.toLowerCase().includes(userDept.toLowerCase()) : false;
-
-        // Explicit user/role visibility
+        const belongsToUserDept = (userDeptId && doc.department_ids)
+          ? (Array.isArray(doc.department_ids)
+              ? doc.department_ids.map(id => id?.toString().trim())
+              : (typeof doc.department_ids === 'string'
+                  ? doc.department_ids.split(',').map(id => id.trim())
+                  : [])
+            ).includes(userDeptId.toString())
+          : (userDept && doc.department_names)
+            ? String(doc.department_names).toLowerCase().includes(String(userDept).toLowerCase())
+            : false;
         const userIdStr = (currentUser?.id || currentUser?.user_id)?.toString();
         const roleStr = (currentUser?.role || '').toString().toLowerCase();
         const allowedUsers = parseList(doc.allowed_user_ids || doc.user_ids || doc.visibility_user_ids || doc.users);
         const allowedRoles = parseList(doc.allowed_roles || doc.roles || doc.visibility_roles, true);
         const allowedByUser = userIdStr ? allowedUsers.includes(userIdStr) : false;
         const allowedByRole = roleStr ? allowedRoles.includes(roleStr) : false;
-        
-        // Show if public OR belongs to dept OR creator OR explicitly allowed by user/role
-        if (!visibleAll && !belongsToUserDept && !isCreatedByCurrentUser && !allowedByUser && !allowedByRole) {
-          return false;
-        }
+        if (!visibleAll && !belongsToUserDept && !isCreatedByCurrentUser && !allowedByUser && !allowedByRole) return false;
       }
-      
+
       const matchesSearch = !lowerSearch || (
-        doc.title?.toLowerCase().includes(lowerSearch) ||
-        doc.reference?.toLowerCase().includes(lowerSearch) ||
-        doc.from_field?.toLowerCase().includes(lowerSearch) ||
-        doc.to_field?.toLowerCase().includes(lowerSearch) ||
-        doc.doc_type?.toLowerCase().includes(lowerSearch) ||
-        doc.department_names?.toLowerCase().includes(lowerSearch)
+        String(doc.title || '').toLowerCase().includes(lowerSearch) ||
+        String(doc.reference || '').toLowerCase().includes(lowerSearch) ||
+        String(doc.from_field || '').toLowerCase().includes(lowerSearch) ||
+        String(doc.to_field || '').toLowerCase().includes(lowerSearch) ||
+        String(doc.doc_type || '').toLowerCase().includes(lowerSearch) ||
+        String(doc.department_names || '').toLowerCase().includes(lowerSearch)
       );
-      
-      const matchesCategory = !selectedCategory || doc.doc_type === selectedCategory;
+
+      const matchesCategory = !selectedCategory || (String(doc.doc_type || '').trim() === String(selectedCategory).trim());
+
       const matchesDepartment = (() => {
         if (!selectedDepartment) return true;
-        // Always include public docs regardless of department filter
-        if (isPublic(doc)) return true;
+        // Exclude public docs when a department is selected
+        if (isPublic(doc)) return false;
         // If explicitly allowed by user or role, bypass department filter
         const userIdStr = (currentUser?.id || currentUser?.user_id)?.toString();
         const roleStr = (currentUser?.role || '').toString().toLowerCase();
@@ -807,53 +774,66 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
         if (allowedByUser || allowedByRole) return true;
         // Creator can always see their document regardless of department filter
         if (isCreatedByCurrentUser) return true;
-        const deptNames = (doc.department_names || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-        return deptNames.includes(selectedDepartment.trim().toLowerCase());
+        // Match by department name directly
+        const deptNames = String(doc.department_names || '')
+          .split(',')
+          .map(s => s.trim().toLowerCase())
+          .filter(Boolean);
+        if (deptNames.includes(String(selectedDepartment).trim().toLowerCase())) return true;
+        // Fallback: map department_ids -> names via departmentsList
+        const idCsv = (doc.department_ids || doc.departments || '').toString();
+        if (idCsv && Array.isArray(departmentsList) && departmentsList.length > 0) {
+          const ids = idCsv.split(',').map(s => s.trim()).filter(Boolean);
+          const byId = new Map(departmentsList.map(d => [String(d.department_id ?? d.value), String(d.name ?? d.label).trim().toLowerCase()]));
+          const target = String(selectedDepartment).trim().toLowerCase();
+          return ids.some(id => byId.get(String(id)) === target);
+        }
+        return false;
       })();
+
       const matchesSender = (() => {
         if (!selectedSender) return true;
-        return (doc.from_field || '').toString().trim() === selectedSender.toString().trim();
+        return String(doc.from_field || '').trim() === String(selectedSender).trim();
       })();
+
       const matchesReceiver = (() => {
         if (!selectedReceiver) return true;
-        return (doc.to_field || '').toString().trim() === selectedReceiver.toString().trim();
+        return String(doc.to_field || '').trim() === String(selectedReceiver).trim();
       })();
+
       const matchesCreatedBy = (() => {
         if (!selectedCreatedBy) return true;
-        return (doc.created_by_name || '').toString().trim() === selectedCreatedBy.toString().trim();
+        return String(doc.created_by_name || '').trim() === String(selectedCreatedBy).trim();
       })();
+
       const matchesCopyType = (() => {
         if (!selectedCopyType) return true;
-        
-        const hasSoftCopy = doc.google_drive_link && doc.google_drive_link.trim() !== '';
-        const hasHardCopy = doc.hard_copy === 1 || doc.hard_copy === true || doc.hard_copy === '1';
-        
+        const hasSoftCopy = !!(doc.google_drive_link && String(doc.google_drive_link).trim() !== '');
+        const hasHardCopy = (doc.hard_copy === 1 || doc.hard_copy === true || String(doc.hard_copy) === '1');
         switch (selectedCopyType) {
-          case 'soft':
-            return hasSoftCopy;
-          case 'hard':
-            return hasHardCopy;
-          case 'both':
-            return hasSoftCopy && hasHardCopy;
-          default:
-            return true;
+          case 'soft': return hasSoftCopy;
+          case 'hard': return hasHardCopy;
+          case 'both': return hasSoftCopy && hasHardCopy;
+          default: return true;
         }
       })();
+
       const matchesFolder = (() => {
         if (!selectedFolder) return true;
-        const selected = selectedFolder.toString().trim().toLowerCase();
-        const single = (doc.folder || '').toString().trim().toLowerCase();
+        const selected = String(selectedFolder).trim().toLowerCase();
+        const single = String(doc.folder || '').trim().toLowerCase();
         if (single && single === selected) return true;
-        const csv = (doc.folder_names || '').toString().trim();
+        const csv = String(doc.folder_names || '').trim();
         if (csv) {
           const names = csv.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
           if (names.includes(selected)) return true;
         }
         return false;
       })();
-      const statusStr = (doc.status ?? '').toString().toLowerCase();
+
+      const statusStr = String(doc.status ?? '').toLowerCase();
       const isActive = (statusStr === '' || statusStr === 'active' || statusStr === '1' || statusStr === 'enabled') && doc.deleted !== 1;
-      
+
       return matchesSearch && matchesCategory && matchesDepartment && matchesSender && matchesReceiver && matchesCreatedBy && matchesCopyType && matchesFolder && isActive;
     });
 
@@ -863,26 +843,18 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
         // Always put pinned documents first
         const aPinned = userPreferences[a.id || a.doc_id]?.is_pinned || false;
         const bPinned = userPreferences[b.id || b.doc_id]?.is_pinned || false;
-        
         if (aPinned && !bPinned) return -1;
         if (!aPinned && bPinned) return 1;
-        
         // If both have same pin status, apply normal sorting
         const aVal = a[sortConfig.key] || '';
         const bVal = b[sortConfig.key] || '';
-        
-        if (sortConfig.direction === 'asc') {
-          return aVal.localeCompare(bVal);
-        } else {
-          return bVal.localeCompare(aVal);
-        }
+        return sortConfig.direction === 'asc' ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
       });
     } else {
       // If no sorting is applied, still put pinned documents first
       filtered.sort((a, b) => {
         const aPinned = userPreferences[a.id || a.doc_id]?.is_pinned || false;
         const bPinned = userPreferences[b.id || b.doc_id]?.is_pinned || false;
-        
         if (aPinned && !bPinned) return -1;
         if (!aPinned && bPinned) return 1;
         return 0;
@@ -892,7 +864,6 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     console.log('=== FILTERING END ===');
     console.log('Final filtered count:', filtered.length);
     console.log('Filtered documents:', filtered.map(d => ({ title: d.title, created_by: d.created_by_name })));
-    
     return filtered;
   }, [documents, lowerSearch, selectedCategory, selectedDepartment, selectedSender, selectedReceiver, selectedCreatedBy, selectedCopyType, selectedFolder, sortConfig, showOnlyMyDocuments, currentUser, userPreferences]);
 
@@ -1841,7 +1812,12 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       documentsToUse = documents.filter(doc => {
         const isVisibleToAll = doc.visible_to_all === 1 || doc.visible_to_all === true;
         const belongsToDeanDept = (currentUser.department_id && doc.department_ids) ? 
-          doc.department_ids.split(',').map(id => id.trim()).includes(currentUser.department_id.toString()) :
+          (Array.isArray(doc.department_ids)
+            ? doc.department_ids.map(id => id?.toString().trim())
+            : (typeof doc.department_ids === 'string'
+                ? doc.department_ids.split(',').map(id => id.trim())
+                : [])
+          ).includes(currentUser.department_id.toString()) :
           (currentUser.department || currentUser.department_name) ?
           doc.department_names?.toLowerCase().includes((currentUser.department || currentUser.department_name).toLowerCase()) : false;
         return isVisibleToAll || belongsToDeanDept;
@@ -1890,7 +1866,12 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       documentsToUse = documents.filter(doc => {
         const isVisibleToAll = doc.visible_to_all === 1 || doc.visible_to_all === true;
         const belongsToDeanDept = (currentUser.department_id && doc.department_ids) ? 
-          doc.department_ids.split(',').map(id => id.trim()).includes(currentUser.department_id.toString()) :
+          (Array.isArray(doc.department_ids)
+            ? doc.department_ids.map(id => id?.toString().trim())
+            : (typeof doc.department_ids === 'string'
+                ? doc.department_ids.split(',').map(id => id.trim())
+                : [])
+          ).includes(currentUser.department_id.toString()) :
           (currentUser.department || currentUser.department_name) ?
           doc.department_names?.toLowerCase().includes((currentUser.department || currentUser.department_name).toLowerCase()) : false;
         return isVisibleToAll || belongsToDeanDept;
@@ -1908,7 +1889,12 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       documentsToUse = documents.filter(doc => {
         const isVisibleToAll = doc.visible_to_all === 1 || doc.visible_to_all === true;
         const belongsToDeanDept = (currentUser.department_id && doc.department_ids) ? 
-          doc.department_ids.split(',').map(id => id.trim()).includes(currentUser.department_id.toString()) :
+          (Array.isArray(doc.department_ids)
+            ? doc.department_ids.map(id => id?.toString().trim())
+            : (typeof doc.department_ids === 'string'
+                ? doc.department_ids.split(',').map(id => id.trim())
+                : [])
+          ).includes(currentUser.department_id.toString()) :
           (currentUser.department || currentUser.department_name) ?
           doc.department_names?.toLowerCase().includes((currentUser.department || currentUser.department_name).toLowerCase()) : false;
         return isVisibleToAll || belongsToDeanDept;
@@ -1926,7 +1912,12 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       documentsToUse = documents.filter(doc => {
         const isVisibleToAll = doc.visible_to_all === 1 || doc.visible_to_all === true;
         const belongsToDeanDept = (currentUser.department_id && doc.department_ids) ? 
-          doc.department_ids.split(',').map(id => id.trim()).includes(currentUser.department_id.toString()) :
+          (Array.isArray(doc.department_ids)
+            ? doc.department_ids.map(id => id?.toString().trim())
+            : (typeof doc.department_ids === 'string'
+                ? doc.department_ids.split(',').map(id => id.trim())
+                : [])
+          ).includes(currentUser.department_id.toString()) :
           (currentUser.department || currentUser.department_name) ?
           doc.department_names?.toLowerCase().includes((currentUser.department || currentUser.department_name).toLowerCase()) : false;
         return isVisibleToAll || belongsToDeanDept;

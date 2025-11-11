@@ -52,6 +52,58 @@ const Update = ({ role, onNavigateToDocuments, id }) => {
         setMultipleLinks([{ id: 1, link: d.google_drive_link || '' }]);
       })
       .finally(() => setPrefillLoading(false));
+
+    // Prefill current visibility
+    fetchJson(buildUrl(`documents/${id}/visibility`))
+      .then(v => {
+        if (!v) return;
+        const vis = v.visibility || v;
+        const all = vis.visible_to_all === true || vis.visible_to_all === 1 || String(vis.visible_to_all).toLowerCase() === 'true' || String(vis.visible_to_all) === '1';
+        const depts = Array.isArray(vis.department_ids) ? vis.department_ids.map(Number).filter(Boolean) : [];
+        const usersA = Array.isArray(vis.user_ids) ? vis.user_ids.map(Number).filter(Boolean) : [];
+        const rolesA = Array.isArray(vis.roles) ? vis.roles.filter(Boolean) : [];
+
+        if (all) {
+          setVisibilityMode('all');
+          setSelectedVisibility([]);
+          setSelectedUsers([]);
+          setSelectedRoles([]);
+          setSelectedRoleDept({ role: '', department: '' });
+          return;
+        }
+
+        // Priority: roles -> users -> departments
+        if (rolesA.length > 0) {
+          setVisibilityMode('roles');
+          setSelectedRoles(rolesA);
+          setSelectedUsers([]);
+          setSelectedVisibility([]);
+          return;
+        }
+        if (usersA.length > 0) {
+          setVisibilityMode('users');
+          setSelectedUsers(usersA);
+          setSelectedRoles([]);
+          setSelectedVisibility([]);
+          return;
+        }
+        if (depts.length > 0) {
+          setVisibilityMode('specific');
+          setSelectedVisibility(depts);
+          setSelectedUsers([]);
+          setSelectedRoles([]);
+          return;
+        }
+
+        // Default to all if no scopes provided
+        setVisibilityMode('all');
+        setSelectedVisibility([]);
+        setSelectedUsers([]);
+        setSelectedRoles([]);
+        setSelectedRoleDept({ role: '', department: '' });
+      })
+      .catch(() => {})
+      .finally(() => {});
   }, [id]);
 
   useEffect(() => {
@@ -518,6 +570,56 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
         // EDIT MODE: update existing document and return
         if (editingId) {
           const firstValid = validLinks[0];
+          // Derive visibility payload for update
+          let finalVisibility;
+          let finalUsers = [];
+          let finalRoles = [];
+          if (role?.toLowerCase() === 'dean' || role?.toLowerCase() === 'admin') {
+            switch (visibilityMode) {
+              case 'all':
+                finalVisibility = 'ALL';
+                break;
+              case 'specific':
+                finalVisibility = (selectedVisibility && selectedVisibility.length) ? selectedVisibility : 'ALL';
+                break;
+              case 'users':
+                finalUsers = selectedUsers && selectedUsers.length ? selectedUsers : [];
+                finalVisibility = finalUsers.length ? 'SPECIFIC_USERS' : 'ALL';
+                break;
+              case 'roles':
+                finalRoles = selectedRoles && selectedRoles.length ? selectedRoles : [];
+                finalVisibility = finalRoles.length ? 'SPECIFIC_ROLES' : 'ALL';
+                break;
+              case 'role_dept':
+                // Backend does not have a dedicated role_dept; approximate via roles + dept
+                if (selectedRoleDept.role && selectedRoleDept.department) {
+                  finalRoles = Array.from(new Set([...(selectedRoles || []), selectedRoleDept.role]));
+                  finalVisibility = [Number(selectedRoleDept.department)];
+                } else {
+                  finalVisibility = 'ALL';
+                }
+                break;
+              default:
+                finalVisibility = 'ALL';
+            }
+          } else {
+            finalVisibility = 'ALL';
+          }
+
+          // Hard enforce dean rule regardless of UI selections
+          if (role?.toLowerCase() === 'dean') {
+            const deanDeptId = currentUser?.department_id ? Number(currentUser.department_id) : undefined;
+            if (deanDeptId) {
+              finalVisibility = [deanDeptId];
+              finalRoles = Array.from(new Set([...(finalRoles || []), 'ADMIN']));
+            }
+          }
+
+          const visible_to_all = finalVisibility === 'ALL' ? 1 : 0;
+          const department_ids = Array.isArray(finalVisibility) ? finalVisibility.map(Number) : undefined;
+          const allowed_user_ids = finalUsers && finalUsers.length ? finalUsers.map(Number) : undefined;
+          const allowed_roles = finalRoles && finalRoles.length ? finalRoles : undefined;
+
           const updates = {
             title: linkTitle,
             reference: docReference,
@@ -542,6 +644,11 @@ const [departmentsLoading, setDepartmentsLoading] = useState(false);
             ...(revision && { revision }),
             ...(revisionDate && { rev_date: revisionDate }),
             ...(firstValid?.link ? { google_drive_link: firstValid.link } : {}),
+            // Visibility fields for backend
+            visible_to_all,
+            ...(department_ids ? { department_ids } : {}),
+            ...(allowed_user_ids ? { allowed_user_ids } : {}),
+            ...(allowed_roles ? { allowed_roles } : {}),
           };
       
           const result = await updateDocument(editingId, updates);
