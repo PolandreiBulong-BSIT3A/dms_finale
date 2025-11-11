@@ -540,6 +540,10 @@ router.post('/documents', requireAuth, async (req, res) => {
       actionAssignments = []
     } = req.body || {};
 
+    // Normalize basic text inputs for lookups
+    const resolvedCategory = (category || '').toString().trim();
+    const resolvedFolder = (folder || '').toString().trim();
+
     // Enforce DEAN visibility: dean can only create documents for their own department
     const roleLower = (req.currentUser?.role || '').toString().trim().toLowerCase();
     const deanDeptId = req.currentUser?.department_id;
@@ -558,8 +562,38 @@ router.post('/documents', requireAuth, async (req, res) => {
     const allowedUserIdsCsv = isDean ? '' : toCsv(allowedUserIdsInput);
     const allowedRolesCsv = (isDean ? '' : toCsv(allowedRolesInput)).toLowerCase().replace(/\s+/g, '');
 
+    const parseCsv = (csv) => (csv ? String(csv).split(',').map(s => s.trim()).filter(Boolean) : []);
+
     const insertDoc = async (docTypeId, folderId) => {
-      // ...
+      // Build insert statement for dms_documents
+      const sql = `
+        INSERT INTO dms_documents
+          (doc_type, folder_id, reference, title, subject, revision, rev_date, from_field, to_field, date_received, google_drive_link, description, available_copy, visible_to_all, allowed_user_ids, allowed_roles, status, created_by_user_id, created_by_name, created_at, updated_at)
+        VALUES
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, NOW(), NOW())
+      `;
+      const createdByUserId = (req.currentUser?.user_id ?? req.currentUser?.id) || null;
+      const createdByName = deriveUserName(req.user) || deriveUserName(req.currentUser) || null;
+      const values = [
+        docTypeId,
+        folderId || null,
+        reference || '',
+        title || '',
+        subject || '',
+        revision || '',
+        rev_date || null,
+        from_field || '',
+        to_field || '',
+        date_received || null,
+        google_drive_link || '',
+        description || '',
+        available_copy || 'soft_copy',
+        visibleToAll,
+        allowedUserIdsCsv || null,
+        allowedRolesCsv || null,
+        createdByUserId,
+        createdByName
+      ];
 
       try {
         const [result] = await db.promise().query(sql, values);
@@ -585,11 +619,11 @@ router.post('/documents', requireAuth, async (req, res) => {
         };
 
         // Notification - Create single, appropriate notification based on document type
-        const hasAssignments = Array.isArray(assignments) && assignments.length > 0;
+        const hasAssignments = Array.isArray(actionAssignments) && actionAssignments.length > 0;
         const userName = deriveUserName(req.user) || deriveUserName(req.currentUser) || 'User';
         if (hasAssignments) {
           const reqAudience = { users: [], roles: [], departments: [] };
-          for (const a of assignments) {
+          for (const a of actionAssignments) {
             if (a?.assigned_to_user_id) reqAudience.users.push(Number(a.assigned_to_user_id));
             if (a?.assigned_to_role) reqAudience.roles.push(String(a.assigned_to_role).toUpperCase());
             if (a?.assigned_to_department_id) reqAudience.departments.push(Number(a.assigned_to_department_id));
