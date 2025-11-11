@@ -98,6 +98,8 @@ const AdminPanel = ({ role }) => {
     link: '' 
   });
   const [othersCategoryFilter, setOthersCategoryFilter] = useState('ALL');
+  const [auditTypeFilter, setAuditTypeFilter] = useState('ALL');
+  const [auditSearch, setAuditSearch] = useState('');
 
   // Normalize role to lowercase for consistent comparison
   const normalizedRole = (role || '').toString().toLowerCase();
@@ -109,6 +111,23 @@ const AdminPanel = ({ role }) => {
       console.error('Error fetching departments:', error);
     }
   };
+
+  const filteredAuditLogs = useMemo(() => {
+    let items = Array.isArray(auditLogs) ? auditLogs : [];
+    if (auditTypeFilter && auditTypeFilter !== 'ALL') {
+      const t = String(auditTypeFilter).toLowerCase();
+      items = items.filter(n => String(n?.type || '').toLowerCase() === t);
+    }
+    const q = String(auditSearch || '').trim().toLowerCase();
+    if (q) {
+      items = items.filter(n =>
+        String(n?.title || '').toLowerCase().includes(q) ||
+        String(n?.message || '').toLowerCase().includes(q) ||
+        String(n?.related_doc_id || '').toLowerCase().includes(q)
+      );
+    }
+    return items;
+  }, [auditLogs, auditTypeFilter, auditSearch]);
 
   const fetchActions = async () => {
     try {
@@ -1928,7 +1947,17 @@ const AdminPanel = ({ role }) => {
       {/* Audit Log (Notifications) */}
       <div style={styles.section}>
         <h3 style={styles.subsectionTitle}>Audit Log</h3>
-        <div style={styles.tableContainer} className="ap-table-wrap">
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+          <select value={auditTypeFilter} onChange={(e) => setAuditTypeFilter(e.target.value)} style={{ padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+            <option value="ALL">All types</option>
+            <option value="added">Added</option>
+            <option value="updated">Updated</option>
+            <option value="deleted">Deleted</option>
+            <option value="requested">Requested</option>
+          </select>
+          <input value={auditSearch} onChange={(e) => setAuditSearch(e.target.value)} placeholder="Search title/message/doc id" style={{ flex: 1, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6 }} />
+        </div>
+        <div style={{...styles.tableContainer, maxHeight: (filteredAuditLogs?.length || 0) > 20 ? 720 : 'auto', overflowY: (filteredAuditLogs?.length || 0) > 20 ? 'auto' : 'visible' }} className="ap-table-wrap">
           <table style={styles.table}>
             <thead>
               <tr style={styles.tableHeader}>
@@ -1940,8 +1969,8 @@ const AdminPanel = ({ role }) => {
               </tr>
             </thead>
             <tbody>
-              {auditLogs && auditLogs.length > 0 ? (
-                auditLogs.slice(0, 200).map((n) => (
+              {filteredAuditLogs && filteredAuditLogs.length > 0 ? (
+                filteredAuditLogs.slice(0, 200).map((n) => (
                   <tr key={n.id} style={styles.tableRow}>
                     <td style={styles.td}>{n.created_at ? new Date(n.created_at).toLocaleString() : ''}</td>
                     <td style={styles.td}>

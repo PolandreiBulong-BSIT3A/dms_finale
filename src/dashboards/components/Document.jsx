@@ -1590,17 +1590,16 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       // Compute visibility from Upload-like UI
       if (editVisibilityMode === 'all') {
         payload.visible_to_all = true;
-        payload.department_ids = '';
       } else if (editVisibilityMode === 'specific') {
         payload.visible_to_all = false;
-        payload.department_ids = (editSelectedDepartments || []).join(',');
+        payload.department_ids = (editSelectedDepartments || []).map(n => Number(n)).filter(Boolean);
       }
-      // Optional targeting
+      // Optional targeting (use backend field names)
       if (editSelectedUsers.length > 0) {
-        payload.targetUsers = editSelectedUsers;
+        payload.allowed_user_ids = editSelectedUsers.map(n => Number(n)).filter(Boolean);
       }
       if (editSelectedRoles.length > 0) {
-        payload.targetRoles = editSelectedRoles;
+        payload.allowed_roles = editSelectedRoles;
       }
 
       const result = await updateDocument(editDoc.id || editDoc.doc_id, payload);
