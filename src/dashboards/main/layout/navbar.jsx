@@ -6,6 +6,13 @@ import { useUser } from '../../../contexts/UserContext';
 import ProfilePicture from '../../../components/ProfilePicture';
 import Logo from '../../../assets/logos/logo.png';
 import { buildUrl } from '../../../lib/api/frontend/client.js';
+import { 
+  registerServiceWorker,
+  requestNotificationPermission,
+  getNotificationPermission,
+  isPushNotificationSupported,
+  subscribeToPushNotifications
+} from '../../../lib/utils/pushNotifications.js';
 
 const Navbar = ({ setSidebarOpen, isMobile }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -61,6 +68,31 @@ const Navbar = ({ setSidebarOpen, isMobile }) => {
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleEnableNotifications = async () => {
+    try {
+      if (!isPushNotificationSupported()) {
+        console.warn('Push notifications are not supported in this browser.');
+        return;
+      }
+      await registerServiceWorker();
+      const current = getNotificationPermission();
+      let granted = current === 'granted';
+      if (!granted) {
+        granted = await requestNotificationPermission();
+      }
+      if (!granted) {
+        console.log('Notifications not granted by the user.');
+        return;
+      }
+      const userId = user?.id || user?.user_id;
+      if (!userId) return;
+      await subscribeToPushNotifications(userId);
+      console.log('Push notifications enabled.');
+    } catch (e) {
+      console.error('Failed enabling notifications:', e);
+    }
   };
 
   // Helpers to open links stored in `others` table via OthersAPI
@@ -478,6 +510,10 @@ const Navbar = ({ setSidebarOpen, isMobile }) => {
                   </div>
                 </div>
                 <div className="dropdown-menu">
+                  <button className="dropdown-item" onClick={handleEnableNotifications}>
+                    <FiBell className="dropdown-item-icon" />
+                    <span>Enable Notifications</span>
+                  </button>
                   <button className="dropdown-item logout" onClick={handleLogout}>
                     <FiLogOut className="dropdown-item-icon" />
                     <span>Logout</span>

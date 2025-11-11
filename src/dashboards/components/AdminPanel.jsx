@@ -68,6 +68,7 @@ const AdminPanel = ({ role }) => {
   // System maintenance state
   const [systemHealth, setSystemHealth] = useState({});
   const [systemLogs, setSystemLogs] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [backupHistory, setBackupHistory] = useState([]);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
@@ -180,6 +181,15 @@ const AdminPanel = ({ role }) => {
       setSystemLogs(data.logs || []);
     } catch (error) {
       console.error('Error fetching system logs:', error);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      const data = await fetchJson(buildUrl('notifications?limit=200'));
+      setAuditLogs((data && Array.isArray(data.notifications)) ? data.notifications : []);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
     }
   };
 
@@ -693,6 +703,7 @@ const AdminPanel = ({ role }) => {
       fetchDepartments();
       fetchSystemHealth();
       fetchSystemLogs();
+      fetchAuditLogs();
       fetchBackupHistory();
       fetchMaintenanceMode();
       fetchMaintenanceSettings();
@@ -1911,6 +1922,49 @@ const AdminPanel = ({ role }) => {
           ) : (
             <p style={styles.emptyText}>No logs available</p>
           )}
+        </div>
+      </div>
+
+      {/* Audit Log (Notifications) */}
+      <div style={styles.section}>
+        <h3 style={styles.subsectionTitle}>Audit Log</h3>
+        <div style={styles.tableContainer} className="ap-table-wrap">
+          <table style={styles.table}>
+            <thead>
+              <tr style={styles.tableHeader}>
+                <th style={styles.th}>Time</th>
+                <th style={styles.th}>Type</th>
+                <th style={styles.th}>Title</th>
+                <th style={styles.th}>Message</th>
+                <th style={styles.th}>Related Doc</th>
+              </tr>
+            </thead>
+            <tbody>
+              {auditLogs && auditLogs.length > 0 ? (
+                auditLogs.slice(0, 200).map((n) => (
+                  <tr key={n.id} style={styles.tableRow}>
+                    <td style={styles.td}>{n.created_at ? new Date(n.created_at).toLocaleString() : ''}</td>
+                    <td style={styles.td}>
+                      <span style={{
+                        ...styles.badge,
+                        background: n.type === 'deleted' ? '#fee2e2' : n.type === 'updated' ? '#e0f2fe' : n.type === 'added' ? '#dcfce7' : '#f3f4f6',
+                        color: n.type === 'deleted' ? '#dc2626' : n.type === 'updated' ? '#0369a1' : n.type === 'added' ? '#166534' : '#374151'
+                      }}>
+                        {n.type}
+                      </span>
+                    </td>
+                    <td style={styles.td}>{n.title}</td>
+                    <td style={{...styles.td, color: '#6b7280'}}>{n.message}</td>
+                    <td style={styles.td}>{n.related_doc_id || ''}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" style={{...styles.td, color: '#6b7280'}}>No audit entries</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

@@ -770,14 +770,7 @@ const fetchPositions = async (roleType = null) => {
           {toast.message}
         </div>
       )}
-          {effectiveIsDean && (
-            <div style={styles.deanDept}>
-              <span style={styles.deptLabel}>Department:</span>
-              <span style={styles.deptValue}>
-                {currentUser?.department_id ? getDepartmentName(currentUser.department_id) : currentUser?.department || currentUser?.department_name || 'Unknown'}
-              </span>
-            </div>
-          )}
+          
           <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} style={styles.filterSelect}>
             <option value="">All Roles</option>
             <option value="ADMIN">Administrator</option>

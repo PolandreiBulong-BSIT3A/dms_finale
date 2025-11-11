@@ -92,6 +92,7 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const [addFolderDocId, setAddFolderDocId] = useState(null);
   const [addFolderOpen, setAddFolderOpen] = useState(false);
   const [addFolderSearch, setAddFolderSearch] = useState('');
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   // Carousel ref for folders
   const folderScrollRef = React.useRef(null);
   const [folderSearch, setFolderSearch] = useState('');
@@ -299,6 +300,31 @@ const Favorite = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     };
     loadTypes();
   }, []);
+
+  // Bulk unfavorite selected documents
+  const handleBulkUnfavorite = async () => {
+    if (!selectedDocuments || selectedDocuments.length === 0) return;
+    try {
+      const results = await Promise.allSettled(
+        selectedDocuments.map(docId => toggleFavorite(docId, false))
+      );
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      try {
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#10b981;color:#fff;padding:10px 14px;border-radius:8px;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.18);font-weight:500;';
+        toast.textContent = `Removed ${successCount} item(s) from favorites`;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.remove(); }, 2500);
+      } catch {}
+      // Refresh favorites
+      const data = await fetchFavoriteDocuments();
+      setFavorites(Array.isArray(data?.favorites) ? data.favorites : (Array.isArray(data) ? data : []));
+      setSelectedDocuments([]);
+    } catch (e) {
+      console.error('Bulk unfavorite error:', e);
+      alert('Failed to remove from favorites. Please try again.');
+    }
+  };
 
   // Build list of folders that actually contain at least one currently visible document
   // (computed after filteredDocuments is defined; see placement below)

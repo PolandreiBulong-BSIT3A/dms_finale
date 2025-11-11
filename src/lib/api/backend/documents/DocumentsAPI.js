@@ -899,6 +899,11 @@ router.put('/documents/:id', requireAuth, (req, res) => {
       ? updates.folder_ids.map(Number).filter(Boolean)
       : null;
 
+    // Handle department_ids (visibility by departments) update separately
+    const departmentIdsUpdate = Array.isArray(updates.department_ids)
+      ? updates.department_ids.map(Number).filter(Boolean)
+      : null;
+
     // Handle category update if provided
     const performUpdate = (typeId) => {
       if (typeId) {
@@ -926,6 +931,96 @@ router.put('/documents/:id', requireAuth, (req, res) => {
             console.warn('Failed updating document_folders:', e?.message || e);
           }
         }
+
+        // Apply department visibility changes if provided
+        if (departmentIdsUpdate) {
+          try {
+            await db.promise().query('DELETE FROM document_departments WHERE doc_id = ?', [id]);
+            if (departmentIdsUpdate.length > 0) {
+              const placeholders = departmentIdsUpdate.map(() => '(?, ?)').join(', ');
+              const bulkValues = departmentIdsUpdate.flatMap(did => [id, did]);
+              await db.promise().query(`INSERT INTO document_departments (doc_id, department_id) VALUES ${placeholders}` , bulkValues);
+            }
+          } catch (e) {
+            console.warn('Failed updating document_departments:', e?.message || e);
+          }
+        }
+        try {
+          // Fetch updated document info to build notification audience
+          const [docRows] = await db.promise().query(
+            `SELECT d.title, d.visible_to_all, d.allowed_user_ids, d.allowed_roles, d.created_by_user_id, d.created_by_name
+             FROM dms_documents d WHERE d.doc_id = ? LIMIT 1`,
+            [id]
+          );
+          const docInfo = Array.isArray(docRows) && docRows[0] ? docRows[0] : {};
+
+          // Departments for audience scoping
+          let departmentIds = [];
+          try {
+            const [deptRows] = await db.promise().query(
+              'SELECT department_id FROM document_departments WHERE doc_id = ?',
+              [id]
+            );
+            departmentIds = Array.isArray(deptRows) ? deptRows.map(r => Number(r.department_id)).filter(Boolean) : [];
+          } catch (e) {
+            console.warn('Failed fetching document departments for update notification:', e?.message || e);
+          }
+
+          // Parse CSV helpers
+          const parseCsvNums = (csv) => (csv ? String(csv).split(',').map(s => Number(String(s).trim())).filter(Boolean) : []);
+          const parseCsvRolesUpper = (csv) => (csv ? String(csv).split(',').map(s => String(s).trim().toUpperCase()).filter(Boolean) : []);
+
+          const audience = {
+            visibleToAll: docInfo.visible_to_all === 1 || docInfo.visible_to_all === true,
+            departments: departmentIds,
+            roles: parseCsvRolesUpper(docInfo.allowed_roles || ''),
+            users: parseCsvNums(docInfo.allowed_user_ids || ''),
+          };
+
+          // Deduplicate
+          audience.users = Array.from(new Set(audience.users));
+          audience.roles = Array.from(new Set(audience.roles));
+          audience.departments = Array.from(new Set(audience.departments));
+
+          const userName = (req.currentUser?.Username || `${req.currentUser?.firstname || ''} ${req.currentUser?.lastname || ''}`.trim() || req.currentUser?.email || 'User');
+          const notifTitle = `Document Updated: ${docInfo.title || ''}`.trim();
+          const notifMsg = `${userName} updated "${docInfo.title || 'a document'}"`;
+
+          // Create DB notification (scoped)
+          try {
+            await createNotification(notifTitle, notifMsg, 'updated', Number(id), audience);
+          } catch (e) {
+            console.warn('createNotification (updated) failed:', e?.message || e);
+          }
+
+          // Emit socket events to appropriate rooms
+          try {
+            const payload = {
+              title: notifTitle,
+              message: notifMsg,
+              type: 'updated',
+              related_doc_id: Number(id),
+              created_at: new Date().toISOString()
+            };
+
+            // Emit to creator if we can resolve id from request/current user or stored created_by_user_id
+            if (docInfo.created_by_user_id) {
+              req?.io?.to(`user:${docInfo.created_by_user_id}`).emit('notification:new', payload);
+            }
+            if (audience.visibleToAll) {
+              req?.io?.emit('notification:new', payload);
+            } else {
+              for (const dpt of audience.departments) req?.io?.to(`dept:${dpt}`).emit('notification:new', payload);
+              for (const r of audience.roles) req?.io?.to(`role:${r}`).emit('notification:new', payload);
+              for (const uid of audience.users) req?.io?.to(`user:${uid}`).emit('notification:new', payload);
+            }
+          } catch (e) {
+            console.warn('Socket emit failed (notification:new updated):', e?.message || e);
+          }
+        } catch (e) {
+          console.warn('Post-update notification flow failed:', e?.message || e);
+        }
+
         return res.json({ success: true, message: 'Document updated successfully.' });
       });
     };
