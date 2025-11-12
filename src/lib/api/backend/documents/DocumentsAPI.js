@@ -216,6 +216,9 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     const dean = isDeanRole(current.role);
     const roleLower = (current.role || '').toString().trim().toLowerCase();
     const isAdmin = roleLower === 'admin' || roleLower === 'administrator';
+    
+    // Normalize department_id to number for reliable matching
+    const departmentId = current.department_id != null ? Number(current.department_id) : null;
 
     const filters = [];
     const values = [];
@@ -226,18 +229,18 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     // Visibility
     if (isAdmin) {
       // no additional filter
-    } else if (dean && current.department_id) {
+    } else if (dean && departmentId) {
       // Dean: public OR department OR explicitly allowed (user/role) OR created by them
       filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
-      values.push(current.department_id);
+      values.push(departmentId);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
       values.push(current.user_id || current.id);
     } else {
       // Non-admin non-dean: public OR dept (if any) OR explicitly allowed (user/role) OR created by them
-      if (current?.department_id) {
-      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
-        values.push(current.department_id);
+      if (departmentId) {
+        filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+        values.push(departmentId);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
         values.push(current.user_id || current.id);
@@ -439,6 +442,14 @@ router.get('/documents', requireAuth, async (req, res) => {
     const dean = isDeanRole(current.role);
     const roleLower = (current.role || '').toString().trim().toLowerCase();
     const isAdmin = roleLower === 'admin' || roleLower === 'administrator';
+    
+    // Normalize department_id to number for reliable matching
+    const departmentId = current.department_id != null ? Number(current.department_id) : null;
+    
+    // Debug logging (remove in production if needed)
+    if (!isAdmin && departmentId) {
+      console.log(`[DocumentsAPI] User role: ${roleLower}, department_id: ${departmentId}, isDean: ${dean}`);
+    }
 
     const filters = [];
     const values = [];
@@ -449,26 +460,20 @@ router.get('/documents', requireAuth, async (req, res) => {
     // Visibility
     if (isAdmin) {
       // no restriction
-    } else if (dean && current.department_id) {
+    } else if (dean && departmentId) {
       // Dean: public OR department OR explicitly allowed (user/role) OR created by them
-      filters.push(`((${buildVisibleToAllClause()}) OR (${buildDepartmentMatchClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
-      const departmentIdNumeric = Number(current.department_id) || current.department_id;
-      const departmentIdString = String(current.department_id || '').trim();
-      values.push(departmentIdNumeric);
-      values.push(departmentIdString);
-      values.push(departmentIdNumeric);
+      // Use EXISTS subquery for reliable department matching (works even if LEFT JOIN doesn't match)
+      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+      values.push(departmentId);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
       values.push(current.user_id || current.id);
     } else {
-      if (current?.department_id) {
-        // Non-admin non-dean with dept: public OR dept OR explicitly allowed (user/role) OR created by them
-        filters.push(`((${buildVisibleToAllClause()}) OR (${buildDepartmentMatchClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
-        const departmentIdNumeric = Number(current.department_id) || current.department_id;
-        const departmentIdString = String(current.department_id || '').trim();
-        values.push(departmentIdNumeric);
-        values.push(departmentIdString);
-        values.push(departmentIdNumeric);
+      if (departmentId) {
+        // Non-admin non-dean with dept (e.g., faculty): public OR dept OR explicitly allowed (user/role) OR created by them
+        // Use EXISTS subquery for reliable department matching (works even if LEFT JOIN doesn't match)
+        filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+        values.push(departmentId);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
         values.push(current.user_id || current.id);
