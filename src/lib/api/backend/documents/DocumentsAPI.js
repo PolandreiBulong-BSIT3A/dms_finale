@@ -215,6 +215,7 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     const dean = isDeanRole(current.role);
     const roleLower = (current.role || '').toString().trim().toLowerCase();
     const isAdmin = roleLower === 'admin' || roleLower === 'administrator';
+    const isAdminLike = isAdmin || roleLower === 'dean' || roleLower === 'faculty';
     
     // Normalize department_id to number for reliable matching
     const departmentId = current.department_id != null ? Number(current.department_id) : null;
@@ -226,7 +227,7 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     filters.push('COALESCE(d.deleted, 0) = 0');
 
     // Visibility
-    if (isAdmin) {
+    if (isAdminLike) {
       // no additional filter
     } else if (dean && departmentId) {
       // Dean: public OR department OR explicitly allowed (user/role) OR created by them OR created by same-dept user
@@ -449,6 +450,7 @@ router.get('/documents', requireAuth, async (req, res) => {
     const roleUpper = rawRole.toUpperCase();
     const dean = isDeanRole(current.role) || roleLower === 'dean' || roleUpper === 'DEAN';
     const isAdmin = roleLower === 'admin' || roleLower === 'administrator' || roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
+    const isAdminLike = isAdmin || roleLower === 'dean' || roleLower === 'faculty' || roleUpper === 'DEAN' || roleUpper === 'FACULTY';
     
     // Normalize department_id to number for reliable matching
     const departmentId = current.department_id != null ? Number(current.department_id) : null;
@@ -529,8 +531,8 @@ router.get('/documents', requireAuth, async (req, res) => {
     filters.push('COALESCE(d.deleted, 0) = 0');
 
     // Visibility
-    if (isAdmin) {
-      console.log('[DocumentsAPI /documents] Admin user - no restrictions');
+    if (isAdminLike) {
+      console.log('[DocumentsAPI /documents] Admin-like user (ADMIN/DEAN/FACULTY) - no restrictions');
       // no restriction
     } else if (dean && departmentId) {
       // Dean: public OR department-linked OR explicitly allowed (user/role) OR created by same-dept user OR created by them
