@@ -66,6 +66,14 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const [viewMode, setViewMode] = useState('table'); // 'table', 'grid', 'list'
   const [isMobile, setIsMobile] = useState(false);
 
+  // State for document types (must be declared before use)
+  const [documentTypes, setDocumentTypes] = useState([]);
+  const [documentTypesLoading, setDocumentTypesLoading] = useState(false);
+
+  // State for departments (must be declared before use)
+  const [departmentsList, setDepartmentsList] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+
   const [showUploadSuccess, setShowUploadSuccess] = useState(false);
   const [showOnlyMyDocuments, setShowOnlyMyDocuments] = useState(false);
   const [userPreferences, setUserPreferences] = useState({}); // Store favorite and pin status
@@ -928,17 +936,6 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     fetchUserPreferencesData();
   }, []);
 
-  // Set user's department filter for users (disable department selection)
-  useEffect(() => {
-    if (isUser && currentUser?.department_id) {
-      // For users, automatically set their department and disable the filter
-      const userDepartment = currentUser.department || currentUser.department_name;
-      if (userDepartment) {
-        setSelectedDepartment(userDepartment);
-      }
-    }
-  }, [isUser, currentUser]);
-
   // Fetch users for visibility editing
   const fetchUsersForEdit = useCallback(async () => {
     try {
@@ -1708,15 +1705,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   // Fetch deleted documents when trashcan is shown
   
 
-  // State for document types
-  const [documentTypes, setDocumentTypes] = useState([]);
-  const [documentTypesLoading, setDocumentTypesLoading] = useState(false);
-
-
-  // State for departments
-  const [departmentsList, setDepartmentsList] = useState([]);
-  const [departmentsLoading, setDepartmentsLoading] = useState(false);
-
+  
   // Fetch document types from API
   const fetchDocumentTypes = useCallback(async () => {
     setDocumentTypesLoading(true);

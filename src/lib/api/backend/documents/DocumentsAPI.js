@@ -73,20 +73,28 @@ router.use(async (req, _res, next) => {
       const normalizeDepartmentId = (value) => {
         if (value === undefined || value === null || value === '') return null;
         const asNumber = Number(value);
-        return Number.isNaN(asNumber) ? value : asNumber;
+        return Number.isNaN(asNumber) ? String(value).trim() : asNumber;
       };
       let departmentId = normalizeDepartmentId(
         u.department_id ?? req.user?.department_id ?? req.user?.department ?? req.currentUser?.department_id
       );
-      if (departmentId && typeof departmentId === 'string') {
-        const [deptRows] = await db.promise().query(
-          'SELECT department_id FROM departments WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1',
-          [departmentId]
-        );
-        if (deptRows && deptRows[0]?.department_id != null) {
-          departmentId = Number(deptRows[0].department_id);
+      if (typeof departmentId === 'string' && departmentId) {
+        const depStr = departmentId.trim();
+        // If numeric-like string, coerce to number
+        const maybeNum = Number(depStr);
+        if (!Number.isNaN(maybeNum)) {
+          departmentId = maybeNum;
         } else {
-          departmentId = null;
+          // Try match by name OR code (case-insensitive)
+          const [deptRows] = await db.promise().query(
+            'SELECT department_id FROM departments WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) OR LOWER(TRIM(code)) = LOWER(TRIM(?)) LIMIT 1',
+            [depStr, depStr]
+          );
+          if (deptRows && deptRows[0]?.department_id != null) {
+            departmentId = Number(deptRows[0].department_id);
+          } else {
+            departmentId = null;
+          }
         }
       }
 
@@ -424,12 +432,7 @@ router.get('/documents', requireAuth, async (req, res) => {
       }
     }
 
-    // Exclude action-required documents or replies (reserved for Requests page)
-    filters.push(`d.doc_id NOT IN (
-      SELECT DISTINCT da.doc_id 
-      FROM document_actions da 
-      WHERE da.doc_id IS NOT NULL
-    ) AND d.is_reply_to_doc_id IS NULL`);
+    
 
     const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
     
