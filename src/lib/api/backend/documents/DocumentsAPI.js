@@ -38,6 +38,13 @@ const buildVisibleToAllClause = (column = 'd.visible_to_all') => `
   )
 `;
 
+const buildDepartmentMatchClause = (departmentColumnAlias = 'dd') => `
+  (
+    ${departmentColumnAlias}.department_id = ?
+    OR FIND_IN_SET(?, REPLACE(COALESCE(d.department_ids, ''), ' ', '')) > 0
+  )
+`;
+
 // Helper to consistently derive a display name for the current user
 const deriveUserName = (u) => (
   u?.Username ||
@@ -444,16 +451,24 @@ router.get('/documents', requireAuth, async (req, res) => {
       // no restriction
     } else if (dean && current.department_id) {
       // Dean: public OR department OR explicitly allowed (user/role) OR created by them
-      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
-      values.push(current.department_id);
+      filters.push(`((${buildVisibleToAllClause()}) OR (${buildDepartmentMatchClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+      const departmentIdNumeric = Number(current.department_id) || current.department_id;
+      const departmentIdString = String(current.department_id || '').trim();
+      values.push(departmentIdNumeric);
+      values.push(departmentIdString);
+      values.push(departmentIdNumeric);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
       values.push(current.user_id || current.id);
     } else {
       if (current?.department_id) {
         // Non-admin non-dean with dept: public OR dept OR explicitly allowed (user/role) OR created by them
-        filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
-        values.push(current.department_id);
+        filters.push(`((${buildVisibleToAllClause()}) OR (${buildDepartmentMatchClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+        const departmentIdNumeric = Number(current.department_id) || current.department_id;
+        const departmentIdString = String(current.department_id || '').trim();
+        values.push(departmentIdNumeric);
+        values.push(departmentIdString);
+        values.push(departmentIdNumeric);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
         values.push(current.user_id || current.id);
