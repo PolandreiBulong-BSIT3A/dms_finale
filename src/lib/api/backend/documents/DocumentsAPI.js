@@ -465,6 +465,34 @@ router.get('/documents', requireAuth, async (req, res) => {
         );
         console.log(`[DocumentsAPI /documents] Diagnostic: Found ${deptDocs[0]?.count || 0} documents linked to department_id ${departmentId} in document_departments table`);
         
+        // Get sample documents linked to this department
+        if (deptDocs[0]?.count > 0) {
+          const [sampleDeptDocs] = await db.promise().query(
+            `SELECT dd.doc_id, d.title, d.visible_to_all 
+             FROM document_departments dd 
+             JOIN dms_documents d ON dd.doc_id = d.doc_id 
+             WHERE dd.department_id = ? AND COALESCE(d.deleted, 0) = 0 
+             LIMIT 3`,
+            [departmentId]
+          );
+          console.log(`[DocumentsAPI /documents] Sample department documents:`, sampleDeptDocs.map(d => ({
+            doc_id: d.doc_id,
+            title: d.title?.substring(0, 40),
+            visible_to_all: d.visible_to_all
+          })));
+          
+          // Test the EXISTS subquery directly
+          const [testExists] = await db.promise().query(
+            `SELECT d.doc_id, d.title, d.visible_to_all 
+             FROM dms_documents d 
+             WHERE COALESCE(d.deleted, 0) = 0 
+             AND EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?) 
+             LIMIT 3`,
+            [departmentId]
+          );
+          console.log(`[DocumentsAPI /documents] Test EXISTS query found ${testExists.length} documents for dept ${departmentId}`);
+        }
+        
         // Also check documents with visible_to_all
         const [publicDocs] = await db.promise().query(
           'SELECT COUNT(*) as count FROM dms_documents WHERE COALESCE(deleted, 0) = 0 AND (visible_to_all = 1 OR visible_to_all = true OR LOWER(TRIM(COALESCE(visible_to_all, ""))) IN ("1", "true", "yes", "all", "public", "everyone"))'
