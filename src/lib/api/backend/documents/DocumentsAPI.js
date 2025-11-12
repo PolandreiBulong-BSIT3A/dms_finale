@@ -493,6 +493,25 @@ router.get('/documents', requireAuth, async (req, res) => {
           console.log(`[DocumentsAPI /documents] Test EXISTS query found ${testExists.length} documents for dept ${departmentId}`);
         }
         
+        // Test: Find documents created by users in the same department (even if not linked in document_departments)
+        const [creatorDeptDocs] = await db.promise().query(
+          `SELECT d.doc_id, d.title, d.visible_to_all, d.created_by_name, d.created_by_user_id, cu.department_id as creator_dept
+           FROM dms_documents d
+           LEFT JOIN dms_user cu ON (cu.user_id = d.created_by_user_id OR cu.Username = d.created_by_name OR CONCAT(cu.firstname, ' ', cu.lastname) = d.created_by_name OR cu.user_email = d.created_by_name)
+           WHERE COALESCE(d.deleted, 0) = 0 
+           AND cu.department_id = ?
+           AND cu.department_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM document_departments dd3 WHERE dd3.doc_id = d.doc_id)
+           LIMIT 5`,
+          [departmentId]
+        );
+        console.log(`[DocumentsAPI /documents] Found ${creatorDeptDocs.length} documents created by same-dept users (not linked in document_departments):`, creatorDeptDocs.map(d => ({
+          doc_id: d.doc_id,
+          title: d.title?.substring(0, 40),
+          created_by: d.created_by_name,
+          creator_dept: d.creator_dept
+        })));
+        
         // Also check documents with visible_to_all
         const [publicDocs] = await db.promise().query(
           'SELECT COUNT(*) as count FROM dms_documents WHERE COALESCE(deleted, 0) = 0 AND (visible_to_all = 1 OR visible_to_all = true OR LOWER(TRIM(COALESCE(visible_to_all, ""))) IN ("1", "true", "yes", "all", "public", "everyone"))'
@@ -514,10 +533,10 @@ router.get('/documents', requireAuth, async (req, res) => {
       console.log('[DocumentsAPI /documents] Admin user - no restrictions');
       // no restriction
     } else if (dean && departmentId) {
-      // Dean: public OR department OR explicitly allowed (user/role) OR created by same-dept user (by id or name/email) OR created by them
-      // Use EXISTS subquery for reliable department matching (works even if LEFT JOIN doesn't match)
+      // Dean: public OR department-linked OR explicitly allowed (user/role) OR created by same-dept user OR created by them
+      // IMPORTANT: Also include documents created by same-dept users even if not explicitly linked in document_departments
       console.log(`[DocumentsAPI /documents] Dean user with department_id ${departmentId} - applying department filter`);
-      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE (cu.user_id = d.created_by_user_id OR cu.Username = d.created_by_name OR CONCAT(cu.firstname, ' ', cu.lastname) = d.created_by_name OR cu.user_email = d.created_by_name) AND cu.department_id = ?)) OR (d.created_by_user_id = ?))`);
+      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE (cu.user_id = d.created_by_user_id OR cu.Username = d.created_by_name OR CONCAT(cu.firstname, ' ', cu.lastname) = d.created_by_name OR cu.user_email = d.created_by_name) AND cu.department_id = ? AND cu.department_id IS NOT NULL)) OR (d.created_by_user_id = ?))`);
       values.push(departmentId);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
@@ -525,10 +544,10 @@ router.get('/documents', requireAuth, async (req, res) => {
       values.push(current.user_id || current.id);
     } else {
       if (departmentId) {
-        // Non-admin non-dean with dept (e.g., faculty): public OR dept OR explicitly allowed (user/role) OR created by same-dept user (by id or name/email) OR created by them
-        // Use EXISTS subquery for reliable department matching (works even if LEFT JOIN doesn't match)
+        // Non-admin non-dean with dept (e.g., faculty): public OR department-linked OR explicitly allowed (user/role) OR created by same-dept user OR created by them
+        // IMPORTANT: Also include documents created by same-dept users even if not explicitly linked in document_departments
         console.log(`[DocumentsAPI /documents] Non-admin/non-dean user (role: ${roleLower}) with department_id ${departmentId} - applying department filter`);
-        filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE (cu.user_id = d.created_by_user_id OR cu.Username = d.created_by_name OR CONCAT(cu.firstname, ' ', cu.lastname) = d.created_by_name OR cu.user_email = d.created_by_name) AND cu.department_id = ?)) OR (d.created_by_user_id = ?))`);
+        filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE (cu.user_id = d.created_by_user_id OR cu.Username = d.created_by_name OR CONCAT(cu.firstname, ' ', cu.lastname) = d.created_by_name OR cu.user_email = d.created_by_name) AND cu.department_id = ? AND cu.department_id IS NOT NULL)) OR (d.created_by_user_id = ?))`);
         values.push(departmentId);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
