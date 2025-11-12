@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Nov 11, 2025 at 11:49 PM
+-- Generation Time: Nov 12, 2025 at 06:37 PM
 -- Server version: 11.8.3-MariaDB-log
 -- PHP Version: 7.2.34
 
@@ -218,7 +218,33 @@ INSERT INTO `dms_documents` (`doc_id`, `doc_type`, `folder_id`, `reference`, `ti
 (13, 1008, 1004, '', 'Office Memorandum No.: 0-52, S, 2025', 'CURROCULUM REVIEW', NULL, NULL, 'The President', 'Program Head', '2025-05-09', 'https://drive.google.com/file/d/1bG0xAFULo4OY7NRmu8pY7fPK_QlpG2bg/view?usp=sharing', '', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-14 14:19:57', '2025-10-15 06:14:14', 'IZRA LATIW', 0, NULL, NULL, NULL, NULL, NULL, NULL, 204, 'DEPARTMENT', NULL, NULL, NULL),
 (14, 1008, 1004, '', 'Office Memorandum No.: 0-53, S. 2025', 'CHANGE OF MEETING OF PROBIOTIC MEETING', NULL, NULL, 'The President', 'All Concerned', '2025-05-09', 'https://drive.google.com/file/d/1zjA7BxCLnkwVIoIB-Bxyj0dR1I8fIz1e/view?usp=sharing', '', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-14 14:22:21', '2025-11-11 15:21:57', 'IZRA LATIW', 0, NULL, NULL, NULL, NULL, NULL, NULL, 204, 'DEPARTMENT', NULL, NULL, NULL),
 (15, 1008, 1004, '', 'Office Memorandum No.: 0-58, S. 2025', 'SUBMISSION OF OFFICAL TRANSCRIPT OF RECORD', NULL, NULL, 'The President', 'All Faculty And Non Teaching Staff', '2025-05-22', 'https://drive.google.com/file/d/1WBy33aq3QJZQW4bJ41bhLfAzbcpRIj6O/view?usp=sharing', '', 'both', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-14 14:24:48', '2025-10-15 06:10:40', 'IZRA LATIW', 0, NULL, NULL, NULL, NULL, NULL, NULL, 204, 'DEPARTMENT', NULL, NULL, NULL),
-(16, 1008, 1004, '', 'Office Memorandum No.: 0-74, S. 2025', 'REQUEST FOR IMMEDIATE TURNOVER OF RESPONSABILITIES TO NEWLY APPOINTED COLLEGE OFFICIALS', NULL, NULL, 'The President', 'All Concerned', '2025-06-11', 'https://drive.google.com/file/d/1wNXwrhnxE_bv0rlZXV0LLOtyDaxW4fOt/view?usp=sharing', '', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-14 14:28:16', '2025-11-11 15:20:26', 'IZRA LATIW', 0, NULL, NULL, NULL, NULL, NULL, NULL, 204, 'DEPARTMENT', NULL, NULL, NULL);
+(16, 1008, 1004, '', 'Office Memorandum No.: 0-74, S. 2025', 'REQUEST FOR IMMEDIATE TURNOVER OF RESPONSABILITIES TO NEWLY APPOINTED COLLEGE OFFICIALS', NULL, NULL, 'The President', 'All Concerned', '2025-06-11', 'https://drive.google.com/file/d/1wNXwrhnxE_bv0rlZXV0LLOtyDaxW4fOt/view?usp=sharing', '', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-14 14:28:16', '2025-11-11 15:20:26', 'IZRA LATIW', 0, NULL, NULL, NULL, NULL, NULL, NULL, 204, 'DEPARTMENT', NULL, NULL, NULL),
+(17, 1008, 1004, '', 'Office Memo No. O-89, S. 2025', 'NOTICE OF MEETING - FINALIZATION OF RESEARCH CENTER PLANS', NULL, NULL, 'Archive Office', 'System', '2025-10-15', 'https://drive.google.com/file/d/1jrhZrdEgE4ukZMikMAuRUk69M_nJR6WU/view?usp=drive_link', 'This document is intended solely for the system upload test. It serves as a sample file to verify that the upload functionality is working correctly. No actual or sensitive data is included in this document.', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-15 05:40:47', '2025-10-21 02:40:06', 'JAMES OYANDO', 0, NULL, NULL, NULL, NULL, NULL, NULL, 190, 'DEPARTMENT', NULL, NULL, NULL),
+(18, 1008, 1004, '', 'Office Memo No. O-95, S. 2025', 'REVIEW OF VMGO AND ORGANIZATIONAL STRUCTURE OF RESEARCH CENTERS', NULL, NULL, 'Archive Office', 'System', '2025-10-15', 'https://drive.google.com/file/d/1blFaEh5dQhoK9vW50YfuF9wMiAlFX-bH/view?usp=drive_link', 'This document is intended solely for the system upload test. It serves as a sample file to verify that the upload functionality is working correctly. No actual or sensitive data is included in this document.', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-15 05:51:26', '2025-10-21 02:40:06', 'JAMES OYANDO', 0, NULL, NULL, NULL, NULL, NULL, NULL, 190, 'DEPARTMENT', NULL, NULL, NULL),
+(19, 1008, 1004, '', 'Office Memo No. O-94, S. 2025', 'LAUNCHING OF RESEARCH CENTERS', NULL, NULL, 'Archive Office', 'System', '2025-10-15', 'https://drive.google.com/file/d/182FDCmLBC6H1uCeaIMKZsa_Mb9YostUq/view?usp=drive_link', 'This document is intended solely for the system upload test. It serves as a sample file to verify that the upload functionality is working correctly. No actual or sensitive data is included in this document.', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-15 05:54:27', '2025-11-11 19:40:13', 'JAMES OYANDO', 0, NULL, NULL, NULL, NULL, NULL, NULL, 190, 'DEPARTMENT', NULL, NULL, NULL),
+(20, 1008, 1004, '', 'Office Memo No. A-114, S. 2024', 'SYSTEMWIDE FESTIVAL OF TALENTS', NULL, NULL, 'Archive Office', 'System, All Depts', '2025-10-15', 'https://drive.google.com/file/d/14IgXd0xUFa0NejILUVXy6ClxOTOnKgcw/view?usp=drive_link', 'This document is intended solely for the system upload test. It serves as a sample file to verify that the upload functionality is working correctly. No actual or sensitive data is included in this document.', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-15 14:36:15', '2025-11-11 17:05:30', 'JAMES OYANDO', 0, NULL, NULL, NULL, NULL, NULL, NULL, 190, 'DEPARTMENT', NULL, NULL, NULL),
+(21, 1008, 1004, '', 'Office Memo No. A-115, S. 2024', 'PARTICIPATION IN SCUAA-I SPORTS FESTIVAL 2024 AT DMMMSU, AGOO,LA UNION', NULL, NULL, 'Archive Office', 'System', '2025-10-15', 'https://drive.google.com/file/d/1EdkX8aX5YI4RnWjchpZ0WGlNc611bdGO/view?usp=drive_link', 'This document is intended solely for the system upload test. It serves as a sample file to verify that the upload functionality is working correctly. No actual or sensitive data is included in this document.', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-15 14:39:04', '2025-11-11 17:01:53', 'JAMES OYANDO', 0, NULL, NULL, NULL, NULL, NULL, NULL, 190, 'DEPARTMENT', NULL, NULL, NULL),
+(22, 1003, 1007, 'LHS-CERT-2025-001', 'Certificate of Recognition - Academic Excellence', 'Recognition of outstanding students for academic year 2024-2025', NULL, NULL, 'LHS Principal', 'Honor Students', '2025-10-20', 'https://drive.google.com/file/d/sample-certificate-link-1/view', 'Certificates for students with high honors and perfect attendance', 'both', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-20 09:00:00', '2025-10-20 09:00:00', 'MARIA DENISE', 0, NULL, NULL, NULL, NULL, NULL, NULL, 195, 'DEPARTMENT', NULL, NULL, NULL),
+(23, 1004, 1007, 'LHS-LEAVE-2025-015', 'Application for Leave - Faculty Development', 'Request for leave to attend teaching seminar', NULL, NULL, 'LHS Teachers', 'LHS Principal', '2025-10-18', 'https://drive.google.com/file/d/sample-leave-link-1/view', 'Professional development leave applications for October seminars', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-18 14:30:00', '2025-10-18 14:30:00', 'MARIA DENISE', 0, NULL, NULL, NULL, NULL, NULL, NULL, 195, 'DEPARTMENT', NULL, NULL, NULL),
+(24, 1002, 1007, 'LHS-TRAVEL-2025-008', 'Travel Order - Educational Field Trip', 'Approval for Grade 10 field trip to Science Museum', NULL, NULL, 'LHS Administration', 'Grade 10 Teachers & Students', '2025-10-22', 'https://drive.google.com/file/d/sample-travel-link-1/view', 'Travel order for educational field trip and safety guidelines', 'both', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-22 08:15:00', '2025-10-22 08:15:00', 'MARIA DENISE', 0, NULL, NULL, NULL, NULL, NULL, NULL, 195, 'DEPARTMENT', NULL, NULL, NULL),
+(25, 1006, 1007, 'LHS-ENDORSE-2025-003', 'Endorsement Letter - Student Competition', 'Endorsement of students for regional math competition', NULL, NULL, 'LHS Math Department', 'Regional Competition Committee', '2025-10-25', 'https://drive.google.com/file/d/sample-endorse-link-1/view', 'Official endorsement of LHS mathletes for regional competition', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-25 10:45:00', '2025-10-25 10:45:00', 'MARIA DENISE', 0, NULL, NULL, NULL, NULL, NULL, NULL, 195, 'DEPARTMENT', NULL, NULL, NULL),
+(26, 1007, 1007, 'LHS-ATTEND-2025-011', 'Faculty Meeting Attendance', 'October monthly faculty meeting minutes', NULL, NULL, 'LHS Principal', 'All LHS Faculty', '2025-10-28', 'https://drive.google.com/file/d/sample-attendance-link-1/view', 'Attendance and minutes from monthly faculty development meeting', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-28 16:20:00', '2025-10-28 16:20:00', 'MARIA DENISE', 0, NULL, NULL, NULL, NULL, NULL, NULL, 195, 'DEPARTMENT', NULL, NULL, NULL),
+(27, 1002, 1007, 'CBME-TRAVEL-2025-012', 'Travel Order - Industry Immersion', 'Approval for BSBA students industry visit to local businesses', NULL, NULL, 'CBME Dean', 'BSBA Faculty & Students', '2025-10-29', 'https://drive.google.com/file/d/sample-cbme-travel-1/view', 'Travel order for BSBA students industry immersion program', 'both', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-29 09:30:00', '2025-10-29 09:30:00', 'MAROSE', 0, NULL, NULL, NULL, NULL, NULL, NULL, 153, 'DEPARTMENT', NULL, NULL, NULL),
+(28, 1003, 1007, 'CBME-CERT-2025-007', 'Certificate of Participation - Entrepreneurship Seminar', 'Certificates for students attending startup business workshop', NULL, NULL, 'CBME Department', 'Entrepreneurship Students', '2025-10-27', 'https://drive.google.com/file/d/sample-cbme-cert-1/view', 'Certificates for students completing entrepreneurship training', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-27 14:15:00', '2025-10-27 14:15:00', 'MAROSE', 0, NULL, NULL, NULL, NULL, NULL, NULL, 153, 'DEPARTMENT', NULL, NULL, NULL),
+(29, 1004, 1007, 'CBME-LEAVE-2025-009', 'Application for Leave - Research Conference', 'Faculty leave for international business research conference', NULL, NULL, 'CBME Faculty', 'CBME Dean', '2025-10-30', 'https://drive.google.com/file/d/sample-cbme-leave-1/view', 'Leave applications for faculty attending research conferences', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-10-30 11:20:00', '2025-10-30 11:20:00', 'MAROSE', 0, NULL, NULL, NULL, NULL, NULL, NULL, 153, 'DEPARTMENT', NULL, NULL, NULL),
+(30, 1006, 1007, 'CBME-ENDORSE-2025-005', 'Endorsement Letter - Internship Program', 'Endorsement of BSA students for accounting firm internships', NULL, NULL, 'CBME Accounting Department', 'Partner Accounting Firms', '2025-11-02', 'https://drive.google.com/file/d/sample-cbme-endorse-1/view', 'Official endorsement for accounting students internship placement', 'both', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-02 13:45:00', '2025-11-02 13:45:00', 'MAROSE', 0, NULL, NULL, NULL, NULL, NULL, NULL, 153, 'DEPARTMENT', NULL, NULL, NULL),
+(31, 1007, 1007, 'CBME-ATTEND-2025-014', 'Department Meeting Attendance', 'November CBME faculty meeting minutes and attendance', NULL, NULL, 'CBME Dean', 'All CBME Faculty', '2025-11-05', 'https://drive.google.com/file/d/sample-cbme-attend-1/view', 'Monthly department meeting attendance and action items', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-05 15:10:00', '2025-11-05 15:10:00', 'MAROSE', 0, NULL, NULL, NULL, NULL, NULL, NULL, 153, 'DEPARTMENT', NULL, NULL, NULL),
+(32, 1002, 1007, 'CAS-TRAVEL-2025-018', 'Travel Order - Research Data Collection', 'Approval for Psychology faculty field research', NULL, NULL, 'CAS Dean', 'Psychology Department', '2025-11-06', 'https://drive.google.com/file/d/sample-cas-travel-1/view', 'Travel order for psychology faculty conducting field research', 'both', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-06 10:15:00', '2025-11-06 10:15:00', 'CARBONEL PORTUGAL', 0, NULL, NULL, NULL, NULL, NULL, NULL, 186, 'DEPARTMENT', NULL, NULL, NULL),
+(33, 1003, 1007, 'CAS-CERT-2025-011', 'Certificate of Achievement - Science Fair', 'Certificates for CAS students in regional science competition', NULL, NULL, 'CAS Natural Sciences', 'Science Fair Participants', '2025-11-08', 'https://drive.google.com/file/d/sample-cas-cert-1/view', 'Achievement certificates for outstanding science projects', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-08 13:30:00', '2025-11-08 13:30:00', 'CARBONEL PORTUGAL', 0, NULL, NULL, NULL, NULL, NULL, NULL, 186, 'DEPARTMENT', NULL, NULL, NULL),
+(34, 1004, 1007, 'CAS-LEAVE-2025-016', 'Application for Leave - Academic Conference', 'Faculty leave for international humanities conference', NULL, NULL, 'CAS Faculty', 'CAS Dean', '2025-11-10', 'https://drive.google.com/file/d/sample-cas-leave-1/view', 'Leave applications for faculty presenting at academic conferences', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-10 09:45:00', '2025-11-10 09:45:00', 'CARBONEL PORTUGAL', 0, NULL, NULL, NULL, NULL, NULL, NULL, 186, 'DEPARTMENT', NULL, NULL, NULL),
+(35, 1006, 1007, 'CAS-ENDORSE-2025-008', 'Endorsement Letter - Graduate Studies', 'Endorsement of students for masters and PhD programs', NULL, NULL, 'CAS Department', 'Graduate Schools', '2025-11-12', 'https://drive.google.com/file/d/sample-cas-endorse-1/view', 'Official endorsement letters for CAS students graduate applications', 'both', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-12 14:20:00', '2025-11-12 14:20:00', 'CARBONEL PORTUGAL', 0, NULL, NULL, NULL, NULL, NULL, NULL, 186, 'DEPARTMENT', NULL, NULL, NULL),
+(36, 1007, 1007, 'CAS-ATTEND-2025-022', 'Faculty Assembly Attendance', 'November CAS faculty assembly minutes', NULL, NULL, 'CAS Dean', 'All CAS Faculty', '2025-11-15', 'https://drive.google.com/file/d/sample-cas-attend-1/view', 'Monthly faculty assembly attendance and academic updates', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-15 16:00:00', '2025-11-15 16:00:00', 'CARBONEL PORTUGAL', 0, NULL, NULL, NULL, NULL, NULL, NULL, 186, 'DEPARTMENT', NULL, NULL, NULL),
+(37, 1008, 1007, 'SSC-MEMO-2025-025', 'SSC Memorandum: Campus Clean-up Drive', 'Organization of campus-wide clean-up activity', NULL, NULL, 'SSC President', 'All Student Organizations', '2025-11-18', 'https://drive.google.com/file/d/sample-ssc-memo-1/view', 'Memorandum for campus clean-up drive participation and guidelines', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-18 09:00:00', '2025-11-18 09:00:00', 'FRANJO', 0, NULL, NULL, NULL, NULL, NULL, NULL, 205, 'DEPARTMENT', NULL, NULL, NULL),
+(38, 1003, 1007, 'SSC-CERT-2025-015', 'Certificate of Recognition - Student Leaders', 'Recognition of outstanding student organization officers', NULL, NULL, 'SSC Office', 'Student Leaders', '2025-11-20', 'https://drive.google.com/file/d/sample-ssc-cert-1/view', 'Certificates for student leaders completing their term', 'both', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-20 14:30:00', '2025-11-20 14:30:00', 'FRANJO', 0, NULL, NULL, NULL, NULL, NULL, NULL, 205, 'DEPARTMENT', NULL, NULL, NULL),
+(39, 1002, 1007, 'SSC-TRAVEL-2025-020', 'Travel Order - Leadership Training', 'Approval for SSC officers leadership seminar', NULL, NULL, 'SSC Adviser', 'SSC Executive Board', '2025-11-22', 'https://drive.google.com/file/d/sample-ssc-travel-1/view', 'Travel order for student leaders attending regional training', 'both', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-22 11:15:00', '2025-11-22 11:15:00', 'FRANJO', 0, NULL, NULL, NULL, NULL, NULL, NULL, 205, 'DEPARTMENT', NULL, NULL, NULL),
+(40, 1006, 1007, 'SSC-ENDORSE-2025-012', 'Endorsement Letter - Student Event', 'Endorsement for cultural night celebration', NULL, NULL, 'SSC Committee', 'College Deans', '2025-11-25', 'https://drive.google.com/file/d/sample-ssc-endorse-1/view', 'Official endorsement for student-led cultural event', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-25 13:45:00', '2025-11-25 13:45:00', 'FRANJO', 0, NULL, NULL, NULL, NULL, NULL, NULL, 205, 'DEPARTMENT', NULL, NULL, NULL),
+(41, 1007, 1007, 'SSC-ATTEND-2025-030', 'General Assembly Attendance', 'November SSC general assembly minutes', NULL, NULL, 'SSC Secretary', 'All Student Members', '2025-11-28', 'https://drive.google.com/file/d/sample-ssc-attend-1/view', 'Monthly general assembly attendance and student concerns', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-28 16:20:00', '2025-11-28 16:20:00', 'FRANJO', 0, NULL, NULL, NULL, NULL, NULL, NULL, 205, 'DEPARTMENT', NULL, NULL, NULL),
+(563, 1010, 1005, 'a', 'a', '', '', NULL, 'Ppmp Focal Person', 'All Faculty And Non Teaching Staff', '2025-11-27', 'https://drive.google.com/file/d/157MLSU6PhJAeNBaw1X29AYkA353UZMep/view?usp=drive_link', '', 'soft_copy', NULL, NULL, 0, NULL, NULL, 'active', '2025-11-12 18:16:23', '2025-11-12 18:17:41', 'Victoriya Visha Von Klauss', 1, '2025-11-12 18:17:33', 'victoriyaklauss03@gmail.com', NULL, NULL, NULL, NULL, 142, 'ALL', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -253,14 +279,14 @@ CREATE TABLE `dms_user` (
 --
 
 INSERT INTO `dms_user` (`user_id`, `profile_pic`, `user_email`, `password`, `Username`, `firstname`, `lastname`, `Contact_number`, `department_id`, `role`, `position`, `created_at`, `updated_at`, `status`, `is_verified`, `verification_token`, `verification_code`, `password_reset_code`, `password_reset_expires`) VALUES
-(1, 'https://lh3.googleusercontent.com/a/ACg8ocIhpD_184y_Edc-9RJod2dRMKXfsKksA7Z1AKaWM-5lc7srqUFH=s96-c', 'polandreiladera03@gmail.com', '$2a$12$WbFadt88HuRbtzSOYx5giu7t6roL6dE68qFCccGUHeHuJT5kaGq06', 'ADMIN DEV.', 'ADMIN LAN', 'LAN', '09184226085', 1002, 'ADMIN', 'IT Support', '2025-09-07 03:34:43', '2025-11-11 23:47:50', 'active', 'yes', NULL, NULL, NULL, NULL),
+(1, 'https://lh3.googleusercontent.com/a/ACg8ocIhpD_184y_Edc-9RJod2dRMKXfsKksA7Z1AKaWM-5lc7srqUFH=s96-c', 'polandreiladera03@gmail.com', '$2a$12$WbFadt88HuRbtzSOYx5giu7t6roL6dE68qFCccGUHeHuJT5kaGq06', 'ADMIN DEV.', 'ADMIN LAN', 'LAN', '09184226085', 1000, 'ADMIN', 'IT Support', '2025-09-07 03:34:43', '2025-11-12 08:50:58', 'active', 'yes', NULL, NULL, NULL, NULL),
 (138, 'https://lh3.googleusercontent.com/a/ACg8ocLAErhOo11OOUho6ybHf4mhI7SRbqz8Zrd5rZp_6x7YwN2CLFdw=s96-c', 'marasiganhoneylee@gmail.com', '', 'Honey Lee Marasigan', '', '', NULL, 1000, 'ADMIN', 'IT Support', '2025-10-12 06:59:26', '2025-10-21 20:53:44', 'active', 'yes', NULL, NULL, NULL, NULL),
 (140, 'https://lh3.googleusercontent.com/a/ACg8ocInYH-jR1J2gXLgGoO3kFnt0kUsWjBRw-4Qr_CNfj8KklKV5GM=s96-c', 'kaelgiongan@gmail.com', '$2b$12$kSO1SBaiGlamKIOx/T6Y6uPb8QMAT5f3Bcsqwb2747i3mSvsfT4m6', 'xenurryx', 'Kael', 'Gio', '09177428469', 1000, 'ADMIN', 'Administrator', '2025-10-13 02:12:19', '2025-10-21 03:56:59', 'active', 'yes', NULL, NULL, NULL, NULL),
 (141, 'https://lh3.googleusercontent.com/a/ACg8ocKf72bFG-I8hFWQJT_IldNd88VfUcOvU6W8dLHEW809kL8rhtfJ=s96-c', 'merinpiolo9@gmail.com', '$2b$12$FEgCK5tPN8xjrFwjq4bCHuG4XroDByvxqieQ7JylPtC8J1btxGJbq', 'piolomerin', 'piolo', 'merin', '09919377602', 1000, 'ADMIN', 'IT Support', '2025-10-13 06:57:22', '2025-10-21 20:54:06', 'active', 'yes', NULL, NULL, NULL, NULL),
-(142, 'https://lh3.googleusercontent.com/a/ACg8ocLEtatCeMtXksrYW6U6JJqP0yRA92tumSUftqgGPHQuMyX53FA=s96-c', 'victoriyaklauss03@gmail.com', '', 'Victoriya Visha Von Klauss', 'VIC', 'TORIYA', '09184226085', 1000, 'DEAN', 'Secretary', '2025-10-14 01:30:11', '2025-11-11 19:37:09', 'active', 'yes', NULL, NULL, NULL, NULL),
+(142, 'https://lh3.googleusercontent.com/a/ACg8ocLEtatCeMtXksrYW6U6JJqP0yRA92tumSUftqgGPHQuMyX53FA=s96-c', 'victoriyaklauss03@gmail.com', '', 'Victoriya Visha Von Klauss', 'VIC', 'TORIYA', '09184226085', 1002, 'DEAN', 'Secretary', '2025-10-14 01:30:11', '2025-11-12 09:26:01', 'active', 'yes', NULL, NULL, NULL, NULL),
 (144, 'https://lh3.googleusercontent.com/a/ACg8ocJgAiBETzRmatXaHQCEnhQAHqiISli8O_R1o7WzyaOC6LJFmXtg=s96-c', 'polsanjuanladera03@gmail.com', '', 'Pol Andrei L. Bulong', '', '', '', 1000, 'FACULTY', 'Faculty Member', '2025-10-14 05:56:15', '2025-10-20 20:47:31', 'deleted', 'yes', NULL, NULL, NULL, NULL),
 (145, 'https://lh3.googleusercontent.com/a/ACg8ocKoSapZ_nefsR4f8_3_B-6xL3a2CEDmJ8hz6SlyR8R75ZO4TkzO=s96-c', 'jgbulatao21@gmail.com', '', 'JENNILYN BULATAO', 'JENNILYN', 'BULATAO', '09392493025', 1002, 'ADMIN', 'Administrator', '2025-10-15 03:17:01', '2025-10-20 20:47:31', 'active', 'yes', NULL, NULL, NULL, NULL),
-(146, 'https://lh3.googleusercontent.com/a/ACg8ocLV-XDgqUWjRyS9kVC_pJNkjOG7n6LJVcVeD7mWS9FDJ30CerUs=s96-c', 'mainlan03@gmail.com', '', 'Admin Lan', '', '', '', 1002, 'FACULTY', 'Assistant Professor', '2025-10-20 08:46:57', '2025-11-11 23:47:59', 'active', 'yes', NULL, NULL, NULL, NULL),
+(146, 'https://lh3.googleusercontent.com/a/ACg8ocLV-XDgqUWjRyS9kVC_pJNkjOG7n6LJVcVeD7mWS9FDJ30CerUs=s96-c', 'mainlan03@gmail.com', '', 'Admin Lan', 'Pol andrei', 'Bulong', '09184226085', 3, 'FACULTY', 'Assistant Professor', '2025-10-20 08:46:57', '2025-11-12 08:53:22', 'active', 'yes', NULL, NULL, NULL, NULL),
 (147, 'https://lh3.googleusercontent.com/a/ACg8ocJFuFvGH9CDZSLK3f41nlhiQtW8daQ-A_bYCnKJXttyxxtNi14=s96-c', 'ispsctagudintest1141@gmail.com', '', 'ISPSC TAGUDIN', '', '', '', 6, 'DEAN', 'Dean', '2025-10-20 09:04:55', '2025-10-21 03:32:18', 'deleted', 'yes', NULL, NULL, NULL, NULL),
 (148, 'https://lh3.googleusercontent.com/a/ACg8ocJD7zSwV8LZldjAPoG0ScHqGQSUU3SBKq40nNtTe_uDUkwMJfw=s96-c', 'azannyx092@gmail.com', '', 'xenurryxII', '', '', '', 2, 'FACULTY', NULL, '2025-10-20 09:27:38', '2025-10-21 03:33:00', 'deleted', 'yes', NULL, NULL, NULL, NULL),
 (149, 'https://lh3.googleusercontent.com/a/ACg8ocLCtLZz7Zmt471wn_Ox2BYg5YUHStURu5kczNi_W3goIXHxvHw=s96-c', 'laderasanjuan03@gmail.com', '', 'Levv1', '', '', '', 4, 'FACULTY', 'Faculty Member', '2025-10-20 10:32:39', '2025-10-21 03:32:53', 'deleted', 'yes', NULL, NULL, NULL, NULL),
@@ -274,7 +300,7 @@ INSERT INTO `dms_user` (`user_id`, `profile_pic`, `user_email`, `password`, `Use
 (175, NULL, 'rgadingan@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'rgadingan', 'R', 'GADINGAN', '09123456792', 3, 'FACULTY', 'Instructor', '2025-10-22 02:03:33', '2025-11-09 01:39:28', 'active', 'yes', NULL, NULL, NULL, NULL),
 (176, NULL, 'jtablada@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'jtablada', 'J', 'TABLADA', '09123456793', 3, 'FACULTY', 'Instructor', '2025-10-22 02:03:33', '2025-11-09 01:38:48', 'active', 'yes', NULL, NULL, NULL, NULL),
 (177, NULL, 'mjgalay@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'mjgalay', 'M.J', 'GALAY', '09123456795', 6, 'FACULTY', 'Instructor', '2025-10-22 02:03:33', '2025-11-09 01:39:23', 'active', 'yes', NULL, NULL, NULL, NULL),
-(178, NULL, 'pa@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'pa', 'P', 'A', '09123456796', 6, 'FACULTY', 'Instructor', '2025-10-22 02:03:33', '2025-11-09 01:38:53', 'active', 'yes', NULL, NULL, NULL, NULL),
+(178, NULL, 'pa@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'pa', 'P', 'A', '09123456796', 6, 'FACULTY', 'Instructor', '2025-10-22 02:03:33', '2025-11-12 12:42:05', 'deleted', 'yes', NULL, NULL, NULL, NULL),
 (179, NULL, 'mrgarica@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'mrgarica', 'M.R', 'GARICA', '09123456797', 1002, 'FACULTY', 'Nurse', '2025-10-22 02:03:33', '2025-11-09 01:40:59', 'active', 'yes', NULL, NULL, NULL, NULL),
 (181, 'https://lh3.googleusercontent.com/a-/ALV-UjVuMeZ7p_a2OYXmrtgzUsOOQlc6Go1osYZw_Am-fK991XvG9OEYjbSRYhmBlnU2l2fsmhwtodv931qQYTpFiOSORRHHgUhPThkn5rryPsmyz5LdKBl18dc45HffNJrSJH2UaGeVPo67YPfIJOCTiHhg_NRxyk1cqHFPNSsaiSeBrefK0-6Vo1ySLmimy3FpveevwVAhZGYjSnR7PtcFAtWnD1q8B7cQjPvE_qmm0euZ_7ktcft0kPTp-BMTywRVyHiWmwvBOKX9rqQ1CZPS2AQVxxRcOraoHYaNte7ig6-eUxmcGVvmKTGyA4MwRGPw1s6ze9-mrkbfyNDjKAYSp1WKnU93y59dJkp-pLyE-evusyo1oFoPFMZ-9Y7-8Zek_2zX253LS1f3q3t1ZVNdLt6ldO_3CCBSRI4h1iMhiYD-PeXoKqE9RtPmd-Ial9RBc2QSHRHjDxTSTBR-dWPrD50QY001R_Gd-BFqOlbzfQiNNqPOm0hL1gJcsTM6H8pd_eshrtEc3mhUInX4xgI-cJsfTEKw4FxPSGCVHdK4qMV5M2KlH-PWhocjpzppX2nawQny7T1L-7lBbSnOzz4HO4i1E4ROph2p4CpRkMVWhN2yBfAq9RQ4W9vZszDfRsKCKJMdFtVCLhKQOOImJBuJ46mtRF5UVwpaeBF6vKI6LTtgTLfuEWyrRWHluv81gNN9STNTdJRcvMR_GaN-E2pbdxGhhC3iAcxMikKCODjRox9IyurX6SubMlmReGc1IDCPP5ZIC54b0ICLq6hPxsnDdxtpr8MMvuVfyHvyEjThcfwzJWXl_OAhQJioTJEn2V0x4EQ-t2yYtrQe7AbMjkQXQt-ZYGEqbG3BCNi25IZOW1B6KpTGE_6uXtSIG8fiTCk2JvZ9Xck_JniJ5qxr_n_LYiurTuMmMI2Y3Ykyqpozbr5nzfGBbPUF6TnVlDR_BgpIqug8uXZJp0M9FxRfJ6a2MzKtfsjn_raMNgvNnWkGRe0oL33b8g=s96-c', 'julren08@gmail.com', '', 'Caren Joy Ingoy', '', '', NULL, 1002, 'FACULTY', 'Cashier', '2025-10-22 06:14:18', '2025-10-22 06:32:23', 'active', 'yes', NULL, NULL, NULL, NULL),
 (182, 'https://lh3.googleusercontent.com/a/ACg8ocKCY8W0Ia8GAizUWN4n7xMzFwii36oNxITHbF6fGAKNXFGHpblNoQ=s96-c', 'jericpadsing0321@gmail.com', '', 'Jeric Padsing', '', '', NULL, 2, 'FACULTY', 'Instructor', '2025-10-22 06:26:08', '2025-10-22 06:32:40', 'active', 'yes', NULL, NULL, NULL, NULL),
@@ -292,9 +318,9 @@ INSERT INTO `dms_user` (`user_id`, `profile_pic`, `user_email`, `password`, `Use
 (194, 'https://i.imgur.com/hqw5Nst.png', 'carlomanglioan@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'carlomanglioan', 'CARLO', 'MANGLIOAN', '09123456798', 2, 'FACULTY', 'Instructor', '2025-10-20 10:32:39', '2025-10-20 10:33:39', 'active', 'yes', NULL, NULL, NULL, NULL),
 (195, 'https://i.imgur.com/zegmH78.png', 'mariadenise@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'mariadenise', 'MARIA', 'DENISE', '09123456799', 4, 'DEAN', 'Secretary', '2025-10-20 10:32:39', '2025-11-11 22:05:25', 'active', 'yes', NULL, NULL, NULL, NULL),
 (196, 'https://i.imgur.com/OdNn6V3.png', 'reymarg@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'reymarg', 'REYMAR', 'G', '09123456800', 4, 'FACULTY', 'Instructor', '2025-10-20 10:32:39', '2025-11-11 22:04:37', 'active', 'yes', NULL, NULL, NULL, NULL),
-(197, 'https://i.imgur.com/ZMhF0SD.png', 'claireantoneete@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'claireantoneete', 'CLAIRE', 'ANTONEETE', '09123456801', 4, 'DEAN', 'Secretary', '2025-10-20 10:32:39', '2025-11-11 20:35:49', 'active', 'yes', NULL, NULL, NULL, NULL),
+(197, 'https://i.imgur.com/ZMhF0SD.png', 'claireantoneete@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'claireantoneete', 'CLAIRE', 'ANTONEETE', '09123456801', 4, 'FACULTY', 'Instructor', '2025-10-20 10:32:39', '2025-11-12 09:53:32', 'active', 'yes', NULL, NULL, NULL, NULL),
 (198, 'https://i.imgur.com/MnE7tkW.png', 'rtenocgemalyn@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'rtenocgemalyn', 'RTENOC', 'GEMALYN', '09123456802', 4, 'DEAN', 'Principal', '2025-10-20 10:32:39', '2025-11-11 22:04:21', 'active', 'yes', NULL, NULL, NULL, NULL),
-(199, 'https://i.imgur.com/GdufXPv.png', 'mjgalay@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'mjgalay', 'M.J', 'GALAY', '09123456803', 6, 'FACULTY', 'Instructor', '2025-10-20 10:32:39', '2025-10-20 10:33:39', 'active', 'yes', NULL, NULL, NULL, NULL),
+(199, 'https://i.imgur.com/GdufXPv.png', 'mjgalay@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'mjgalay', 'M.J', 'GALAY', '09123456803', 6, 'FACULTY', 'Instructor', '2025-10-20 10:32:39', '2025-11-12 12:42:00', 'deleted', 'yes', NULL, NULL, NULL, NULL),
 (200, 'https://i.imgur.com/YeJZBRK.png', 'maureenstaana@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'maureenstaana', 'MAUREEN', 'STA ANA', '09123456804', 6, 'FACULTY', 'Instructor', '2025-10-20 10:32:39', '2025-10-20 10:33:39', 'active', 'yes', NULL, NULL, NULL, NULL),
 (201, 'https://i.imgur.com/rthDwK6.png', 'larrymostoles@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'larrymostoles', 'LARRY', 'MOSTOLES', '09123456805', 6, 'FACULTY', 'Instructor', '2025-10-20 10:32:39', '2025-10-20 10:33:39', 'active', 'yes', NULL, NULL, NULL, NULL),
 (202, 'https://i.imgur.com/IJ0XY4O.png', 'imeldabinayan@gmail.com', '$2a$12$vs6TOTfz.3C1LlK1HyQNdeo19vBIrnDbH8mmAcXGtVym13QrV1HPu', 'imeldabinayan', 'IMELDA', 'BINAYAN', '09123456806', 6, 'FACULTY', 'Instructor', '2025-10-20 10:32:39', '2025-10-20 10:33:39', 'active', 'yes', NULL, NULL, NULL, NULL),
@@ -393,7 +419,33 @@ INSERT INTO `document_departments` (`doc_id`, `department_id`) VALUES
 (13, 1002),
 (14, 1002),
 (15, 1002),
-(16, 1002);
+(16, 1002),
+(17, 3),
+(18, 3),
+(19, 3),
+(20, 3),
+(21, 3),
+(22, 4),
+(23, 4),
+(24, 4),
+(25, 4),
+(26, 4),
+(27, 2),
+(28, 2),
+(29, 2),
+(30, 2),
+(31, 2),
+(32, 1),
+(33, 1),
+(34, 1),
+(35, 1),
+(36, 1),
+(37, 1001),
+(38, 1001),
+(39, 1001),
+(40, 1001),
+(41, 1001),
+(563, 1002);
 
 -- --------------------------------------------------------
 
@@ -520,7 +572,35 @@ INSERT INTO `notifications` (`notification_id`, `title`, `message`, `type`, `vis
 (13, 'New Document Added: Office Memorandum No.: 0-52, S, 2025', 'A new document \"Office Memorandum No.: 0-52, S, 2025\" has been uploaded by IZRA LATIW', 'added', 0, '2025-11-11 23:46:46', 13),
 (14, 'New Document Added: Office Memorandum No.: 0-53, S. 2025', 'A new document \"Office Memorandum No.: 0-53, S. 2025\" has been uploaded by IZRA LATIW', 'added', 0, '2025-11-11 23:46:46', 14),
 (15, 'New Document Added: Office Memorandum No.: 0-58, S. 2025', 'A new document \"Office Memorandum No.: 0-58, S. 2025\" has been uploaded by IZRA LATIW', 'added', 0, '2025-11-11 23:46:46', 15),
-(16, 'New Document Added: Office Memorandum No.: 0-74, S. 2025', 'A new document \"Office Memorandum No.: 0-74, S. 2025\" has been uploaded by IZRA LATIW', 'added', 0, '2025-11-11 23:46:46', 16);
+(16, 'New Document Added: Office Memorandum No.: 0-74, S. 2025', 'A new document \"Office Memorandum No.: 0-74, S. 2025\" has been uploaded by IZRA LATIW', 'added', 0, '2025-11-11 23:46:46', 16),
+(17, 'New Document Added: Office Memo No. O-89, S. 2025', 'A new document \"Office Memo No. O-89, S. 2025\" has been uploaded by JAMES OYANDO', 'added', 0, '2025-11-12 00:02:03', 17),
+(18, 'New Document Added: Office Memo No. O-95, S. 2025', 'A new document \"Office Memo No. O-95, S. 2025\" has been uploaded by JAMES OYANDO', 'added', 0, '2025-11-12 00:02:03', 18),
+(19, 'New Document Added: Office Memo No. O-94, S. 2025', 'A new document \"Office Memo No. O-94, S. 2025\" has been uploaded by JAMES OYANDO', 'added', 0, '2025-11-12 00:02:03', 19),
+(20, 'New Document Added: Office Memo No. A-114, S. 2024', 'A new document \"Office Memo No. A-114, S. 2024\" has been uploaded by JAMES OYANDO', 'added', 0, '2025-11-12 00:02:03', 20),
+(21, 'New Document Added: Office Memo No. A-115, S. 2024', 'A new document \"Office Memo No. A-115, S. 2024\" has been uploaded by JAMES OYANDO', 'added', 0, '2025-11-12 00:02:03', 21),
+(22, 'New Document Added: Certificate of Recognition - Academic Excellence', 'A new document \"Certificate of Recognition - Academic Excellence\" has been uploaded by MARIA DENISE', 'added', 0, '2025-11-12 09:58:01', 22),
+(23, 'New Document Added: Application for Leave - Faculty Development', 'A new document \"Application for Leave - Faculty Development\" has been uploaded by MARIA DENISE', 'added', 0, '2025-11-12 09:58:01', 23),
+(24, 'New Document Added: Travel Order - Educational Field Trip', 'A new document \"Travel Order - Educational Field Trip\" has been uploaded by MARIA DENISE', 'added', 0, '2025-11-12 09:58:01', 24),
+(25, 'New Document Added: Endorsement Letter - Student Competition', 'A new document \"Endorsement Letter - Student Competition\" has been uploaded by MARIA DENISE', 'added', 0, '2025-11-12 09:58:01', 25),
+(26, 'New Document Added: Faculty Meeting Attendance', 'A new document \"Faculty Meeting Attendance\" has been uploaded by MARIA DENISE', 'added', 0, '2025-11-12 09:58:01', 26),
+(27, 'New Document Added: Travel Order - Industry Immersion', 'A new document \"Travel Order - Industry Immersion\" has been uploaded by MAROSE', 'added', 0, '2025-11-12 10:04:36', 27),
+(28, 'New Document Added: Certificate of Participation - Entrepreneurship Seminar', 'A new document \"Certificate of Participation - Entrepreneurship Seminar\" has been uploaded by MAROSE', 'added', 0, '2025-11-12 10:04:36', 28),
+(29, 'New Document Added: Application for Leave - Research Conference', 'A new document \"Application for Leave - Research Conference\" has been uploaded by MAROSE', 'added', 0, '2025-11-12 10:04:36', 29),
+(30, 'New Document Added: Endorsement Letter - Internship Program', 'A new document \"Endorsement Letter - Internship Program\" has been uploaded by MAROSE', 'added', 0, '2025-11-12 10:04:36', 30),
+(31, 'New Document Added: Department Meeting Attendance', 'A new document \"Department Meeting Attendance\" has been uploaded by MAROSE', 'added', 0, '2025-11-12 10:04:36', 31),
+(32, 'New Document Added: Travel Order - Research Data Collection', 'A new document \"Travel Order - Research Data Collection\" has been uploaded by CARBONEL PORTUGAL', 'added', 0, '2025-11-12 10:10:05', 32),
+(33, 'New Document Added: Certificate of Achievement - Science Fair', 'A new document \"Certificate of Achievement - Science Fair\" has been uploaded by CARBONEL PORTUGAL', 'added', 0, '2025-11-12 10:10:05', 33),
+(34, 'New Document Added: Application for Leave - Academic Conference', 'A new document \"Application for Leave - Academic Conference\" has been uploaded by CARBONEL PORTUGAL', 'added', 0, '2025-11-12 10:10:05', 34),
+(35, 'New Document Added: Endorsement Letter - Graduate Studies', 'A new document \"Endorsement Letter - Graduate Studies\" has been uploaded by CARBONEL PORTUGAL', 'added', 0, '2025-11-12 10:10:05', 35),
+(36, 'New Document Added: Faculty Assembly Attendance', 'A new document \"Faculty Assembly Attendance\" has been uploaded by CARBONEL PORTUGAL', 'added', 0, '2025-11-12 10:10:05', 36),
+(37, 'New Document Added: SSC Memorandum: Campus Clean-up Drive', 'A new document \"SSC Memorandum: Campus Clean-up Drive\" has been uploaded by FRANJO', 'added', 0, '2025-11-12 10:16:29', 37),
+(38, 'New Document Added: Certificate of Recognition - Student Leaders', 'A new document \"Certificate of Recognition - Student Leaders\" has been uploaded by FRANJO', 'added', 0, '2025-11-12 10:16:29', 38),
+(39, 'New Document Added: Travel Order - Leadership Training', 'A new document \"Travel Order - Leadership Training\" has been uploaded by FRANJO', 'added', 0, '2025-11-12 10:16:29', 39),
+(40, 'New Document Added: Endorsement Letter - Student Event', 'A new document \"Endorsement Letter - Student Event\" has been uploaded by FRANJO', 'added', 0, '2025-11-12 10:16:29', 40),
+(41, 'New Document Added: General Assembly Attendance', 'A new document \"General Assembly Attendance\" has been uploaded by FRANJO', 'added', 0, '2025-11-12 10:16:29', 41),
+(992, 'New Announcement: asd', 'as', '', 0, '2025-11-12 08:14:39', NULL),
+(993, 'New Document Added: a', 'A new document \"a\" has been uploaded by Victoriya Visha Von Klauss', 'added', 0, '2025-11-12 18:16:23', 563),
+(994, 'Document Moved to Trashcan', 'Document \"a\" has been moved to trashcan by victoriyaklauss03@gmail.com', 'deleted', 1, '2025-11-12 18:17:41', 563);
 
 -- --------------------------------------------------------
 
@@ -533,6 +613,14 @@ CREATE TABLE `notification_departments` (
   `department_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `notification_departments`
+--
+
+INSERT INTO `notification_departments` (`notification_id`, `department_id`) VALUES
+(992, 1000),
+(993, 1002);
+
 -- --------------------------------------------------------
 
 --
@@ -544,6 +632,46 @@ CREATE TABLE `notification_reads` (
   `user_id` int(11) NOT NULL,
   `read_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `notification_reads`
+--
+
+INSERT INTO `notification_reads` (`notification_id`, `user_id`, `read_at`) VALUES
+(1, 1, '2025-11-12 18:17:59'),
+(1, 142, '2025-11-12 09:16:12'),
+(1, 146, '2025-11-12 16:55:55'),
+(2, 1, '2025-11-12 18:17:59'),
+(2, 142, '2025-11-12 09:16:12'),
+(2, 146, '2025-11-12 16:55:55'),
+(3, 1, '2025-11-12 18:17:59'),
+(3, 142, '2025-11-12 09:16:12'),
+(3, 146, '2025-11-12 16:55:55'),
+(4, 1, '2025-11-12 18:17:59'),
+(4, 142, '2025-11-12 09:16:12'),
+(4, 146, '2025-11-12 16:55:55'),
+(5, 1, '2025-11-12 18:17:59'),
+(5, 142, '2025-11-12 09:16:12'),
+(5, 146, '2025-11-12 16:55:55'),
+(6, 1, '2025-11-12 18:17:59'),
+(6, 142, '2025-11-12 09:16:12'),
+(6, 146, '2025-11-12 16:55:55'),
+(7, 1, '2025-11-12 18:17:59'),
+(7, 142, '2025-11-12 09:16:12'),
+(7, 146, '2025-11-12 16:55:55'),
+(8, 1, '2025-11-12 18:17:59'),
+(8, 142, '2025-11-12 09:16:12'),
+(8, 146, '2025-11-12 16:55:55'),
+(9, 1, '2025-11-12 18:17:59'),
+(9, 142, '2025-11-12 09:16:12'),
+(9, 146, '2025-11-12 16:55:55'),
+(10, 1, '2025-11-12 18:17:59'),
+(10, 142, '2025-11-12 09:16:12'),
+(10, 146, '2025-11-12 16:55:55'),
+(11, 1, '2025-11-12 18:17:59'),
+(11, 142, '2025-11-12 09:16:12'),
+(11, 146, '2025-11-12 16:55:55'),
+(994, 1, '2025-11-12 18:17:59');
 
 -- --------------------------------------------------------
 
@@ -671,7 +799,7 @@ CREATE TABLE `push_subscriptions` (
 --
 
 INSERT INTO `push_subscriptions` (`subscription_id`, `user_id`, `subscription_data`, `created_at`, `updated_at`) VALUES
-(1, 142, '{\"endpoint\":\"https://fcm.googleapis.com/fcm/send/dyT-9KNmBGI:APA91bEG2p-_5SM2kpiniK8x7NIVF4sSACbBGZx01T2iZ-NIme4QxI4dwi8l0qfr__r8vKtNOTyuhJUOOVg2_LiEuOi2qpyAaTna21O6zSVMPluGXb1DajLuuzAZiDX9lhABr0bhkpJq\",\"expirationTime\":null,\"keys\":{\"p256dh\":\"BEtDftc1I3kC1uEMB9zgtIo2WUT5pntXhrAl8UiCpJulPXXxppgcLwlkZ1EkgAguplKaN1eLt9KJTXOJK5W7Y4s\",\"auth\":\"CDsMA_CrNVdY5IlPZ-IhQA\"}}', '2025-10-20 16:49:59', '2025-10-22 03:03:49'),
+(1, 142, '{\"endpoint\":\"https://fcm.googleapis.com/fcm/send/dyT-9KNmBGI:APA91bEG2p-_5SM2kpiniK8x7NIVF4sSACbBGZx01T2iZ-NIme4QxI4dwi8l0qfr__r8vKtNOTyuhJUOOVg2_LiEuOi2qpyAaTna21O6zSVMPluGXb1DajLuuzAZiDX9lhABr0bhkpJq\",\"expirationTime\":null,\"keys\":{\"p256dh\":\"BEtDftc1I3kC1uEMB9zgtIo2WUT5pntXhrAl8UiCpJulPXXxppgcLwlkZ1EkgAguplKaN1eLt9KJTXOJK5W7Y4s\",\"auth\":\"CDsMA_CrNVdY5IlPZ-IhQA\"}}', '2025-10-20 16:49:59', '2025-11-12 18:34:04'),
 (67, 146, '{\"endpoint\":\"https://wns2-bl2p.notify.windows.com/w/?token=BQYAAACxpPG0sS%2fsaSNUPJKCarAj8TD8DxiPUDbIx2FhG8YK%2fWTf2Pexb6eNC3MH%2fR5rZqd%2b3R7JTOgS%2fRCjCO1opkKb1myjtSFVisafCXIHQVGYPttY8gHRR5iBhgE26B3LxUO42VNK6Scrm8PYbt8dFXWzeFM6ZceNN43QnOMF3PiwQYQNCADJBweGAy0giRJzliXCcxgnoF9sH95cLLiT7Cny9YUfS2isq17FZu4ITyI9KIn2mrctzphzxjrQoUfSkrujqhZz5VYCi8ZF5ysjXe5srPsqmm78gJ7xEIK47bz%2bJYoPkL6szYpkDznjGB52j%2fCm4uzupe2uHBV4lB823umi\",\"expirationTime\":null,\"keys\":{\"p256dh\":\"BJpLGvCdgZ4JgoyfBtHimZTrYq4OsyBHgUDUNGerQOJBlHvQICbo3vK5jpumN_lIzdjbe8IMNLtf3F-ILmjicSo\",\"auth\":\"iDIJ4lBikSvyASP4-LMvjQ\"}}', '2025-10-22 03:10:46', '2025-10-22 03:10:46');
 
 -- --------------------------------------------------------
@@ -712,6 +840,13 @@ CREATE TABLE `user_document_preferences` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `user_document_preferences`
+--
+
+INSERT INTO `user_document_preferences` (`preference_id`, `user_id`, `doc_id`, `is_favorite`, `is_pinned`, `created_at`, `updated_at`) VALUES
+(50, 146, 4, 0, 0, '2025-11-12 16:57:48', '2025-11-12 16:57:58');
 
 --
 -- Indexes for dumped tables
@@ -953,7 +1088,7 @@ ALTER TABLE `action_required`
 -- AUTO_INCREMENT for table `announcements`
 --
 ALTER TABLE `announcements`
-  MODIFY `announcement_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=66;
+  MODIFY `announcement_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=67;
 
 --
 -- AUTO_INCREMENT for table `departments`
@@ -965,7 +1100,7 @@ ALTER TABLE `departments`
 -- AUTO_INCREMENT for table `dms_documents`
 --
 ALTER TABLE `dms_documents`
-  MODIFY `doc_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=563;
+  MODIFY `doc_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=564;
 
 --
 -- AUTO_INCREMENT for table `dms_user`
@@ -1001,7 +1136,7 @@ ALTER TABLE `folders`
 -- AUTO_INCREMENT for table `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=992;
+  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=995;
 
 --
 -- AUTO_INCREMENT for table `others`
@@ -1019,13 +1154,13 @@ ALTER TABLE `positions`
 -- AUTO_INCREMENT for table `push_subscriptions`
 --
 ALTER TABLE `push_subscriptions`
-  MODIFY `subscription_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=69;
+  MODIFY `subscription_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=163;
 
 --
 -- AUTO_INCREMENT for table `user_document_preferences`
 --
 ALTER TABLE `user_document_preferences`
-  MODIFY `preference_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+  MODIFY `preference_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
 
 --
 -- Constraints for dumped tables
