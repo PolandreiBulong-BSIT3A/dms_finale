@@ -41,7 +41,6 @@ const buildVisibleToAllClause = (column = 'd.visible_to_all') => `
 const buildDepartmentMatchClause = (departmentColumnAlias = 'dd') => `
   (
     ${departmentColumnAlias}.department_id = ?
-    OR FIND_IN_SET(?, REPLACE(COALESCE(d.department_ids, ''), ' ', '')) > 0
   )
 `;
 
@@ -219,20 +218,6 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     
     // Normalize department_id to number for reliable matching
     const departmentId = current.department_id != null ? Number(current.department_id) : null;
-    // Resolve department code/name for CSV fallback matching (handles legacy data stored as codes/names)
-    let deptCodeLower = '';
-    let deptNameLower = '';
-    if (departmentId) {
-      try {
-        const [deptInfo] = await db.promise().query('SELECT code, name FROM departments WHERE department_id = ? LIMIT 1', [departmentId]);
-        if (deptInfo && deptInfo[0]) {
-          deptCodeLower = String(deptInfo[0].code || '').toLowerCase().trim();
-          deptNameLower = String(deptInfo[0].name || '').toLowerCase().trim();
-        }
-      } catch (_) {
-        // ignore
-      }
-    }
 
     const filters = [];
     const values = [];
@@ -244,30 +229,26 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     if (isAdmin) {
       // no additional filter
     } else if (dean && departmentId) {
-      // Dean: public OR department OR explicitly allowed (user/role) OR created by them
-      filters.push(`((${buildVisibleToAllClause()}) OR ((EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, LOWER(REPLACE(COALESCE(d.department_ids, ''), ' ', ''))) > 0) OR (FIND_IN_SET(?, LOWER(REPLACE(COALESCE(d.department_ids, ''), ' ', ''))) > 0) OR (FIND_IN_SET(?, LOWER(REPLACE(COALESCE(d.department_ids, ''), ' ', ''))) > 0)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE cu.user_id = d.created_by_user_id AND cu.department_id = ?)) OR (d.created_by_user_id = ?))`);
+      // Dean: public OR department OR explicitly allowed (user/role) OR created by them OR created by same-dept user
+      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE cu.user_id = d.created_by_user_id AND cu.department_id = ?)) OR (d.created_by_user_id = ?))`);
       values.push(departmentId);
-      values.push(String(departmentId));
-      values.push(deptCodeLower);
-      values.push(deptNameLower);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
       values.push(departmentId);
       values.push(current.user_id || current.id);
     } else {
       if (departmentId) {
-        // Non-admin non-dean with dept (e.g., faculty): public OR dept OR explicitly allowed (user/role) OR created by them
+        // Non-admin non-dean with dept (e.g., faculty): public OR dept OR explicitly allowed (user/role) OR created by them OR created by same-dept user
         // Use EXISTS subquery for reliable department matching (works even if LEFT JOIN doesn't match)
-        filters.push(`((${buildVisibleToAllClause()}) OR ((EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, LOWER(REPLACE(COALESCE(d.department_ids, ''), ' ', ''))) > 0) OR (FIND_IN_SET(?, LOWER(REPLACE(COALESCE(d.department_ids, ''), ' ', ''))) > 0) OR (FIND_IN_SET(?, LOWER(REPLACE(COALESCE(d.department_ids, ''), ' ', ''))) > 0)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE cu.user_id = d.created_by_user_id AND cu.department_id = ?)) OR (d.created_by_user_id = ?))`);
+        filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE cu.user_id = d.created_by_user_id AND cu.department_id = ?)) OR (d.created_by_user_id = ?))`);
         values.push(departmentId);
-        values.push(String(departmentId));
-        values.push(deptCodeLower);
-        values.push(deptNameLower);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
         values.push(departmentId);
         values.push(current.user_id || current.id);
       } else {
+        // No dept: public OR explicitly allowed (user/role) OR created by them
+        console.log(`[DocumentsAPI /documents] User (role: ${roleLower}) without department_id - only public/explicit access`);
         filters.push(`((${buildVisibleToAllClause()}) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
@@ -544,7 +525,6 @@ router.get('/documents', requireAuth, async (req, res) => {
         u.profile_pic AS created_by_profile_pic,
         GROUP_CONCAT(DISTINCT dept.name ORDER BY dept.name SEPARATOR ', ') AS department_names,
         GROUP_CONCAT(DISTINCT dept.department_id ORDER BY dept.department_id SEPARATOR ',') AS department_ids,
-        REPLACE(COALESCE(d.department_ids, ''), ' ', '') AS department_ids_csv,
         GROUP_CONCAT(DISTINCT f2.name ORDER BY f2.name SEPARATOR ', ') AS folder_names,
         GROUP_CONCAT(DISTINCT df.folder_id ORDER BY df.folder_id SEPARATOR ',') AS folder_ids
       FROM dms_documents d
@@ -578,14 +558,7 @@ router.get('/documents', requireAuth, async (req, res) => {
     }
     
     const documents = results.map(r => {
-      const joinIds = (r.department_ids || '').toString();
-      const csvIds = (r.department_ids_csv || '').toString();
-      const parts = [...(joinIds ? joinIds.split(',') : []), ...(csvIds ? csvIds.split(',') : [])]
-        .map(s => s.trim())
-        .filter(Boolean);
-      const uniqueIds = Array.from(new Set(parts));
-      const mergedIds = uniqueIds.join(',');
-
+      const mergedIds = (r.department_ids || '').toString();
       return {
         id: r.id,
         doc_type: r.doc_type || '',
