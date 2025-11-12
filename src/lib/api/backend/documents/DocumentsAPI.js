@@ -86,15 +86,49 @@ router.use(async (req, _res, next) => {
           departmentId = maybeNum;
         } else {
           // Try match by name OR code (case-insensitive)
-          const [deptRows] = await db.promise().query(
+          let [deptRows] = await db.promise().query(
             'SELECT department_id FROM departments WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) OR LOWER(TRIM(code)) = LOWER(TRIM(?)) LIMIT 1',
             [depStr, depStr]
           );
+          if (!deptRows || deptRows.length === 0) {
+            // Fuzzy match: tolerate additional words (e.g., "College of Teacher Education") and spacing
+            [deptRows] = await db.promise().query(
+              'SELECT department_id FROM departments WHERE LOWER(name) LIKE LOWER(CONCAT("%", TRIM(?), "%")) OR LOWER(code) LIKE LOWER(CONCAT("%", TRIM(?), "%")) LIMIT 1',
+              [depStr, depStr]
+            );
+          }
           if (deptRows && deptRows[0]?.department_id != null) {
             departmentId = Number(deptRows[0].department_id);
           } else {
             departmentId = null;
           }
+        }
+      } else if (typeof departmentId === 'number' && departmentId) {
+        // Verify that the numeric departmentId exists; if not, attempt fallback by name/code from token/session
+        try {
+          const [existsRows] = await db.promise().query('SELECT 1 FROM departments WHERE department_id = ? LIMIT 1', [departmentId]);
+          if (!Array.isArray(existsRows) || existsRows.length === 0) {
+            const depStr = (req.currentUser?.department || req.user?.department || '').toString().trim();
+            if (depStr) {
+              let [deptRows] = await db.promise().query(
+                'SELECT department_id FROM departments WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) OR LOWER(TRIM(code)) = LOWER(TRIM(?)) LIMIT 1',
+                [depStr, depStr]
+              );
+              if (!deptRows || deptRows.length === 0) {
+                [deptRows] = await db.promise().query(
+                  'SELECT department_id FROM departments WHERE LOWER(name) LIKE LOWER(CONCAT("%", TRIM(?), "%")) OR LOWER(code) LIKE LOWER(CONCAT("%", TRIM(?), "%")) LIMIT 1',
+                  [depStr, depStr]
+                );
+              }
+              if (deptRows && deptRows[0]?.department_id != null) {
+                departmentId = Number(deptRows[0].department_id);
+              } else {
+                departmentId = null;
+              }
+            }
+          }
+        } catch (_) {
+          // ignore fallback errors
         }
       }
 
@@ -187,7 +221,7 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
       // no additional filter
     } else if (dean && current.department_id) {
       // Dean: public OR department OR explicitly allowed (user/role) OR created by them
-      filters.push(`((${buildVisibleToAllClause()}) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
       values.push(current.department_id);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
@@ -195,7 +229,7 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     } else {
       // Non-admin non-dean: public OR dept (if any) OR explicitly allowed (user/role) OR created by them
       if (current?.department_id) {
-      filters.push(`((${buildVisibleToAllClause()}) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
         values.push(current.department_id);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
@@ -410,7 +444,7 @@ router.get('/documents', requireAuth, async (req, res) => {
       // no restriction
     } else if (dean && current.department_id) {
       // Dean: public OR department OR explicitly allowed (user/role) OR created by them
-      filters.push(`((${buildVisibleToAllClause()}) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
       values.push(current.department_id);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
@@ -418,7 +452,7 @@ router.get('/documents', requireAuth, async (req, res) => {
     } else {
       if (current?.department_id) {
         // Non-admin non-dean with dept: public OR dept OR explicitly allowed (user/role) OR created by them
-        filters.push(`((${buildVisibleToAllClause()}) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+        filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
         values.push(current.department_id);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
