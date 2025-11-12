@@ -64,9 +64,20 @@ router.use(async (req, _res, next) => {
         const asNumber = Number(value);
         return Number.isNaN(asNumber) ? value : asNumber;
       };
-      const departmentId = normalizeDepartmentId(
+      let departmentId = normalizeDepartmentId(
         u.department_id ?? req.user?.department_id ?? req.user?.department ?? req.currentUser?.department_id
       );
+      if (departmentId && typeof departmentId === 'string') {
+        const [deptRows] = await db.promise().query(
+          'SELECT department_id FROM departments WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1',
+          [departmentId]
+        );
+        if (deptRows && deptRows[0]?.department_id != null) {
+          departmentId = Number(deptRows[0].department_id);
+        } else {
+          departmentId = null;
+        }
+      }
 
       req.user = {
         ...req.user,
