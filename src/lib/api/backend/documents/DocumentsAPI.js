@@ -467,23 +467,25 @@ router.get('/documents', requireAuth, async (req, res) => {
       console.log('[DocumentsAPI /documents] Admin user - no restrictions');
       // no restriction
     } else if (dean && departmentId) {
-      // Dean: public OR department OR explicitly allowed (user/role) OR created by them
+      // Dean: public OR department OR explicitly allowed (user/role) OR created by same-dept user (by id or name/email) OR created by them
       // Use EXISTS subquery for reliable department matching (works even if LEFT JOIN doesn't match)
       console.log(`[DocumentsAPI /documents] Dean user with department_id ${departmentId} - applying department filter`);
-      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE (cu.user_id = d.created_by_user_id OR cu.Username = d.created_by_name OR CONCAT(cu.firstname, ' ', cu.lastname) = d.created_by_name OR cu.user_email = d.created_by_name) AND cu.department_id = ?)) OR (d.created_by_user_id = ?))`);
       values.push(departmentId);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
+      values.push(departmentId);
       values.push(current.user_id || current.id);
     } else {
       if (departmentId) {
-        // Non-admin non-dean with dept (e.g., faculty): public OR dept OR explicitly allowed (user/role) OR created by them
+        // Non-admin non-dean with dept (e.g., faculty): public OR dept OR explicitly allowed (user/role) OR created by same-dept user (by id or name/email) OR created by them
         // Use EXISTS subquery for reliable department matching (works even if LEFT JOIN doesn't match)
         console.log(`[DocumentsAPI /documents] Non-admin/non-dean user (role: ${roleLower}) with department_id ${departmentId} - applying department filter`);
-        filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
+        filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE (cu.user_id = d.created_by_user_id OR cu.Username = d.created_by_name OR CONCAT(cu.firstname, ' ', cu.lastname) = d.created_by_name OR cu.user_email = d.created_by_name) AND cu.department_id = ?)) OR (d.created_by_user_id = ?))`);
         values.push(departmentId);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
+        values.push(departmentId);
         values.push(current.user_id || current.id);
       } else {
         // No dept: public OR explicitly allowed (user/role) OR created by them
