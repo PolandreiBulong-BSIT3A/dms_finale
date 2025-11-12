@@ -439,17 +439,18 @@ router.get('/documents/:id/visibility', requireAuth, async (req, res) => {
 router.get('/documents', requireAuth, async (req, res) => {
   try {
     const current = req.currentUser || {};
-    const dean = isDeanRole(current.role);
-    const roleLower = (current.role || '').toString().trim().toLowerCase();
-    const isAdmin = roleLower === 'admin' || roleLower === 'administrator';
+    // Normalize role for consistent comparison (handle both uppercase and lowercase)
+    const rawRole = (current.role || '').toString().trim();
+    const roleLower = rawRole.toLowerCase();
+    const roleUpper = rawRole.toUpperCase();
+    const dean = isDeanRole(current.role) || roleLower === 'dean' || roleUpper === 'DEAN';
+    const isAdmin = roleLower === 'admin' || roleLower === 'administrator' || roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
     
     // Normalize department_id to number for reliable matching
     const departmentId = current.department_id != null ? Number(current.department_id) : null;
     
-    // Debug logging (remove in production if needed)
-    if (!isAdmin && departmentId) {
-      console.log(`[DocumentsAPI] User role: ${roleLower}, department_id: ${departmentId}, isDean: ${dean}`);
-    }
+    // Enhanced debug logging
+    console.log(`[DocumentsAPI /documents] User ID: ${current.id || current.user_id}, Raw Role: "${rawRole}", Lower: "${roleLower}", Upper: "${roleUpper}", isDean: ${dean}, isAdmin: ${isAdmin}, department_id: ${departmentId}, department_id type: ${typeof current.department_id}`);
 
     const filters = [];
     const values = [];
@@ -459,10 +460,12 @@ router.get('/documents', requireAuth, async (req, res) => {
 
     // Visibility
     if (isAdmin) {
+      console.log('[DocumentsAPI /documents] Admin user - no restrictions');
       // no restriction
     } else if (dean && departmentId) {
       // Dean: public OR department OR explicitly allowed (user/role) OR created by them
       // Use EXISTS subquery for reliable department matching (works even if LEFT JOIN doesn't match)
+      console.log(`[DocumentsAPI /documents] Dean user with department_id ${departmentId} - applying department filter`);
       filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
       values.push(departmentId);
       values.push(String(current.user_id || current.id || ''));
@@ -472,6 +475,7 @@ router.get('/documents', requireAuth, async (req, res) => {
       if (departmentId) {
         // Non-admin non-dean with dept (e.g., faculty): public OR dept OR explicitly allowed (user/role) OR created by them
         // Use EXISTS subquery for reliable department matching (works even if LEFT JOIN doesn't match)
+        console.log(`[DocumentsAPI /documents] Non-admin/non-dean user (role: ${roleLower}) with department_id ${departmentId} - applying department filter`);
         filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
         values.push(departmentId);
         values.push(String(current.user_id || current.id || ''));
@@ -479,6 +483,7 @@ router.get('/documents', requireAuth, async (req, res) => {
         values.push(current.user_id || current.id);
       } else {
         // No dept: public OR explicitly allowed (user/role) OR created by them
+        console.log(`[DocumentsAPI /documents] User (role: ${roleLower}) without department_id - only public/explicit access`);
         filters.push(`((${buildVisibleToAllClause()}) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
@@ -531,7 +536,22 @@ router.get('/documents', requireAuth, async (req, res) => {
       ORDER BY d.created_at DESC
     `;
     
+    // Debug: Log SQL query and values
+    console.log(`[DocumentsAPI /documents] SQL WHERE clause: ${whereClause}`);
+    console.log(`[DocumentsAPI /documents] SQL values:`, values);
+    
     const [results] = await db.promise().query(sql, values);
+    
+    console.log(`[DocumentsAPI /documents] Query returned ${results.length} documents`);
+    if (results.length > 0 && results.length <= 5) {
+      console.log(`[DocumentsAPI /documents] Sample documents:`, results.map(r => ({
+        id: r.id,
+        title: r.title,
+        visible_to_all: r.visible_to_all,
+        department_ids: r.department_ids,
+        department_names: r.department_names
+      })));
+    }
     
     const documents = results.map(r => ({
       id: r.id,
