@@ -726,7 +726,9 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       if (showOnlyMyDocuments && !isCreatedByCurrentUser) return false;
 
       // Role-based baseline visibility gating
-      if ((effectiveIsDean || isAdmin || isUser) && currentUser?.department_id) {
+      // Admins bypass gating and can see all documents
+      // Apply baseline gating only for DEAN; rely on backend for FACULTY visibility
+      if (!isAdmin && effectiveIsDean && currentUser?.department_id) {
         const userDeptId = currentUser.department_id;
         const userDept = currentUser?.department || currentUser?.department_name || '';
         const visibleAll = isPublic(doc);

@@ -476,9 +476,16 @@ const fetchPositions = async (roleType = null) => {
   const positions = useMemo(() => [...new Set(users.map(u => u.position).filter(Boolean))], [users]);
 
   const filteredUsers = users.filter(user => {
-    // Exclude admin users only for non-admin, non-dean viewers
-    const userIsAdmin = user.role?.toUpperCase() === 'ADMIN' || user.position?.toUpperCase() === 'ADMIN';
-    if (userIsAdmin && !isAdmin && !effectiveIsDean) return false;
+    // Exclude ADMIN users only for non-admin/dean viewers,
+    // but allow them if they are in the same department as the viewer (e.g., NTS faculty should see NTS admins)
+    const userIsAdmin = (user.role || '').toString().toUpperCase() === 'ADMIN' || (user.position || '').toString().toUpperCase() === 'ADMIN';
+    if (userIsAdmin && !isAdmin && !effectiveIsDean) {
+      const fDeptId = currentUser?.department_id;
+      const fDept = currentUser?.department || currentUser?.department_name || currentUser?.dept_name || '';
+      const sameDeptById = fDeptId && user?.department_id && String(fDeptId) === String(user.department_id);
+      const sameDeptByName = fDept && user?.department && String(user.department).toLowerCase() === String(fDept).toLowerCase();
+      if (!sameDeptById && !sameDeptByName) return false;
+    }
     
     // Apply search filter
     const matchesSearch = (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||

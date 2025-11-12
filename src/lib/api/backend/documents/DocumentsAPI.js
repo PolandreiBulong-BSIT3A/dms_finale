@@ -58,15 +58,35 @@ router.use(async (req, _res, next) => {
     );
     if (rows && rows[0]) {
       const u = rows[0];
+      const normalizedRole = String(req.user?.role || u.role || '').toUpperCase();
+      const normalizeDepartmentId = (value) => {
+        if (value === undefined || value === null || value === '') return null;
+        const asNumber = Number(value);
+        return Number.isNaN(asNumber) ? value : asNumber;
+      };
+      const departmentId = normalizeDepartmentId(
+        u.department_id ?? req.user?.department_id ?? req.user?.department ?? req.currentUser?.department_id
+      );
+
       req.user = {
         ...req.user,
         id: u.user_id,
         Username: u.Username,
         firstname: u.firstname,
         lastname: u.lastname,
-        role: String(req.user?.role || u.role || '').toUpperCase(),
-        department_id: req.user?.department_id ?? req.user?.department ?? u.department_id,
+        role: normalizedRole,
+        department_id: departmentId,
         profile_pic: u.profile_pic,
+      };
+
+      req.currentUser = {
+        ...req.currentUser,
+        id: req.user.id,
+        user_id: req.user.id,
+        username: req.user.Username ?? req.currentUser?.username,
+        role: normalizedRole,
+        department_id: departmentId,
+        department: departmentId ?? req.currentUser?.department,
       };
     }
   } catch (authError) {
@@ -416,9 +436,9 @@ router.get('/documents', requireAuth, async (req, res) => {
         d.created_by_name,
         u.profile_pic AS created_by_profile_pic,
         GROUP_CONCAT(DISTINCT dept.name ORDER BY dept.name SEPARATOR ', ') AS department_names,
-        GROUP_CONCAT(DISTINCT dept.department_id ORDER BY dept.name SEPARATOR ', ') AS department_ids,
+        GROUP_CONCAT(DISTINCT dept.department_id ORDER BY dept.department_id SEPARATOR ',') AS department_ids,
         GROUP_CONCAT(DISTINCT f2.name ORDER BY f2.name SEPARATOR ', ') AS folder_names,
-        GROUP_CONCAT(DISTINCT df.folder_id ORDER BY f2.name SEPARATOR ', ') AS folder_ids
+        GROUP_CONCAT(DISTINCT df.folder_id ORDER BY df.folder_id SEPARATOR ',') AS folder_ids
       FROM dms_documents d
       LEFT JOIN document_types dt ON d.doc_type = dt.type_id
       LEFT JOIN folders f ON d.folder_id = f.folder_id

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './AdminPanel.css';
 // Removed react-bootstrap modal/components
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
@@ -103,6 +103,30 @@ const AdminPanel = ({ role }) => {
 
   // Normalize role to lowercase for consistent comparison
   const normalizedRole = (role || '').toString().toLowerCase();
+
+  // Role-based tabs helper must be declared before any usage
+  const getTabsForRole = (userRole) => {
+    const normalizedRole = (userRole || '').toString().toLowerCase();
+    const allTabs = [
+      { id: 'documents', label: 'Document Management', icon: FiFileText },
+      { id: 'departments', label: 'Departments', icon: FiSettings },
+      { id: 'positions', label: 'User Positions', icon: FiBriefcase },
+      { id: 'actions', label: 'Actions', icon: FiActivity },
+      { id: 'maintenance', label: 'Maintenance', icon: FiAlertTriangle },
+      { id: 'system', label: 'System Settings', icon: FiShield }
+    ];
+
+    if (normalizedRole === 'dean') {
+      // Deans can only see documents and actions
+      return allTabs.filter(tab => ['documents', 'actions'].includes(tab.id));
+    } else if (normalizedRole === 'admin') {
+      // Admins can see all tabs
+      return allTabs;
+    }
+
+    // Default fallback (show all for admin)
+    return allTabs;
+  };
   const fetchDepartments = async () => {
     try {
       const data = await fetchJson(buildUrl('departments'));
@@ -755,28 +779,6 @@ const AdminPanel = ({ role }) => {
   }
 
   // Role-based tabs
-  const getTabsForRole = (userRole) => {
-    const normalizedRole = (userRole || '').toString().toLowerCase();
-    const allTabs = [
-      { id: 'documents', label: 'Document Management', icon: FiFileText },
-      { id: 'departments', label: 'Departments', icon: FiSettings },
-      { id: 'positions', label: 'User Positions', icon: FiBriefcase },
-      { id: 'actions', label: 'Actions', icon: FiActivity },
-      { id: 'maintenance', label: 'Maintenance', icon: FiAlertTriangle },
-      { id: 'system', label: 'System Settings', icon: FiShield }
-    ];
-
-    if (normalizedRole === 'dean') {
-      // Deans can only see documents and actions
-      return allTabs.filter(tab => ['documents', 'actions'].includes(tab.id));
-    } else if (normalizedRole === 'admin') {
-      // Admins can see all tabs
-      return allTabs;
-    }
-    
-    // Default fallback (show all for admin)
-    return allTabs;
-  };
 
   const tabs = getTabsForRole(role);
 
