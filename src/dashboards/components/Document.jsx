@@ -5,7 +5,7 @@ import { useDocuments } from '../../contexts/DocumentContext.jsx';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import { useUser } from '../../contexts/UserContext.jsx';
 import { fetchUserPreferences, toggleFavorite, togglePin } from '../../lib/api/frontend/DocumentPreferencesClient.js';
-import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
+import { buildUrl, fetchJson, API_BASE_URL } from '../../lib/api/frontend/client.js';
 
 const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate }) => {
   // State management
@@ -108,6 +108,8 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const [folderModalMode, setFolderModalMode] = useState('add'); // 'add' or 'edit'
   const [folderForm, setFolderForm] = useState({ name: '', description: '' });
   const [editingFolder, setEditingFolder] = useState(null);
+  const [extraDeptDocs, setExtraDeptDocs] = useState([]);
+  const [extraFetchAttempted, setExtraFetchAttempted] = useState(false);
 
   // Mobile detection
   useEffect(() => {
@@ -710,11 +712,16 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
 
   // Filtered and sorted documents
   const filteredDocuments = useMemo(() => {
+    console.log('API_BASE_URL:', API_BASE_URL);
     console.log('=== FILTERING START ===');
     console.log('showOnlyMyDocuments:', showOnlyMyDocuments);
     console.log('currentUser:', currentUser);
-    console.log('Total documents to filter:', documents.length);
-    let filtered = documents.filter(doc => {
+    const baseDocsMap = new Map();
+    for (const d of documents) baseDocsMap.set(d.id || d.doc_id, d);
+    for (const d of extraDeptDocs) baseDocsMap.set(d.id || d.doc_id, d);
+    const baseDocs = Array.from(baseDocsMap.values());
+    console.log('Total documents to filter:', baseDocs.length, '(primary:', documents.length, 'extra:', extraDeptDocs.length, ')');
+    let filtered = baseDocs.filter(doc => {
       // Check if document was created by the current user (for toggle functionality)
       const isCreatedByCurrentUser = doc.created_by_name && currentUser && (
         doc.created_by_name === currentUser.username ||
@@ -911,7 +918,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     console.log('Final filtered count:', filtered.length);
     console.log('Filtered documents:', filtered.map(d => ({ title: d.title, created_by: d.created_by_name })));
     return filtered;
-  }, [documents, lowerSearch, selectedCategory, selectedDepartment, selectedSender, selectedReceiver, selectedCreatedBy, selectedCopyType, selectedFolder, sortConfig, showOnlyMyDocuments, currentUser, userPreferences]);
+  }, [documents, extraDeptDocs, lowerSearch, selectedCategory, selectedDepartment, selectedSender, selectedReceiver, selectedCreatedBy, selectedCopyType, selectedFolder, sortConfig, showOnlyMyDocuments, currentUser, userPreferences]);
 
   // Build list of folders that actually contain at least one currently visible document
   const visibleFolders = useMemo(() => {
@@ -949,6 +956,64 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     if (!q) return visibleFolders;
     return visibleFolders.filter(f => (f.name || '').toString().toLowerCase().includes(q));
   }, [visibleFolders, folderSearch]);
+
+  // Client-side fallback: if user is DEAN/FACULTY and no docs from their department
+  // were included in the primary payload, fetch /documents/latest and merge dept docs.
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const role = (currentUser?.role || '').toString().toUpperCase();
+        const deptId = currentUser?.department_id ? String(currentUser.department_id) : '';
+        if (!deptId) return;
+        if (!(role === 'DEAN' || role === 'FACULTY')) return;
+        if (extraFetchAttempted) return;
+
+        const hasDeptDoc = (arr) => {
+          return (arr || []).some(doc => {
+            const idCsv = (doc?.department_ids || doc?.departments || '').toString();
+            if (idCsv) {
+              const ids = idCsv.split(',').map(s => s.trim()).filter(Boolean);
+              if (ids.includes(deptId)) return true;
+            }
+            // Also try names against departmentsList
+            if (Array.isArray(departmentsList) && departmentsList.length > 0) {
+              const myDept = departmentsList.find(d => String(d.department_id ?? d.value) === deptId);
+              const myNameLower = myDept ? String(myDept.name ?? myDept.label ?? '').trim().toLowerCase() : '';
+              if (myNameLower) {
+                const deptNames = String(doc?.department_names || '')
+                  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+                if (deptNames.includes(myNameLower)) return true;
+              }
+            }
+            return false;
+          });
+        };
+
+        if (hasDeptDoc(documents)) return; // primary payload already includes dept docs
+
+        console.log('[Fallback] No dept docs found in primary payload. Fetching /documents/latest ...');
+        setExtraFetchAttempted(true);
+        const latest = await fetchJson(buildUrl('/documents/latest'));
+        const list = (latest && latest.success && Array.isArray(latest.documents)) ? latest.documents : [];
+        const onlyDept = list.filter(d => hasDeptDoc([d]));
+        if (onlyDept.length > 0) {
+          console.log(`[Fallback] Merging ${onlyDept.length} department docs from /documents/latest`);
+          setExtraDeptDocs(prev => {
+            const map = new Map();
+            for (const d of prev) map.set(d.id || d.doc_id, d);
+            for (const d of onlyDept) map.set(d.id || d.doc_id, d);
+            return Array.from(map.values());
+          });
+        } else {
+          console.log('[Fallback] /documents/latest returned no matching department docs');
+        }
+      } catch (e) {
+        console.warn('[Fallback] Failed to fetch /documents/latest:', e);
+      }
+    };
+    run();
+    // include departmentsList to support name matching when it finishes loading
+  }, [documents, currentUser, departmentsList, extraFetchAttempted]);
 
   // Pagination logic
   const totalItems = filteredDocuments.length;
