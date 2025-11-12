@@ -124,6 +124,25 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     setPropertiesOpen(true);
   };
 
+  // If redirected from Dashboard with a selected doc, open its preview automatically
+  useEffect(() => {
+    try {
+      const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('openDocumentId') : null;
+      if (!raw) return;
+      const idStr = String(raw).trim();
+      const numId = Number(idStr);
+      const doc = (documents || []).find(d => {
+        const did = d.id ?? d.doc_id;
+        return String(did) === idStr || (!Number.isNaN(numId) && Number(did) === numId);
+      });
+      if (doc) {
+        setPreviewDoc(doc);
+        setPreviewOpen(true);
+      }
+      sessionStorage.removeItem('openDocumentId');
+    } catch {}
+  }, [documents]);
+
   // Build list of folders that actually contain at least one currently visible document
   // (computed after filteredDocuments is defined; see placement below)
   // const visibleFolders = useMemo(...)

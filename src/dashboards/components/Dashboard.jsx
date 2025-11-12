@@ -110,8 +110,25 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
         // Fetch latest documents
         try {
           const docsData = await fetchJson(buildUrl('documents/latest?limit=10'));
-          const filteredDocs = docsData.documents || [];
-          setLatestDocuments(filteredDocs.slice(0, 10));
+          let docs = docsData.documents || [];
+          // For DEAN/FACULTY, limit to public + own department
+          const roleStr = (currentUser?.role || '').toString().toUpperCase();
+          const deptIdStr = currentUser?.department_id ? String(currentUser.department_id) : '';
+          const isPublic = (v) => {
+            if (v === 1 || v === true) return true;
+            const s = (v || '').toString().trim().toLowerCase();
+            return ['1','true','yes','all','public','everyone'].includes(s);
+          };
+          if ((roleStr === 'DEAN' || roleStr === 'FACULTY') && deptIdStr) {
+            docs = docs.filter(d => {
+              if (isPublic(d.visible_to_all)) return true;
+              const csv = (d.department_ids || '').toString();
+              if (!csv) return false;
+              const ids = csv.split(',').map(s => s.trim()).filter(Boolean);
+              return ids.includes(deptIdStr);
+            });
+          }
+          setLatestDocuments(docs.slice(0, 10));
         } catch {}
 
         // Fetch latest requests (scope-aware for dean/faculty)
@@ -996,40 +1013,35 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
              </div>
              <div style={styles.modalFooter}>
                <button 
-                 onClick={() => {
-                   setShowDocumentModal(false);
-                   setSelectedDocument(null);
-                 }}
-                 style={styles.submitBtn}
-                 onMouseEnter={(e) => {
-                   Object.assign(e.target.style, styles.submitBtnHover);
-                 }}
-                 onMouseLeave={(e) => {
-                   Object.assign(e.target.style, styles.submitBtn);
-                 }}
-               >
-                 Close
-               </button>
-               <button 
-                 onClick={() => {
-                   if (onNavigateToDocuments) {
-                     onNavigateToDocuments('requests');
-                   }
-                 }}
-                 style={styles.primaryBtn}
-                 onMouseEnter={(e) => {
-                   Object.assign(e.target.style, styles.primaryBtnHover);
-                 }}
-                 onMouseLeave={(e) => {
-                   Object.assign(e.target.style, styles.submitBtn);
-                 }}
-               >
-                 View Full Request
-               </button>
-             </div>
-           </div>
-         </div>
-       )}
+                onClick={() => {
+                  setShowDocumentModal(false);
+                  setSelectedDocument(null);
+                }}
+                style={styles.submitBtn}
+              >
+                Close
+              </button>
+              <button 
+                onMouseEnter={(e)=>{
+                  e.target.style.backgroundColor = '#111';
+                  e.target.style.color = 'white';
+                }}
+                onMouseLeave={(e)=>{
+                  Object.assign(e.target.style, styles.submitBtn);
+                }}
+                onClick={() => {
+                  try { sessionStorage.setItem('openDocumentId', String(selectedDocument.id || selectedDocument.doc_id)); } catch {}
+                  setShowDocumentModal(false);
+                  setSelectedDocument(null);
+                  if (onNavigateToDocuments) onNavigateToDocuments('documents');
+                }}
+              >
+                View Full Document
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
