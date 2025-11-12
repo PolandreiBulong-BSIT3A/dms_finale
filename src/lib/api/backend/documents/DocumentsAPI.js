@@ -455,6 +455,25 @@ router.get('/documents', requireAuth, async (req, res) => {
     
     // Enhanced debug logging
     console.log(`[DocumentsAPI /documents] User ID: ${current.id || current.user_id}, Raw Role: "${rawRole}", Lower: "${roleLower}", Upper: "${roleUpper}", isDean: ${dean}, isAdmin: ${isAdmin}, department_id: ${departmentId}, department_id type: ${typeof current.department_id}`);
+    
+    // Diagnostic: Check if there are any documents linked to this department
+    if (departmentId && !isAdmin) {
+      try {
+        const [deptDocs] = await db.promise().query(
+          'SELECT COUNT(*) as count FROM document_departments WHERE department_id = ?',
+          [departmentId]
+        );
+        console.log(`[DocumentsAPI /documents] Diagnostic: Found ${deptDocs[0]?.count || 0} documents linked to department_id ${departmentId} in document_departments table`);
+        
+        // Also check documents with visible_to_all
+        const [publicDocs] = await db.promise().query(
+          'SELECT COUNT(*) as count FROM dms_documents WHERE COALESCE(deleted, 0) = 0 AND (visible_to_all = 1 OR visible_to_all = true OR LOWER(TRIM(COALESCE(visible_to_all, ""))) IN ("1", "true", "yes", "all", "public", "everyone"))'
+        );
+        console.log(`[DocumentsAPI /documents] Diagnostic: Found ${publicDocs[0]?.count || 0} public documents`);
+      } catch (diagError) {
+        console.error('[DocumentsAPI /documents] Diagnostic query error:', diagError);
+      }
+    }
 
     const filters = [];
     const values = [];
@@ -549,14 +568,44 @@ router.get('/documents', requireAuth, async (req, res) => {
     const [results] = await db.promise().query(sql, values);
     
     console.log(`[DocumentsAPI /documents] Query returned ${results.length} documents`);
-    if (results.length > 0 && results.length <= 5) {
-      console.log(`[DocumentsAPI /documents] Sample documents:`, results.map(r => ({
-        id: r.id,
-        title: r.title,
-        visible_to_all: r.visible_to_all,
-        department_ids: r.department_ids,
-        department_names: r.department_names
-      })));
+    
+    // Detailed analysis of returned documents
+    if (results.length > 0) {
+      const publicCount = results.filter(r => {
+        const vta = r.visible_to_all;
+        return vta === 1 || vta === true || 
+               (typeof vta === 'string' && ['1', 'true', 'yes', 'all', 'public', 'everyone'].includes(vta.trim().toLowerCase()));
+      }).length;
+      const deptCount = results.filter(r => {
+        const deptIds = (r.department_ids || '').toString();
+        return deptIds && deptIds.split(',').some(id => id.trim() === String(departmentId));
+      }).length;
+      console.log(`[DocumentsAPI /documents] Analysis: ${publicCount} public, ${deptCount} department-specific (dept_id: ${departmentId})`);
+      
+      if (results.length <= 10) {
+        console.log(`[DocumentsAPI /documents] All documents:`, results.map(r => ({
+          id: r.id,
+          title: r.title?.substring(0, 30),
+          visible_to_all: r.visible_to_all,
+          department_ids: r.department_ids,
+          department_names: r.department_names?.substring(0, 50)
+        })));
+      }
+    } else if (departmentId && !isAdmin) {
+      // If no results but user has department, test the EXISTS query directly
+      try {
+        const [testResults] = await db.promise().query(
+          `SELECT d.doc_id, d.title, d.visible_to_all 
+           FROM dms_documents d 
+           WHERE COALESCE(d.deleted, 0) = 0 
+           AND EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?) 
+           LIMIT 5`,
+          [departmentId]
+        );
+        console.log(`[DocumentsAPI /documents] Test query for dept ${departmentId} found ${testResults.length} documents:`, testResults.map(r => ({ id: r.doc_id, title: r.title })));
+      } catch (testError) {
+        console.error('[DocumentsAPI /documents] Test query error:', testError);
+      }
     }
     
     const documents = results.map(r => {

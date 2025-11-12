@@ -747,32 +747,92 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       const matchesCategory = !selectedCategory || (String(doc.doc_type || '').trim() === String(selectedCategory).trim());
 
       const matchesDepartment = (() => {
-        if (!selectedDepartment) return true;
-        // Exclude public docs when a department is selected
-        if (isPublic(doc)) return false;
-        // If explicitly allowed by user or role, bypass department filter
+        const deanOrUserWithDept = ((effectiveIsDean || isUser) && currentUser?.department_id);
+        // Always allow if no filter is selected (admin or anyone without lock)
+        // or if we are locking by role and document is public/explicitly allowed/created by current user.
         const userIdStr = (currentUser?.id || currentUser?.user_id)?.toString();
         const roleStr = (currentUser?.role || '').toString().toLowerCase();
         const allowedUsers = parseList(doc.allowed_user_ids || doc.user_ids || doc.visibility_user_ids || doc.users);
         const allowedRoles = parseList(doc.allowed_roles || doc.roles || doc.visibility_roles, true);
         const allowedByUser = userIdStr ? allowedUsers.includes(userIdStr) : false;
         const allowedByRole = roleStr ? allowedRoles.includes(roleStr) : false;
+
+        if (deanOrUserWithDept) {
+          // Locked: show public, explicitly-allowed, created-by-me, or docs belonging to my department
+          if (isPublic(doc) || allowedByUser || allowedByRole || isCreatedByCurrentUser) return true;
+          const deptIdStr = String(currentUser.department_id);
+          const idCsv = (doc.department_ids || doc.departments || '').toString();
+          if (idCsv) {
+            const ids = idCsv.split(',').map(s => s.trim()).filter(Boolean);
+            if (ids.includes(deptIdStr)) return true;
+            if (Array.isArray(departmentsList) && departmentsList.length > 0) {
+              const byId = new Map(
+                departmentsList.map(d => [
+                  String(d.department_id ?? d.value),
+                  String(d.code ?? d.department_code ?? d.name ?? d.label ?? '').trim().toLowerCase()
+                ])
+              );
+              const selectedVal = byId.get(deptIdStr);
+              if (selectedVal) {
+                // Also try name matching against department_names in doc
+                const deptNames = String(doc.department_names || '')
+                  .split(',')
+                  .map(s => s.trim().toLowerCase())
+                  .filter(Boolean);
+                if (deptNames.includes(selectedVal)) return true;
+              }
+            }
+          } else {
+            // No ids present, try matching by department_names against user's department name
+            if (Array.isArray(departmentsList) && departmentsList.length > 0) {
+              const myDept = departmentsList.find(d => String(d.department_id ?? d.value) === deptIdStr);
+              const myNameLower = myDept ? String(myDept.name ?? myDept.label ?? '').trim().toLowerCase() : '';
+              if (myNameLower) {
+                const deptNames = String(doc.department_names || '')
+                  .split(',')
+                  .map(s => s.trim().toLowerCase())
+                  .filter(Boolean);
+                if (deptNames.includes(myNameLower)) return true;
+              }
+            }
+          }
+          return false;
+        }
+
+        // Not locked by role: honor selectedDepartment, and exclude public when a department is selected
+        if (!selectedDepartment) return true;
+        if (isPublic(doc)) return false;
         if (allowedByUser || allowedByRole) return true;
-        // Creator can always see their document regardless of department filter
         if (isCreatedByCurrentUser) return true;
-        // Match by department name directly
+
+        const targetRaw = String(selectedDepartment).trim();
+        const targetLower = targetRaw.toLowerCase();
+        const targetIsNumeric = /^\d+$/.test(targetRaw);
         const deptNames = String(doc.department_names || '')
           .split(',')
           .map(s => s.trim().toLowerCase())
           .filter(Boolean);
-        if (deptNames.includes(String(selectedDepartment).trim().toLowerCase())) return true;
-        // Fallback: map department_ids -> names via departmentsList
+        if (deptNames.includes(targetLower)) return true;
         const idCsv = (doc.department_ids || doc.departments || '').toString();
-        if (idCsv && Array.isArray(departmentsList) && departmentsList.length > 0) {
+        if (idCsv) {
           const ids = idCsv.split(',').map(s => s.trim()).filter(Boolean);
-          const byId = new Map(departmentsList.map(d => [String(d.department_id ?? d.value), String(d.name ?? d.label).trim().toLowerCase()]));
-          const target = String(selectedDepartment).trim().toLowerCase();
-          return ids.some(id => byId.get(String(id)) === target);
+          if (targetIsNumeric && ids.includes(targetRaw)) return true;
+          if (Array.isArray(departmentsList) && departmentsList.length > 0) {
+            const byId = new Map(
+              departmentsList.map(d => [
+                String(d.department_id ?? d.value),
+                {
+                  nameLower: String(d.name ?? d.label ?? '').trim().toLowerCase(),
+                  codeLower: String(d.code ?? d.department_code ?? '').trim().toLowerCase(),
+                }
+              ])
+            );
+            return ids.some(id => {
+              const info = byId.get(String(id));
+              if (!info) return false;
+              return info.nameLower === targetLower || (!!info.codeLower && info.codeLower === targetLower);
+            });
+          }
         }
         return false;
       })();
@@ -2265,33 +2325,37 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                         {/* Department filter visible only for ADMIN */}
         {isAdmin && (
                   <>
-                    {!isMobile && <div>Department</div>}
-                    <div>
-                      {isMobile && <label style={{ fontSize: '14px', fontWeight: '500', marginBottom: '4px', display: 'block' }}>Department</label>}
-                      <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} style={{ 
-                        width: '100%', 
-                        padding: isMobile ? '12px 16px' : '8px 12px',
-                        borderRadius: isMobile ? '12px' : '20px',
-                        border: '1px solid #d1d5db',
-                        fontSize: isMobile ? '16px' : '14px',
-                        backgroundColor: '#fff',
-                        minHeight: isMobile ? '48px' : 'auto'
-                      }}>
-                        <option value="">All Departments</option>
-                        {departmentsLoading ? (
-                          <option value="" disabled>Loading departments...</option>
-                        ) : departments.length > 0 ? (
-                          departments.map(d => {
-                            const count = documents.filter(doc => 
-                              doc.department_names && doc.department_names.includes(d)
-                            ).length;
-                            return <option key={d} value={d}>{d} ({count})</option>;
-                          })
-                        ) : (
-                          <option value="" disabled>No departments available</option>
-                        )}
-                      </select>
-                    </div>
+                    {!(effectiveIsDean || isUser) && (
+                      <>
+                        {!isMobile && <div>Department</div>}
+                        <div>
+                          {isMobile && <label style={{ fontSize: '14px', fontWeight: '500', marginBottom: '4px', display: 'block' }}>Department</label>}
+                          <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} style={{ 
+                            width: '100%', 
+                            padding: isMobile ? '12px 16px' : '8px 12px',
+                            borderRadius: isMobile ? '12px' : '20px',
+                            border: '1px solid #d1d5db',
+                            fontSize: isMobile ? '16px' : '14px',
+                            backgroundColor: '#fff',
+                            minHeight: isMobile ? '48px' : 'auto'
+                          }}>
+                            <option value="">All Departments</option>
+                            {departmentsLoading ? (
+                              <option value="" disabled>Loading departments...</option>
+                            ) : departments.length > 0 ? (
+                              departments.map(d => {
+                                const count = documents.filter(doc => 
+                                  doc.department_names && doc.department_names.includes(d)
+                                ).length;
+                                return <option key={d} value={d}>{d} ({count})</option>;
+                              })
+                            ) : (
+                              <option value="" disabled>No departments available</option>
+                            )}
+                          </select>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
                 <div>Sender</div>
