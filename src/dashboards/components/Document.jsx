@@ -733,31 +733,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
       // If toggle is active, only show documents created by the current user
       if (showOnlyMyDocuments && !isCreatedByCurrentUser) return false;
 
-      // Role-based baseline visibility gating
-      // Admins bypass gating and can see all documents
-      // Apply baseline gating only for DEAN; rely on backend for FACULTY visibility
-      if (!isAdmin && effectiveIsDean && currentUser?.department_id) {
-        const userDeptId = currentUser.department_id;
-        const userDept = currentUser?.department || currentUser?.department_name || '';
-        const visibleAll = isPublic(doc);
-        const belongsToUserDept = (userDeptId && doc.department_ids)
-          ? (Array.isArray(doc.department_ids)
-              ? doc.department_ids.map(id => id?.toString().trim())
-              : (typeof doc.department_ids === 'string'
-                  ? doc.department_ids.split(',').map(id => id.trim())
-                  : [])
-            ).includes(userDeptId.toString())
-          : (userDept && doc.department_names)
-            ? String(doc.department_names).toLowerCase().includes(String(userDept).toLowerCase())
-            : false;
-        const userIdStr = (currentUser?.id || currentUser?.user_id)?.toString();
-        const roleStr = (currentUser?.role || '').toString().toLowerCase();
-        const allowedUsers = parseList(doc.allowed_user_ids || doc.user_ids || doc.visibility_user_ids || doc.users);
-        const allowedRoles = parseList(doc.allowed_roles || doc.roles || doc.visibility_roles, true);
-        const allowedByUser = userIdStr ? allowedUsers.includes(userIdStr) : false;
-        const allowedByRole = roleStr ? allowedRoles.includes(roleStr) : false;
-        if (!visibleAll && !belongsToUserDept && !isCreatedByCurrentUser && !allowedByUser && !allowedByRole) return false;
-      }
+      // Rely entirely on backend for role/department visibility (including DEAN and FACULTY)
 
       const matchesSearch = !lowerSearch || (
         String(doc.title || '').toLowerCase().includes(lowerSearch) ||
