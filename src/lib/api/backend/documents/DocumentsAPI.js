@@ -27,6 +27,17 @@ const router = express.Router();
 const normalizeRole = (role) => (role || '').toString().trim().toLowerCase();
 const isDeanRole = (role) => normalizeRole(role) === 'dean';
 
+const buildVisibleToAllClause = (column = 'd.visible_to_all') => `
+  (
+    CASE
+      WHEN COALESCE(${column}, 0) = 1 THEN 1
+      WHEN LOWER(TRIM(COALESCE(${column}, ''))) IN ('1', 'true', 'yes', 'all', 'public', 'everyone') THEN 1
+      WHEN ${column} = true THEN 1
+      ELSE 0
+    END = 1
+  )
+`;
+
 // Helper to consistently derive a display name for the current user
 const deriveUserName = (u) => (
   u?.Username ||
@@ -168,7 +179,7 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
       // no additional filter
     } else if (dean && current.department_id) {
       // Dean: public OR department OR explicitly allowed (user/role) OR created by them
-      filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
+      filters.push(`((${buildVisibleToAllClause()}) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
       values.push(current.department_id);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
@@ -176,13 +187,13 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     } else {
       // Non-admin non-dean: public OR dept (if any) OR explicitly allowed (user/role) OR created by them
       if (current?.department_id) {
-        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
+      filters.push(`((${buildVisibleToAllClause()}) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
         values.push(current.department_id);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
         values.push(current.user_id || current.id);
       } else {
-        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
+        filters.push(`((${buildVisibleToAllClause()}) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
         values.push(current.user_id || current.id);
@@ -391,7 +402,7 @@ router.get('/documents', requireAuth, async (req, res) => {
       // no restriction
     } else if (dean && current.department_id) {
       // Dean: public OR department OR explicitly allowed (user/role) OR created by them
-      filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
+      filters.push(`((${buildVisibleToAllClause()}) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
       values.push(current.department_id);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
@@ -399,14 +410,14 @@ router.get('/documents', requireAuth, async (req, res) => {
     } else {
       if (current?.department_id) {
         // Non-admin non-dean with dept: public OR dept OR explicitly allowed (user/role) OR created by them
-        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
+        filters.push(`((${buildVisibleToAllClause()}) OR (dd.department_id = ?) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
         values.push(current.department_id);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
         values.push(current.user_id || current.id);
       } else {
         // No dept: public OR explicitly allowed (user/role) OR created by them
-        filters.push('((COALESCE(d.visible_to_all, 0) = 1) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))');
+        filters.push(`((${buildVisibleToAllClause()}) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (d.created_by_user_id = ?))`);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
         values.push(current.user_id || current.id);
