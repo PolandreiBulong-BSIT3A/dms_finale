@@ -34,6 +34,38 @@ router.get('/notifications', requireAuth, (req, res) => {
   const currentUser = req.currentUser || {};
   const limit = Math.max(1, Math.min(Number(req.query.limit) || 100, 200));
 
+  // Treat ADMIN/DEAN/FACULTY as admin-like: they can see all notifications
+  const roleLower = (currentUser.role || '').toString().toLowerCase();
+  const userParam = (currentUser.user_id ?? currentUser.id) ?? null;
+  const isAdminLike = roleLower === 'admin' || roleLower === 'dean' || roleLower === 'faculty';
+
+  if (isAdminLike) {
+    const sqlAll = `
+      SELECT 
+        n.notification_id AS id,
+        n.title,
+        n.message,
+        n.type,
+        n.visible_to_all,
+        n.created_at,
+        n.related_doc_id,
+        EXISTS(
+          SELECT 1 FROM notification_reads r
+          WHERE r.notification_id = n.notification_id AND r.user_id = ?
+        ) AS is_read
+      FROM notifications n
+      ORDER BY is_read ASC, n.created_at DESC
+      LIMIT ?
+    `;
+    return db.query(sqlAll, [userParam, limit], (err, results) => {
+      if (err) {
+        console.error('Error fetching notifications (admin-like):', err);
+        return res.status(500).json({ success: false, message: 'Database error.' });
+      }
+      return res.json({ success: true, notifications: results });
+    });
+  }
+
   const sql = `
     SELECT 
       n.notification_id AS id,
@@ -69,7 +101,6 @@ router.get('/notifications', requireAuth, (req, res) => {
 
   const deptParam = currentUser.department_id ?? null;
   const roleParam = (currentUser.role ? String(currentUser.role).toUpperCase() : null);
-  const userParam = (currentUser.user_id ?? currentUser.id) ?? null;
 
   db.query(sql, [userParam, deptParam, deptParam, roleParam, roleParam, userParam, userParam, limit], (err, results) => {
     if (err) {
@@ -83,6 +114,30 @@ router.get('/notifications', requireAuth, (req, res) => {
 // Get unread notification count
 router.get('/notifications/count', requireAuth, (req, res) => {
   const currentUser = req.currentUser || {};
+
+  // Treat ADMIN/DEAN/FACULTY as admin-like: unread count across all notifications
+  const roleLower = (currentUser.role || '').toString().toLowerCase();
+  const userParam = (currentUser.user_id ?? currentUser.id) ?? null;
+  const isAdminLike = roleLower === 'admin' || roleLower === 'dean' || roleLower === 'faculty';
+
+  if (isAdminLike) {
+    const sqlAllCount = `
+      SELECT COUNT(*) AS total
+      FROM notifications n
+      WHERE NOT EXISTS (
+        SELECT 1 FROM notification_reads r 
+        WHERE r.notification_id = n.notification_id AND r.user_id = ?
+      )
+    `;
+    return db.query(sqlAllCount, [userParam], (err, results) => {
+      if (err) {
+        console.error('Error fetching notification count (admin-like):', err);
+        return res.status(500).json({ success: false, message: 'Database error.' });
+      }
+      const total = results[0]?.total || 0;
+      return res.json({ success: true, count: total });
+    });
+  }
 
   const sql = `
     SELECT COUNT(*) AS total
@@ -110,7 +165,6 @@ router.get('/notifications/count', requireAuth, (req, res) => {
 
   const deptParam = currentUser.department_id ?? null;
   const roleParam = (currentUser.role ? String(currentUser.role).toUpperCase() : null);
-  const userParam = (currentUser.user_id ?? currentUser.id) ?? null;
 
   db.query(sql, [deptParam, deptParam, roleParam, roleParam, userParam, userParam, userParam], (err, results) => {
     if (err) {
@@ -161,21 +215,30 @@ router.post('/notifications/mark-all-read', requireAuth, (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing user ID' });
     }
 
-    const getNotificationsSql = `
-      SELECT DISTINCT n.notification_id
-      FROM notifications n
-      LEFT JOIN notification_departments nd  ON n.notification_id = nd.notification_id
-      LEFT JOIN notification_roles      nrl ON n.notification_id = nrl.notification_id
-      LEFT JOIN notification_users      nu  ON n.notification_id = nu.notification_id
-      WHERE (
-        n.visible_to_all = 1 
-        OR ( ? IS NOT NULL AND nd.department_id = ? )
-        OR ( ? IS NOT NULL AND nrl.role = ? )
-        OR ( ? IS NOT NULL AND nu.user_id = ? )
-      )
-    `;
+    const roleLower = (currentUser.role || '').toString().toLowerCase();
+    const isAdminLike = roleLower === 'admin' || roleLower === 'dean' || roleLower === 'faculty';
 
-    db.query(getNotificationsSql, [deptParam, deptParam, roleParam, roleParam, userParam, userParam], (err, notifications) => {
+    const getNotificationsSql = isAdminLike
+      ? `
+        SELECT n.notification_id
+        FROM notifications n
+      `
+      : `
+        SELECT DISTINCT n.notification_id
+        FROM notifications n
+        LEFT JOIN notification_departments nd  ON n.notification_id = nd.notification_id
+        LEFT JOIN notification_roles      nrl ON n.notification_id = nrl.notification_id
+        LEFT JOIN notification_users      nu  ON n.notification_id = nu.notification_id
+        WHERE (
+          n.visible_to_all = 1 
+          OR ( ? IS NOT NULL AND nd.department_id = ? )
+          OR ( ? IS NOT NULL AND nrl.role = ? )
+          OR ( ? IS NOT NULL AND nu.user_id = ? )
+        )
+      `;
+
+    const params = isAdminLike ? [] : [deptParam, deptParam, roleParam, roleParam, userParam, userParam];
+    db.query(getNotificationsSql, params, (err, notifications) => {
       if (err) {
         console.error('Error fetching notifications for mark-all:', err);
         return res.status(500).json({ success: false, message: 'Failed to fetch notifications' });

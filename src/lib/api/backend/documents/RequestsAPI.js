@@ -54,6 +54,7 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
     const isAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
     const isDean = roleUpper === 'DEAN';
     const isFacultyRole = roleUpper === 'FACULTY';
+    const isAdminLike = isAdmin || isDean || isFacultyRole;
 
     // Base SQL selects documents that have any action rows with pending status
     let sql = `
@@ -95,20 +96,14 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
 
     const params = [];
 
-    if (!isAdmin) {
-      if (isDean || isFacultyRole) {
-        // Dean and Faculty: see all pending requests
-        // This shows all pending requests in the system
-        sql += ` AND (d.visible_to_all = 1 OR dd.department_id IS NOT NULL OR da.assigned_to_department_id IS NOT NULL OR da.assigned_to_role IS NOT NULL OR da.assigned_to_user_id IS NOT NULL)`;
-      } else {
-        // Other roles: only see requests assigned to them
-        sql += ` AND (
-            (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
-            OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
-            OR (da.assigned_to_role IS NOT NULL AND da.assigned_to_role = ?)
-          )`;
-        params.push(userId, deptId, roleUpper);
-      }
+    if (!isAdminLike) {
+      // Non admin-like users: only see requests assigned to them (user/department/role)
+      sql += ` AND (
+          (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
+          OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+          OR (da.assigned_to_role IS NOT NULL AND UPPER(da.assigned_to_role) = ?)
+        )`;
+      params.push(userId, deptId, roleUpper);
     }
 
     sql += `
@@ -159,6 +154,115 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
     res.json({ success: true, documents });
   } catch (error) {
     console.error('Error fetching request documents:', error);
+    res.status(500).json({ success: false, message: 'Database error.' });
+  }
+});
+
+// Get documents with actions that are completed (answered)
+router.get('/documents/answered', requireAuth, async (req, res) => {
+  try {
+    const userId = req.currentUser?.id || req.currentUser?.user_id || null;
+    const deptId = req.currentUser?.department_id || null;
+    const userRole = req.currentUser?.role || '';
+    const roleUpper = userRole.toString().toUpperCase();
+    const isAdmin = roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
+    const isDean = roleUpper === 'DEAN';
+    const isFacultyRole = roleUpper === 'FACULTY';
+    const isAdminLike = isAdmin || isDean || isFacultyRole;
+
+    let sql = `
+      SELECT 
+        d.doc_id AS id,
+        d.title,
+        d.reference,
+        dt.name AS doc_type,
+        d.date_received,
+        d.google_drive_link,
+        d.available_copy,
+        d.created_by_name,
+        creator.profile_pic AS created_by_profile_pic,
+        GROUP_CONCAT(DISTINCT ar.action_name ORDER BY ar.action_name SEPARATOR ', ') AS action_required_names,
+        da.status AS action_status,
+        da.completed_at,
+        da.completed_by_user_id,
+        CONCAT(completed_user.firstname, ' ', completed_user.lastname) AS completed_by_name,
+        -- receiver aggregates for 'Requested To'
+        GROUP_CONCAT(DISTINCT da.assigned_to_user_id ORDER BY da.assigned_to_user_id SEPARATOR ',') AS assigned_user_ids_csv,
+        GROUP_CONCAT(DISTINCT da.assigned_to_role ORDER BY da.assigned_to_role SEPARATOR ',') AS assigned_roles_csv,
+        GROUP_CONCAT(DISTINCT da.assigned_to_department_id ORDER BY da.assigned_to_department_id SEPARATOR ',') AS assigned_department_ids_csv,
+        reply_doc.doc_id AS reply_doc_id,
+        reply_doc.title AS reply_title,
+        reply_doc.description AS reply_description,
+        reply_doc.google_drive_link AS reply_google_drive_link,
+        reply_doc.created_at AS reply_created_at
+      FROM dms_documents d
+      LEFT JOIN document_types dt ON d.doc_type = dt.type_id
+      INNER JOIN document_actions da ON da.doc_id = d.doc_id
+      LEFT JOIN action_required ar ON ar.action_id = da.action_id
+      LEFT JOIN document_departments dd ON dd.doc_id = d.doc_id
+      LEFT JOIN dms_user creator ON creator.Username = d.created_by_name OR CONCAT(creator.firstname, ' ', creator.lastname) = d.created_by_name
+      LEFT JOIN dms_user completed_user ON da.completed_by_user_id = completed_user.user_id
+      LEFT JOIN dms_documents reply_doc ON reply_doc.is_reply_to_doc_id = d.doc_id
+      WHERE (d.deleted IS NULL OR d.deleted = 0)
+        AND da.status = 'completed'
+    `;
+
+    const params = [];
+    if (!isAdminLike) {
+      sql += ` AND (
+          (da.assigned_to_user_id IS NOT NULL AND da.assigned_to_user_id = ?)
+          OR (da.assigned_to_department_id IS NOT NULL AND da.assigned_to_department_id = ?)
+          OR (da.assigned_to_role IS NOT NULL AND UPPER(da.assigned_to_role) = ?)
+        )`;
+      params.push(userId, deptId, roleUpper);
+    }
+
+    sql += `
+      GROUP BY d.doc_id
+      ORDER BY da.completed_at DESC, d.created_at DESC
+    `;
+
+    const [rows] = await db.promise().query(sql, params);
+
+    const parseCsvNums = (csv) => (csv || '')
+      .toString()
+      .split(',')
+      .map(s => Number(String(s).trim()))
+      .filter(Boolean);
+    const parseCsvStrings = (csv) => (csv || '')
+      .toString()
+      .split(',')
+      .map(s => String(s).trim())
+      .filter(Boolean);
+
+    const documents = rows.map(r => ({
+      id: r.id,
+      title: r.title,
+      reference: r.reference,
+      doc_type: r.doc_type,
+      date_received: r.date_received,
+      google_drive_link: r.google_drive_link,
+      available_copy: r.available_copy || 'soft_copy',
+      created_by_name: r.created_by_name,
+      created_by_profile_pic: r.created_by_profile_pic,
+      action_required: r.action_required_names ? r.action_required_names.split(', ').filter(Boolean) : [],
+      action_status: r.action_status,
+      completed_at: r.completed_at,
+      completed_by_user_id: r.completed_by_user_id,
+      completed_by_name: r.completed_by_name,
+      requested_to_user_ids: parseCsvNums(r.assigned_user_ids_csv),
+      requested_to_roles: Array.from(new Set(parseCsvStrings(r.assigned_roles_csv).map(x => x.toUpperCase()))),
+      requested_to_department_ids: parseCsvNums(r.assigned_department_ids_csv),
+      reply_title: r.reply_title,
+      reply_description: r.reply_description,
+      reply_google_drive_link: r.reply_google_drive_link,
+      reply_created_at: r.reply_created_at,
+      action_required_name: r.action_required_names ? r.action_required_names.split(', ')[0] : null
+    }));
+
+    res.json({ success: true, documents });
+  } catch (error) {
+    console.error('Error fetching answered documents:', error);
     res.status(500).json({ success: false, message: 'Database error.' });
   }
 });

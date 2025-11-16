@@ -124,25 +124,6 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     setPropertiesOpen(true);
   };
 
-  // If redirected from Dashboard with a selected doc, open its preview automatically
-  useEffect(() => {
-    try {
-      const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('openDocumentId') : null;
-      if (!raw) return;
-      const idStr = String(raw).trim();
-      const numId = Number(idStr);
-      const doc = (documents || []).find(d => {
-        const did = d.id ?? d.doc_id;
-        return String(did) === idStr || (!Number.isNaN(numId) && Number(did) === numId);
-      });
-      if (doc) {
-        setPreviewDoc(doc);
-        setPreviewOpen(true);
-      }
-      sessionStorage.removeItem('openDocumentId');
-    } catch {}
-  }, [documents]);
-
   // Build list of folders that actually contain at least one currently visible document
   // (computed after filteredDocuments is defined; see placement below)
   // const visibleFolders = useMemo(...)
@@ -3070,6 +3051,36 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                                           </button>
                                         ))}
                                     </div>
+                                    {/* Remove from Folder section */}
+                                    {(() => {
+                                      const currentCsv = (doc.folder_ids || '').toString();
+                                      const currentIds = currentCsv ? currentCsv.split(',').map(s => Number(String(s).trim())).filter(Boolean) : [];
+                                      if (currentIds.length === 0) return null;
+                                      const currentFolders = currentIds.map(fid => {
+                                        const match = (folders || []).find(f => Number(f.folder_id) === Number(fid));
+                                        return { id: fid, name: match ? match.name : `Folder #${fid}` };
+                                      });
+                                      return (
+                                        <div style={{ marginTop: 10 }}>
+                                          <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>Remove from Folder</div>
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            {currentFolders.map(f => (
+                                              <button
+                                                key={`remove-folder-${doc.id}-${f.id}`}
+                                                type="button"
+                                                onClick={() => removeFolderFromDocument(doc, f.id)}
+                                                style={{
+                                                  width: '100%', textAlign: 'left', padding: '6px 8px',
+                                                  border: '1px solid #fee2e2', background: '#fff', borderRadius: 6, cursor: 'pointer', color: '#dc2626'
+                                                }}
+                                              >
+                                                Remove: {f.name}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 </li>
                               )}

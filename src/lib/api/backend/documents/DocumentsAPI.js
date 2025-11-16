@@ -279,15 +279,12 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
         dt.name AS doc_type,
         u.profile_pic AS created_by_profile_pic,
         u.user_email AS created_by_email,
-        GROUP_CONCAT(DISTINCT dept.name ORDER BY dept.name SEPARATOR ', ') AS department_names,
-        GROUP_CONCAT(DISTINCT dept.department_id ORDER BY dept.department_id SEPARATOR ',') AS department_ids,
         GROUP_CONCAT(DISTINCT f2.name ORDER BY f2.name SEPARATOR ', ') AS folder_names,
-        GROUP_CONCAT(DISTINCT df.folder_id ORDER BY df.folder_id SEPARATOR ',') AS folder_ids
+        GROUP_CONCAT(DISTINCT df.folder_id ORDER BY f2.name SEPARATOR ', ') AS folder_ids
       FROM dms_documents d
       LEFT JOIN document_types dt ON d.doc_type = dt.type_id
       LEFT JOIN folders f ON d.folder_id = f.folder_id
       LEFT JOIN document_departments dd ON d.doc_id = dd.doc_id
-      LEFT JOIN departments dept ON dd.department_id = dept.department_id
       LEFT JOIN document_folders df ON d.doc_id = df.doc_id
       LEFT JOIN folders f2 ON df.folder_id = f2.folder_id
       LEFT JOIN dms_user u ON u.user_id = d.created_by_user_id OR u.Username = d.created_by_name OR CONCAT(u.firstname, ' ', u.lastname) = d.created_by_name OR u.user_email = d.created_by_name
