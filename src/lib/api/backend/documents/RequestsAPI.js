@@ -272,6 +272,8 @@ router.post('/documents/reply', requireAuth, async (req, res) => {
   try {
     const { original_doc_id, title, description, google_drive_link, reply_type } = req.body;
     const userId = req.currentUser?.id || req.currentUser?.user_id;
+    const roleUpper = (req.currentUser?.role || '').toString().toUpperCase();
+    const deptId = req.currentUser?.department_id || null;
 
     if (!original_doc_id || !title) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
@@ -343,14 +345,20 @@ router.post('/documents/reply', requireAuth, async (req, res) => {
 
     const replyDocId = result.insertId;
 
-    // Update action status to 'completed' for the original document
+    // Update action status to 'completed' ONLY for the current user's relevant assignment rows
     await db.promise().query(
       `UPDATE document_actions 
        SET status = 'completed', 
            completed_at = NOW(),
            completed_by_user_id = ?
-       WHERE doc_id = ? AND status = 'pending'`,
-      [userId, original_doc_id]
+       WHERE doc_id = ? 
+         AND TRIM(LOWER(COALESCE(status, ''))) IN ('pending','open','in_progress','awaiting','assigned')
+         AND (
+           (assigned_to_user_id IS NOT NULL AND assigned_to_user_id = ?)
+           OR (assigned_to_department_id IS NOT NULL AND assigned_to_department_id = ?)
+           OR (assigned_to_role IS NOT NULL AND UPPER(assigned_to_role) = ?)
+         )`,
+      [userId, original_doc_id, userId, deptId, roleUpper]
     );
 
     // Create a targeted 'replied' notification for the original doc creator and assignees

@@ -217,8 +217,19 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     const isAdmin = roleLower === 'admin' || roleLower === 'administrator';
     const isAdminLike = isAdmin; // Only ADMIN bypasses restrictions
     
-    // Normalize department_id to number for reliable matching
-    const departmentId = current.department_id != null ? Number(current.department_id) : null;
+    // Normalize department_id to number for reliable matching; fallback to DB lookup if needed
+    let departmentId = current.department_id != null && !isNaN(Number(current.department_id))
+      ? Number(current.department_id)
+      : null;
+    if (!departmentId && (current.user_id || current.id)) {
+      try {
+        const [urows] = await db.promise().query('SELECT department_id FROM dms_user WHERE user_id = ? LIMIT 1', [current.user_id || current.id]);
+        const dep = Array.isArray(urows) && urows.length > 0 ? Number(urows[0].department_id) : null;
+        if (dep && !isNaN(dep)) departmentId = dep;
+      } catch (e) {
+        console.warn('[DocumentsAPI /documents/latest] Dept fallback lookup failed:', e?.message);
+      }
+    }
 
     const filters = [];
     const values = [];
@@ -499,8 +510,19 @@ router.get('/documents', requireAuth, async (req, res) => {
     const isAdmin = roleLower === 'admin' || roleLower === 'administrator' || roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
     const isAdminLike = isAdmin; // Only ADMIN bypasses restrictions
     
-    // Normalize department_id to number for reliable matching
-    const departmentId = current.department_id != null ? Number(current.department_id) : null;
+    // Normalize department_id to number for reliable matching; fallback to DB lookup if needed
+    let departmentId = current.department_id != null && !isNaN(Number(current.department_id))
+      ? Number(current.department_id)
+      : null;
+    if (!departmentId && (current.user_id || current.id)) {
+      try {
+        const [urows] = await db.promise().query('SELECT department_id FROM dms_user WHERE user_id = ? LIMIT 1', [current.user_id || current.id]);
+        const dep = Array.isArray(urows) && urows.length > 0 ? Number(urows[0].department_id) : null;
+        if (dep && !isNaN(dep)) departmentId = dep;
+      } catch (e) {
+        console.warn('[DocumentsAPI /documents] Dept fallback lookup failed:', e?.message);
+      }
+    }
     
     // Enhanced debug logging
     console.log(`[DocumentsAPI /documents] User ID: ${current.id || current.user_id}, Raw Role: "${rawRole}", Lower: "${roleLower}", Upper: "${roleUpper}", isDean: ${dean}, isAdmin: ${isAdmin}, department_id: ${departmentId}, department_id type: ${typeof current.department_id}`);
