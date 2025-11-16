@@ -215,7 +215,7 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     const dean = isDeanRole(current.role);
     const roleLower = (current.role || '').toString().trim().toLowerCase();
     const isAdmin = roleLower === 'admin' || roleLower === 'administrator';
-    const isAdminLike = isAdmin || roleLower === 'dean' || roleLower === 'faculty';
+    const isAdminLike = isAdmin; // Only ADMIN bypasses restrictions
     
     // Normalize department_id to number for reliable matching
     const departmentId = current.department_id != null ? Number(current.department_id) : null;
@@ -257,12 +257,8 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
       }
     }
 
-    // For ALL users, exclude documents that have action requirements OR are replies to action-required documents
-    filters.push(`d.doc_id NOT IN (
-      SELECT DISTINCT da.doc_id 
-      FROM document_actions da 
-      WHERE da.doc_id IS NOT NULL
-    ) AND d.is_reply_to_doc_id IS NULL`);
+    // Include all documents (including those with actions) in latest feed; still hide replies unless explicitly needed
+    filters.push(`d.is_reply_to_doc_id IS NULL`);
     
     const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
     
@@ -450,7 +446,7 @@ router.get('/documents', requireAuth, async (req, res) => {
     const roleUpper = rawRole.toUpperCase();
     const dean = isDeanRole(current.role) || roleLower === 'dean' || roleUpper === 'DEAN';
     const isAdmin = roleLower === 'admin' || roleLower === 'administrator' || roleUpper === 'ADMIN' || roleUpper === 'ADMINISTRATOR';
-    const isAdminLike = isAdmin || roleLower === 'dean' || roleLower === 'faculty' || roleUpper === 'DEAN' || roleUpper === 'FACULTY';
+    const isAdminLike = isAdmin; // Only ADMIN bypasses restrictions
     
     // Normalize department_id to number for reliable matching
     const departmentId = current.department_id != null ? Number(current.department_id) : null;
@@ -532,8 +528,8 @@ router.get('/documents', requireAuth, async (req, res) => {
 
     // Visibility
     if (isAdminLike) {
-      console.log('[DocumentsAPI /documents] Admin-like user (ADMIN/DEAN/FACULTY) - no restrictions');
-      // no restriction
+      console.log('[DocumentsAPI /documents] ADMIN user - no restrictions');
+      // no restriction for ADMIN only
     } else if (dean && departmentId) {
       // Dean: public OR department-linked OR explicitly allowed (user/role) OR created by same-dept user OR created by them
       // IMPORTANT: Also include documents created by same-dept users even if not explicitly linked in document_departments
