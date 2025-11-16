@@ -835,7 +835,31 @@ router.post('/documents', requireAuth, async (req, res) => {
           }
         }
 
-        // ...
+        // Create document_actions when actionAssignments are provided
+        try {
+          const hasAssignments = Array.isArray(actionAssignments) && actionAssignments.length > 0;
+          if (hasAssignments) {
+            const rows = [];
+            for (const a of actionAssignments) {
+              const actionId = a?.action_id ? Number(a.action_id) : null;
+              const toUser = a?.assigned_to_user_id ? Number(a.assigned_to_user_id) : null;
+              const toRole = a?.assigned_to_role ? String(a.assigned_to_role).toUpperCase() : null;
+              const toDept = a?.assigned_to_department_id ? Number(a.assigned_to_department_id) : null;
+              if (!actionId) continue;
+              rows.push([newId, actionId, toUser, toRole, toDept, 'pending']);
+            }
+            if (rows.length > 0) {
+              const placeholders = rows.map(() => '(?, ?, ?, ?, ?, ?, NOW())').join(', ');
+              const flat = rows.flatMap(r => [r[0], r[1], r[2], r[3], r[4], r[5]]);
+              await db.promise().query(
+                `INSERT INTO document_actions (doc_id, action_id, assigned_to_user_id, assigned_to_role, assigned_to_department_id, status, created_at) VALUES ${placeholders}`,
+                flat
+              );
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to insert document_actions:', e?.message || e);
+        }
 
         const audience = {
           visibleToAll: visibleToAll === 1,
