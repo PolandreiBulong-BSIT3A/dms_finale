@@ -91,7 +91,7 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
       LEFT JOIN dms_user completed_user ON da.completed_by_user_id = completed_user.user_id
       LEFT JOIN dms_documents reply_doc ON reply_doc.is_reply_to_doc_id = d.doc_id
       WHERE (d.deleted IS NULL OR d.deleted = 0)
-        AND da.status = 'pending'
+        AND TRIM(LOWER(COALESCE(da.status, ''))) IN ('pending','open','in_progress','awaiting','assigned')
     `;
 
     const params = [];
@@ -204,7 +204,7 @@ router.get('/documents/answered', requireAuth, async (req, res) => {
       LEFT JOIN dms_user completed_user ON da.completed_by_user_id = completed_user.user_id
       LEFT JOIN dms_documents reply_doc ON reply_doc.is_reply_to_doc_id = d.doc_id
       WHERE (d.deleted IS NULL OR d.deleted = 0)
-        AND da.status = 'completed'
+        AND TRIM(LOWER(COALESCE(da.status, ''))) IN ('completed','done','resolved','answered','closed')
     `;
 
     const params = [];
