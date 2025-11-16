@@ -230,21 +230,72 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
     if (isAdminLike) {
       // no additional filter
     } else if (dean && departmentId) {
-      // Dean: public OR department OR explicitly allowed (user/role) OR created by them OR created by same-dept user
-      filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE cu.user_id = d.created_by_user_id AND cu.department_id = ?)) OR (d.created_by_user_id = ?))`);
-      values.push(departmentId);
+      // Dean: public OR (if allowed lists exist -> must be allowed or creator) OR (if no allowed lists -> dept/same-dept) OR creator
+      filters.push(`(
+        (${buildVisibleToAllClause()})
+        OR (
+          (
+            COALESCE(NULLIF(TRIM(COALESCE(d.allowed_user_ids, '')), ''), NULL) IS NOT NULL
+            OR COALESCE(NULLIF(TRIM(COALESCE(d.allowed_roles, '')), ''), NULL) IS NOT NULL
+          )
+          AND (
+            FIND_IN_SET(?, COALESCE(d.allowed_user_ids, '')) > 0
+            OR FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, ' ', '')), '')) > 0
+            OR d.created_by_user_id = ?
+          )
+        )
+        OR (
+          COALESCE(NULLIF(TRIM(COALESCE(d.allowed_user_ids, '')), ''), NULL) IS NULL
+          AND COALESCE(NULLIF(TRIM(COALESCE(d.allowed_roles, '')), ''), NULL) IS NULL
+          AND (
+            EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)
+            OR EXISTS (
+              SELECT 1 FROM dms_user cu 
+              WHERE cu.user_id = d.created_by_user_id AND cu.department_id = ?
+            )
+          )
+        )
+        OR (d.created_by_user_id = ?)
+      )`);
       values.push(String(current.user_id || current.id || ''));
       values.push(roleLower);
+      values.push(current.user_id || current.id);
+      values.push(departmentId);
       values.push(departmentId);
       values.push(current.user_id || current.id);
     } else {
       if (departmentId) {
-        // Non-admin non-dean with dept (e.g., faculty): public OR dept OR explicitly allowed (user/role) OR created by them OR created by same-dept user
-        // Use EXISTS subquery for reliable department matching (works even if LEFT JOIN doesn't match)
-        filters.push(`((${buildVisibleToAllClause()}) OR (EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)) OR (FIND_IN_SET(?, COALESCE(d.allowed_user_ids, "")) > 0) OR (FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, " ", "")), "")) > 0) OR (EXISTS (SELECT 1 FROM dms_user cu WHERE cu.user_id = d.created_by_user_id AND cu.department_id = ?)) OR (d.created_by_user_id = ?))`);
-        values.push(departmentId);
+        // Non-admin with dept (e.g., faculty): public OR (if allowed lists exist -> must be allowed or creator) OR (if no allowed lists -> dept/same-dept) OR creator
+        filters.push(`(
+          (${buildVisibleToAllClause()})
+          OR (
+            (
+              COALESCE(NULLIF(TRIM(COALESCE(d.allowed_user_ids, '')), ''), NULL) IS NOT NULL
+              OR COALESCE(NULLIF(TRIM(COALESCE(d.allowed_roles, '')), ''), NULL) IS NOT NULL
+            )
+            AND (
+              FIND_IN_SET(?, COALESCE(d.allowed_user_ids, '')) > 0
+              OR FIND_IN_SET(?, COALESCE(LOWER(REPLACE(d.allowed_roles, ' ', '')), '')) > 0
+              OR d.created_by_user_id = ?
+            )
+          )
+          OR (
+            COALESCE(NULLIF(TRIM(COALESCE(d.allowed_user_ids, '')), ''), NULL) IS NULL
+            AND COALESCE(NULLIF(TRIM(COALESCE(d.allowed_roles, '')), ''), NULL) IS NULL
+            AND (
+              EXISTS (SELECT 1 FROM document_departments dd2 WHERE dd2.doc_id = d.doc_id AND dd2.department_id = ?)
+              OR EXISTS (
+                SELECT 1 FROM dms_user cu 
+                WHERE cu.user_id = d.created_by_user_id AND cu.department_id = ?
+              )
+            )
+          )
+          OR (d.created_by_user_id = ?)
+        )`);
         values.push(String(current.user_id || current.id || ''));
         values.push(roleLower);
+        values.push(current.user_id || current.id);
+        values.push(departmentId);
         values.push(departmentId);
         values.push(current.user_id || current.id);
       } else {
