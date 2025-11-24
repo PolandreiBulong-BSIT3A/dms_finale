@@ -59,6 +59,8 @@ const Upload = ({ role, onNavigateToDocuments }) => {
   const [fromOpen, setFromOpen] = useState(false);    // combobox open state
   const [toOpen, setToOpen] = useState(false);        // combobox open state
   const [dateTimeReceived, setDateTimeReceived] = useState('');
+const [dateError, setDateError] = useState('');
+const [dateError, setDateError] = useState('');
   const [selectedVisibility, setSelectedVisibility] = useState([]);
   const [errors, setErrors] = useState({});
   const [modalOpen, setModalOpen] = useState(false);
@@ -108,7 +110,16 @@ const Upload = ({ role, onNavigateToDocuments }) => {
   const [isPrefilledFromAnswered, setIsPrefilledFromAnswered] = useState(false);
   const [availableCopy, setAvailableCopy] = useState('soft_copy'); // 'soft_copy', 'hard_copy', 'both'
 
-  // Validate Google Drive link
+  // Validate date is not in the future
+const validateDateNotFuture = (dateStr) => {
+  if (!dateStr) return '';
+  const inputDate = new Date(dateStr);
+  const now = new Date();
+  if (inputDate > now) return 'Date cannot be in the future.';
+  return '';
+};
+
+// Validate Google Drive link
   const isValidDriveLink = (link) => {
     const drivePatterns = [
       /^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view/,
@@ -1487,11 +1498,15 @@ const Upload = ({ role, onNavigateToDocuments }) => {
                     appearance: 'none'
                   }} 
                   type="date" 
-                  value={dateTimeReceived} 
-                  onChange={e => setDateTimeReceived(e.target.value)} 
+                  value={dateTimeReceived}
+                  onChange={e => {
+                    setDateTimeReceived(e.target.value);
+                    setDateError(validateDateNotFuture(e.target.value));
+                  }}
+                  max={new Date().toISOString().slice(0, 10)} 
                   placeholder="mm/dd/yyyy"
                 />
-                {errors.dateTimeReceived && <div style={styles.error}>{errors.dateTimeReceived}</div>}
+                {(errors.dateTimeReceived || dateError) && <div style={styles.error}>{errors.dateTimeReceived || dateError}</div>}
               </div>
             </div>
             <div style={styles.divider} />

@@ -498,6 +498,87 @@ router.get('/documents/:id/visibility', requireAuth, async (req, res) => {
   }
 });
 
+// Mark a document as seen by the current user
+router.post('/documents/:id/seen', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.currentUser?.id || req.currentUser?.user_id || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Ensure document exists (and not soft-deleted)
+    const [docs] = await db.promise().query(
+      'SELECT doc_id FROM dms_documents WHERE doc_id = ? AND COALESCE(deleted, 0) = 0 LIMIT 1',
+      [id]
+    );
+    if (!Array.isArray(docs) || docs.length === 0) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+
+    // Upsert view record
+    await db.promise().query(
+      `INSERT INTO document_views (doc_id, user_id, viewed_at)
+       VALUES (?, ?, NOW())
+       ON DUPLICATE KEY UPDATE viewed_at = VALUES(viewed_at)`,
+      [id, userId]
+    );
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking document as seen:', error);
+    return res.status(500).json({ success: false, message: 'Server error - Please try again later' });
+  }
+});
+
+// Get list of users who have seen a document
+router.get('/documents/:id/views', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Optional: ensure document exists
+    const [docs] = await db.promise().query(
+      'SELECT doc_id FROM dms_documents WHERE doc_id = ? AND COALESCE(deleted, 0) = 0 LIMIT 1',
+      [id]
+    );
+    if (!Array.isArray(docs) || docs.length === 0) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+
+    const [rows] = await db.promise().query(
+      `SELECT 
+         v.user_id,
+         v.viewed_at,
+         u.Username,
+         u.firstname,
+         u.lastname,
+         u.user_email,
+         u.role,
+         u.department_id
+       FROM document_views v
+       LEFT JOIN dms_user u ON u.user_id = v.user_id
+       WHERE v.doc_id = ?
+       ORDER BY v.viewed_at DESC`,
+      [id]
+    );
+
+    const viewers = (rows || []).map(r => ({
+      user_id: r.user_id,
+      name: r.Username || ((r.firstname && r.lastname) ? `${r.firstname} ${r.lastname}` : null) || r.user_email || '',
+      email: r.user_email || '',
+      role: r.role || '',
+      department_id: r.department_id ?? null,
+      viewed_at: r.viewed_at,
+    }));
+
+    return res.json({ success: true, viewers });
+  } catch (error) {
+    console.error('Error fetching document views:', error);
+    return res.status(500).json({ success: false, message: 'Server error - Please try again later' });
+  }
+});
+
 // List documents
 router.get('/documents', requireAuth, async (req, res) => {
   try {

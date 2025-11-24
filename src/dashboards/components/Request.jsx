@@ -23,9 +23,26 @@ const Request = ({ onNavigateToUpload }) => {
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [propertiesDoc, setPropertiesDoc] = useState(null);
+  const [requestViewers, setRequestViewers] = useState([]);
+  const [requestViewersLoading, setRequestViewersLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]); // bulk selection
   const [allUsers, setAllUsers] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Helper: mark document as seen for current user
+  const markSeen = async (doc) => {
+    try {
+      const id = doc?.id || doc?.doc_id;
+      if (!id) return;
+      await fetch(buildUrl(`documents/${id}/seen`), {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (e) {
+      // Do not block UI on errors
+      console.warn('markSeen failed', e);
+    }
+  };
 
   useEffect(() => {
     const onResize = () => {
@@ -320,6 +337,30 @@ const Request = ({ onNavigateToUpload }) => {
     setPropertiesDoc(null);
   };
 
+  // Load viewers when properties modal opens
+  useEffect(() => {
+    const loadViews = async () => {
+      if (!propertiesOpen || !propertiesDoc) {
+        setRequestViewers([]);
+        return;
+      }
+      const id = propertiesDoc.id || propertiesDoc.doc_id;
+      if (!id) return;
+      try {
+        setRequestViewersLoading(true);
+        const res = await fetchWithRetry(buildUrl(`documents/${id}/views`), { credentials: 'include' });
+        const data = await res.json();
+        setRequestViewers(Array.isArray(data.viewers) ? data.viewers : []);
+      } catch (e) {
+        console.warn('Failed to load request views', e);
+        setRequestViewers([]);
+      } finally {
+        setRequestViewersLoading(false);
+      }
+    };
+    loadViews();
+  }, [propertiesOpen, propertiesDoc]);
+
   const handleDelete = (doc) => {
     setSelectedDocument(doc);
     setDeleteModalOpen(true);
@@ -397,6 +438,9 @@ const Request = ({ onNavigateToUpload }) => {
     }
   };
 
+  const roleUpper = (currentUser?.role || '').toString().toUpperCase();
+  const canAddDocument = roleUpper === 'ADMIN' || roleUpper === 'DEAN';
+
   return (
     <div style={{ padding: 24 }}>
       {isMobile ? (
@@ -453,8 +497,8 @@ const Request = ({ onNavigateToUpload }) => {
               />
             </div>
 
-            {/* Add Document (mobile, only in answered) */}
-            {viewMode === 'answered' && (
+            {/* Add Document (mobile, only in answered) - only ADMIN/DEAN */}
+            {viewMode === 'answered' && canAddDocument && (
               <button
                 className="btn btn-primary border rounded-pill px-3"
                 onClick={() => onNavigateToUpload && onNavigateToUpload('upload')}
@@ -608,8 +652,9 @@ const Request = ({ onNavigateToUpload }) => {
                         padding: '4px 0'
                       }}>
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
+                            await markSeen(d);
                             window.open(d.google_drive_link, '_blank');
                             setShowMenu(null);
                           }}
@@ -653,29 +698,31 @@ const Request = ({ onNavigateToUpload }) => {
                         >
                           <FiInfo size={14} /> Properties
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            uploadDocumentFromSource(d);
-                            setShowMenu(null);
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            border: 'none',
-                            background: 'none',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            fontSize: 14
-                          }}
-                          onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
-                          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                        >
-                          <FiPlus size={14} /> + Add Document
-                        </button>
+                        {canAddDocument && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              uploadDocumentFromSource(d);
+                              setShowMenu(null);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              border: 'none',
+                              background: 'none',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              fontSize: 14
+                            }}
+                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                          >
+                            <FiPlus size={14} /> + Add Document
+                          </button>
+                        )}
                         {viewMode === 'pending' && (
                           <button
                             onClick={(e) => {
@@ -1237,6 +1284,24 @@ const Request = ({ onNavigateToUpload }) => {
                     </div>
                   </div>
                 ))}
+              </div>
+              <div style={{ marginTop: 20 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Seen by</div>
+                {requestViewersLoading ? (
+                  <div style={{ fontSize: 13, color: '#6b7280' }}>Loading viewers...</div>
+                ) : requestViewers.length === 0 ? (
+                  <div style={{ fontSize: 13, color: '#9ca3af' }}>No views yet</div>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+                    {requestViewers.map((v) => (
+                      <li key={v.user_id}>
+                        {v.name || `User #${v.user_id}`}
+                        {v.role ? ` • ${v.role}` : ''}
+                        {v.viewed_at ? ` • ${new Date(v.viewed_at).toLocaleString()}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
                 <button onClick={closeProperties} style={cancelBtn}>Close</button>
