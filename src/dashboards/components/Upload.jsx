@@ -60,7 +60,6 @@ const Upload = ({ role, onNavigateToDocuments }) => {
   const [toOpen, setToOpen] = useState(false);        // combobox open state
   const [dateTimeReceived, setDateTimeReceived] = useState('');
 const [dateError, setDateError] = useState('');
-const [dateError, setDateError] = useState('');
   const [selectedVisibility, setSelectedVisibility] = useState([]);
   const [errors, setErrors] = useState({});
   const [modalOpen, setModalOpen] = useState(false);

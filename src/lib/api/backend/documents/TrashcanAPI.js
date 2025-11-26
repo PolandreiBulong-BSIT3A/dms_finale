@@ -75,32 +75,43 @@ router.post('/documents/trashcan', requireAuth, requireAdminOrDean, async (req, 
         [deletedAt || new Date().toISOString(), (currentUser.username || currentUser.email || 'Unknown User'), docId]
       );
 
-      // Notification (DB)
-      await connection.execute(
-        `INSERT INTO notifications (title, message, type, related_doc_id) VALUES (?, ?, ?, ?)`,
-        [
-          'Document Moved to Trashcan',
-          `Document "${document.title}" has been moved to trashcan by ${currentUser.username || currentUser.email}`,
-          'deleted',
-          docId
-        ]
+      // Check if current user is dean or faculty
+      const isCurrentUserDeanOrFaculty = ['dean', 'faculty'].includes(
+        (currentUser?.role || '').toLowerCase()
       );
 
-      // Realtime notification (Socket.IO)
-      try {
-        const payload = {
-          title: 'Document Moved to Trashcan',
-          message: `Document "${document.title}" has been moved to trashcan by ${currentUser.username || currentUser.email}`,
-          type: 'deleted',
-          related_doc_id: docId,
-          created_at: new Date().toISOString()
-        };
-        // Emit to admins room
-        req?.io?.to('role:ADMIN').emit('notification:new', payload);
-        // Emit to creator if we can resolve user id by name (best effort is skipped here to avoid heavy lookup)
-        // Clients already subscribed to role/admin will receive it.
-      } catch (e) {
-        console.warn('Socket emit (delete) failed:', e?.message || e);
+      // Only create notification if current user is not dean or faculty
+      if (!isCurrentUserDeanOrFaculty) {
+        // Notification (DB) - Only for non-dean, non-faculty users
+        await connection.execute(
+          `INSERT INTO notifications (title, message, type, related_doc_id) 
+           SELECT ?, ?, ?, ?
+           FROM dms_user u 
+           WHERE u.role NOT IN ('DEAN', 'FACULTY') 
+           LIMIT 1`,
+          [
+            'Document Moved to Trashcan',
+            `Document "${document.title}" has been moved to trashcan by ${currentUser.username || currentUser.email}`,
+            'deleted',
+            docId
+          ]
+        );
+
+        // Realtime notification (Socket.IO) - Only for non-dean, non-faculty admins
+        try {
+          const payload = {
+            title: 'Document Moved to Trashcan',
+            message: `Document "${document.title}" has been moved to trashcan by ${currentUser.username || currentUser.email}`,
+            type: 'deleted',
+            related_doc_id: docId,
+            created_at: new Date().toISOString(),
+            exclude_roles: ['DEAN', 'FACULTY']
+          };
+          // Emit to admins who are not deans or faculty
+          req?.io?.to('role:ADMIN').emit('notification:new', payload);
+        } catch (e) {
+          console.warn('Socket emit (delete) failed:', e?.message || e);
+        }
       }
 
       await connection.commit();
@@ -141,28 +152,36 @@ router.post('/documents/trashcan', requireAuth, requireAdminOrDean, async (req, 
         [new Date().toISOString(), (currentUser.username || currentUser.email || 'Unknown User'), docId]
       );
 
-      await connection.execute(
-        `INSERT INTO notifications (title, message, type, related_doc_id) VALUES (?, ?, ?, ?)`,
-        [
-          'Document Restored',
-          `Document "${document.title}" has been restored by ${currentUser.username || currentUser.email}`,
-          'updated',
-          docId
-        ]
-      );
+      // Only create notification if current user is not dean or faculty
+      if (!isDean && !isFaculty) {
+        await connection.execute(
+          `INSERT INTO notifications (title, message, type, related_doc_id) 
+           SELECT ?, ?, ?, ?
+           FROM dms_user u 
+           WHERE u.role NOT IN ('DEAN', 'FACULTY') 
+           LIMIT 1`,
+          [
+            'Document Restored',
+            `Document "${document.title}" has been restored by ${currentUser.username || currentUser.email}`,
+            'updated',
+            docId
+          ]
+        );
 
-      // Realtime notification (Socket.IO)
-      try {
-        const payload = {
-          title: 'Document Restored',
-          message: `Document "${document.title}" has been restored by ${currentUser.username || currentUser.email}`,
-          type: 'updated',
-          related_doc_id: docId,
-          created_at: new Date().toISOString()
-        };
-        req?.io?.to('role:ADMIN').emit('notification:new', payload);
-      } catch (e) {
-        console.warn('Socket emit (restore) failed:', e?.message || e);
+        // Realtime notification (Socket.IO) - Only for non-dean, non-faculty admins
+        try {
+          const payload = {
+            title: 'Document Restored',
+            message: `Document "${document.title}" has been restored by ${currentUser.username || currentUser.email}`,
+            type: 'updated',
+            related_doc_id: docId,
+            created_at: new Date().toISOString(),
+            exclude_roles: ['DEAN', 'FACULTY']
+          };
+          req?.io?.to('role:ADMIN').emit('notification:new', payload);
+        } catch (e) {
+          console.warn('Socket emit (restore) failed:', e?.message || e);
+        }
       }
 
       await connection.commit();
@@ -299,16 +318,40 @@ router.delete('/documents/trashcan/:documentId', requireAuth, requireAdminOrDean
     // Permanently delete from documents table
     await connection.execute('DELETE FROM dms_documents WHERE doc_id = ?', [documentId]);
 
-    // Create notification about permanent deletion (no related_doc_id since document is deleted)
-    await connection.execute(
-      `INSERT INTO notifications (title, message, type, related_doc_id) VALUES (?, ?, ?, ?)`,
-      [
-        'Document Permanently Deleted',
-        `Document "${title}" has been permanently deleted from trashcan`,
-        'deleted',
-        null
-      ]
+    // Only create notification if current user is not dean or faculty
+    const isCurrentUserDeanOrFaculty = ['dean', 'faculty'].includes(
+      (req.currentUser?.role || '').toLowerCase()
     );
+    
+    if (!isCurrentUserDeanOrFaculty) {
+      // Create notification about permanent deletion (no related_doc_id since document is deleted)
+      await connection.execute(
+        `INSERT INTO notifications (title, message, type, related_doc_id) 
+         SELECT ?, ?, ?, NULL
+         FROM dms_user u 
+         WHERE u.role NOT IN ('DEAN', 'FACULTY') 
+         LIMIT 1`,
+        [
+          'Document Permanently Deleted',
+          `Document "${title}" has been permanently deleted from trashcan`,
+          'deleted'
+        ]
+      );
+      
+      // Realtime notification (Socket.IO) - Only for non-dean, non-faculty admins
+      try {
+        const payload = {
+          title: 'Document Permanently Deleted',
+          message: `Document "${title}" has been permanently deleted from trashcan`,
+          type: 'deleted',
+          created_at: new Date().toISOString(),
+          exclude_roles: ['DEAN', 'FACULTY']
+        };
+        req?.io?.to('role:ADMIN').emit('notification:new', payload);
+      } catch (e) {
+        console.warn('Socket emit (permanent delete) failed:', e?.message || e);
+      }
+    }
     
     await connection.commit();
     

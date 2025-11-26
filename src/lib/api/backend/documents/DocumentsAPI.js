@@ -20,7 +20,28 @@ const ensureDocumentFoldersTable = async () => {
     console.warn('ensureDocumentFoldersTable failed:', e?.message || e);
   }
 };
+
+// Ensure table that tracks which users have opened a document exists
+const ensureDocumentViewsTable = async () => {
+  try {
+    await db.promise().query(`
+      CREATE TABLE IF NOT EXISTS document_views (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        doc_id INT NOT NULL,
+        user_id INT NOT NULL,
+        viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_doc_user (doc_id, user_id),
+        KEY idx_doc (doc_id),
+        KEY idx_user (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+  } catch (e) {
+    console.warn('ensureDocumentViewsTable failed:', e?.message || e);
+  }
+};
+
 ensureDocumentFoldersTable();
+ensureDocumentViewsTable();
 
 const router = express.Router();
 

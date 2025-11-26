@@ -6,6 +6,7 @@ import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import { useUser } from '../../contexts/UserContext.jsx';
 import { fetchUserPreferences, toggleFavorite, togglePin } from '../../lib/api/frontend/DocumentPreferencesClient.js';
 import { buildUrl, fetchJson, API_BASE_URL } from '../../lib/api/frontend/client.js';
+import { fetchWithRetry } from '../../lib/api/frontend/http.js';
 
 const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate }) => {
   // State management
@@ -85,6 +86,8 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   // Add near other useState declarations
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [propertiesDoc, setPropertiesDoc] = useState(null);
+  const [docViewers, setDocViewers] = useState([]);
+  const [docViewersLoading, setDocViewersLoading] = useState(false);
   // Edit modal visibility controls (Upload-like UI)
   const [editVisibilityMode, setEditVisibilityMode] = useState('all');
   const [editSelectedDepartments, setEditSelectedDepartments] = useState([]);
@@ -119,7 +122,25 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const markDocumentSeen = useCallback(async (docOrId) => {
+    try {
+      const id = typeof docOrId === 'object'
+        ? (docOrId?.id || docOrId?.doc_id)
+        : docOrId;
+      if (!id) return;
+      await fetch(buildUrl(`documents/${id}/seen`), {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (err) {
+      console.warn('markDocumentSeen failed', err);
+    }
+  }, []);
+
   const openProperties = (doc) => {
+    if (doc) {
+      markDocumentSeen(doc);
+    }
     setPropertiesDoc(doc);
     setPropertiesOpen(true);
   };
@@ -381,7 +402,44 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const closeProperties = () => {
     setPropertiesOpen(false);
     setPropertiesDoc(null);
+    setDocViewers([]);
+    setDocViewersLoading(false);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadViewers = async () => {
+      if (!propertiesOpen || !propertiesDoc) {
+        if (!cancelled) {
+          setDocViewers([]);
+        }
+        return;
+      }
+      const id = propertiesDoc.id || propertiesDoc.doc_id;
+      if (!id) return;
+      try {
+        setDocViewersLoading(true);
+        const res = await fetchWithRetry(buildUrl(`documents/${id}/views`), { credentials: 'include' });
+        const data = await res.json();
+        if (!cancelled) {
+          setDocViewers(Array.isArray(data.viewers) ? data.viewers : []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('Failed to load document views', err);
+          setDocViewers([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setDocViewersLoading(false);
+        }
+      }
+    };
+    loadViewers();
+    return () => {
+      cancelled = true;
+    };
+  }, [propertiesOpen, propertiesDoc]);
 
   // Format field names for display
   const formatFieldName = (key) => {
@@ -1308,6 +1366,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   // Action handlers
   const handleView = (doc) => {
     console.log('View document:', doc);
+    markDocumentSeen(doc);
     
     // Check for any available file link
     const fileLink = doc.google_drive_link || doc.file_path || doc.file_url || doc.document_path;
@@ -1353,6 +1412,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
 
   const handleDownload = (doc) => {
     console.log('Download document:', doc);
+    markDocumentSeen(doc);
     
     // Check for any available file link
     const fileLink = doc.google_drive_link || doc.file_path || doc.file_url || doc.document_path;
@@ -1408,6 +1468,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
 
   const handleSaveToDrive = (doc) => {
     console.log('Save to Drive document:', doc);
+    markDocumentSeen(doc);
     
     // Check for any available file link
     const fileLink = doc.google_drive_link || doc.file_path || doc.file_url || doc.document_path;
@@ -4545,6 +4606,31 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                 </div>
               </div>
               
+              <div style={{
+                marginTop: '16px',
+                background: '#fff',
+                border: '1px solid #e5e7eb',
+                borderRadius: '12px',
+                padding: '16px'
+              }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 700, color: '#374151' }}>Seen By</h4>
+                {docViewersLoading ? (
+                  <div style={{ fontSize: 13, color: '#6b7280' }}>Loading viewers...</div>
+                ) : docViewers.length === 0 ? (
+                  <div style={{ fontSize: 13, color: '#9ca3af' }}>No views recorded yet</div>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#111827', lineHeight: 1.6 }}>
+                    {docViewers.map((viewer) => (
+                      <li key={`${viewer.user_id || viewer.email || viewer.viewed_at}`}>
+                        <span style={{ fontWeight: 600 }}>{viewer.name || `User #${viewer.user_id}`}</span>
+                        {viewer.role ? ` • ${viewer.role}` : ''}
+                        {viewer.viewed_at ? ` • ${new Date(viewer.viewed_at).toLocaleString()}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              
               {/* Action Buttons */}
               <div style={{ 
                 display: 'flex', 
@@ -4580,9 +4666,9 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                 </button>
                 <button
                   onClick={() => {
-                    if (propertiesDoc.google_drive_link) {
-                      window.open(propertiesDoc.google_drive_link, '_blank');
-                    }
+                    if (!propertiesDoc.google_drive_link) return;
+                    markDocumentSeen(propertiesDoc);
+                    window.open(propertiesDoc.google_drive_link, '_blank');
                   }}
                   disabled={!propertiesDoc.google_drive_link}
                   style={{
