@@ -78,7 +78,8 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const [showUploadSuccess, setShowUploadSuccess] = useState(false);
   const [showOnlyMyDocuments, setShowOnlyMyDocuments] = useState(false);
   const [userPreferences, setUserPreferences] = useState({}); // Store favorite and pin status
-  
+  const [seenDocIds, setSeenDocIds] = useState(new Set());
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -132,9 +133,34 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
         method: 'POST',
         credentials: 'include'
       });
+
+      setSeenDocIds(prev => {
+        const next = new Set(prev);
+        next.add(Number(id));
+        return next;
+      });
     } catch (err) {
       console.warn('markDocumentSeen failed', err);
     }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await fetch(buildUrl('documents/seen'), { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        if (!isMounted) return;
+        const ids = Array.isArray(data?.seen) ? data.seen.map(Number).filter(Boolean) : [];
+        setSeenDocIds(new Set(ids));
+      } catch (e) {
+        console.warn('load seen documents failed', e);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const openProperties = (doc) => {
@@ -696,9 +722,14 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   };
 
   const openPreview = (doc) => {
+    // Any interaction that opens the preview should mark the document as seen
+    if (doc) {
+      markDocumentSeen(doc);
+    }
     setPreviewDoc(doc);
     setPreviewOpen(true);
   };
+
   const closePreview = () => {
     setPreviewOpen(false);
     setPreviewDoc(null);
@@ -2957,7 +2988,10 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
              </tr>
            </thead>
           <tbody>
-                       {paginatedDocuments.map((doc) => (
+                       {paginatedDocuments.map((doc) => {
+                 const docId = doc.id || doc.doc_id;
+                 const isSeen = seenDocIds.has(Number(docId));
+                 return (
                  <tr 
                    key={doc.id} 
                    style={styles.tableRow}
@@ -2982,7 +3016,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                  </td>
                  <td style={{...styles.td, cursor: 'pointer', color: '#0d6efd'}} onClick={() => openPreview(doc)} title="Click to preview">
                   <div style={{display:'flex', flexDirection:'column', alignItems:'flex-start', gap:4}}>
-                    <span>{doc.title || 'Untitled'}</span>
+                    <span style={{ fontWeight: isSeen ? 400 : 700 }}>{doc.title || 'Untitled'}</span>
                     {renderVisibilityTag(doc)}
                   </div>
                 </td>
@@ -3072,7 +3106,6 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                               <span style={styles.menuIcon}><InfoCircle /></span>
                               <span style={styles.menuLabel}>Properties</span>
                             </li>
-                            <li style={styles.menuDivider} />
                             {!isUser && (<>
                               <li
                                 style={styles.menuItem}
@@ -3165,16 +3198,21 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                     </div>
                  </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              );
+            })}
+          </tbody>
+        </table>
       )}
 
       {/* Mobile Card View */}
       {isMobile && viewMode === 'table' && (
         <div className="d-grid gap-3">
-          {paginatedDocuments.map((doc) => (
-            <div key={doc.id} className="card shadow-sm">
+          {paginatedDocuments.map((doc, index) => {
+            const docId = doc.id || doc.doc_id;
+            const isSeen = seenDocIds.has(Number(docId));
+            return (
+            <div key={index} className="card shadow-sm">
+
               <div className="card-body">
                 <div className="d-flex align-items-start gap-3">
                   {doc.created_by_profile_pic ? (
@@ -3212,7 +3250,8 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                         style={{ 
                           fontSize: '1rem',
                           color: '#111827',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          fontWeight: isSeen ? 400 : 700
                         }}
                         onClick={() => openPreview(doc)}
                       >
@@ -3237,7 +3276,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                   <div className="d-flex flex-column gap-1">
                     <button 
                       className="btn btn-sm btn-light border-0" 
-                      onClick={() => handleTogglePin(doc.id || doc.doc_id)}
+                      onClick={() => handleTogglePin(doc.id || doc.doc_id)} 
                       title={userPreferences[doc.id || doc.doc_id]?.is_pinned ? "Unpin" : "Pin"}
                       style={{ color: userPreferences[doc.id || doc.doc_id]?.is_pinned ? '#f59e0b' : '#6b7280' }}
                     >
@@ -3245,7 +3284,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                     </button>
                     <button 
                       className="btn btn-sm btn-light border-0" 
-                      onClick={() => handleToggleFavorite(doc.id || doc.doc_id)}
+                      onClick={() => handleToggleFavorite(doc.id || doc.doc_id)} 
                       title={userPreferences[doc.id || doc.doc_id]?.is_favorite ? "Remove from favorites" : "Add to favorites"}
                       style={{ color: userPreferences[doc.id || doc.doc_id]?.is_favorite ? '#fbbf24' : '#6b7280' }}
                     >
@@ -3253,7 +3292,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                     </button>
                     <button 
                       className="btn btn-sm btn-light border-0" 
-                      onClick={(e) => { e.stopPropagation(); toggleDropdown(doc.id); }}
+                      onClick={(e) => { e.stopPropagation(); toggleDropdown(doc.id); }} 
                       title="More actions"
                     >
                       <ThreeDotsVertical size={16} />
@@ -3376,7 +3415,8 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -3400,8 +3440,11 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
             <span style={{ color: '#374151', fontSize: 12 }}>Select All</span>
           </div>
           <div style={styles.gridContainer}>
-          {paginatedDocuments.map((doc) => (
-            <div key={doc.id} style={styles.gridCard} onClick={() => openPreview(doc)}>
+          {paginatedDocuments.map((doc, index) => {
+            const docId = doc.id || doc.doc_id;
+            const isSeen = seenDocIds.has(Number(docId));
+            return (
+            <div key={index} style={styles.gridCard} onClick={() => openPreview(doc)}>
               <div style={styles.gridCardHeader}>
                 <div
                   role="checkbox"
@@ -3418,7 +3461,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                     </svg>
                   )}
                 </div>
-                                <div style={styles.gridCardActions}>
+                <div style={styles.gridCardActions}>
                   <button 
                     className="btn btn-light btn-sm border rounded-circle" 
                     onClick={(e) => { e.stopPropagation(); handleToggleFavorite(doc.id || doc.doc_id); }} 
@@ -3435,70 +3478,70 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                   >
                     <Pin />
                   </button>
-                    {/* 3-dot dropdown menu */}
-                    <div className="dropdown-container" style={{ position: 'relative' }}>
-                      <button 
-                        className="btn btn-light btn-sm border rounded-circle" 
-                        onClick={(e) => { e.stopPropagation(); toggleDropdown(doc.id); }} 
-                        title="More actions"
-                        style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <ThreeDotsVertical size={14} />
-                      </button>
-                      {openDropdown === doc.id && (
-                        <div style={styles.dropdown}>
-                          <ul style={styles.menuList}>
-                            <li style={styles.menuItem} onClick={() => handleView(doc)}>
-                              <span style={styles.menuIcon}><Eye /></span>
-                              <span style={styles.menuLabel}>Open</span>
-                            </li>
-                            <li style={styles.menuItem} onClick={() => handleDownload(doc)}>
-                              <span style={styles.menuIcon}><Download /></span>
-                              <span style={styles.menuLabel}>Download</span>
-                            </li>
-                            <li style={styles.menuItem} onClick={() => handleSaveToDrive(doc)}>
-                              <span style={styles.menuIcon}><Download /></span>
-                              <span style={styles.menuLabel}>Save to Drive</span>
-                            </li>
-                            <li style={styles.menuDivider} />
-                            <li style={styles.menuItem} onClick={() => openProperties(doc)}>
-                              <span style={styles.menuIcon}><InfoCircle /></span>
-                              <span style={styles.menuLabel}>Properties</span>
-                            </li>
-                  {hasAdminPrivileges(role) && (
-                    <>
-                                <li style={styles.menuDivider} />
-                                <li style={styles.menuItem} onMouseDown={() => handleEdit(doc)}>
-                                  <span style={styles.menuIcon}><Pencil /></span>
-                                  <span style={styles.menuLabel}>Edit</span>
-                                </li>
-                                <li style={{...styles.menuItem, color: '#dc2626'}} onClick={() => handleSoftDelete(doc)}>
-                                  <span style={{...styles.menuIcon, color: '#dc2626'}}><Trash2 /></span>
-                                  <span style={styles.menuLabel}>Move to Trash</span>
-                                </li>
-                    </>
-                  )}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
+                  {/* 3-dot dropdown menu */}
+                  <div className="dropdown-container" style={{ position: 'relative' }}>
+                    <button 
+                      className="btn btn-light btn-sm border rounded-circle" 
+                      onClick={(e) => { e.stopPropagation(); toggleDropdown(doc.id); }} 
+                      title="More actions"
+                      style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <ThreeDotsVertical size={14} />
+                    </button>
+                    {openDropdown === doc.id && (
+                      <div style={styles.dropdown}>
+                        <ul style={styles.menuList}>
+                          <li style={styles.menuItem} onClick={() => handleView(doc)}>
+                            <span style={styles.menuIcon}><Eye /></span>
+                            <span style={styles.menuLabel}>Open</span>
+                          </li>
+                          <li style={styles.menuItem} onClick={() => handleDownload(doc)}>
+                            <span style={styles.menuIcon}><Download /></span>
+                            <span style={styles.menuLabel}>Download</span>
+                          </li>
+                          <li style={styles.menuItem} onClick={() => handleSaveToDrive(doc)}>
+                            <span style={styles.menuIcon}><Download /></span>
+                            <span style={styles.menuLabel}>Save to Drive</span>
+                          </li>
+                          <li style={styles.menuDivider} />
+                          <li style={styles.menuItem} onClick={() => openProperties(doc)}>
+                            <span style={styles.menuIcon}><InfoCircle /></span>
+                            <span style={styles.menuLabel}>Properties</span>
+                          </li>
+                          {hasAdminPrivileges(role) && (
+                            <>
+                              <li style={styles.menuDivider} />
+                              <li style={styles.menuItem} onMouseDown={() => handleEdit(doc)}>
+                                <span style={styles.menuIcon}><Pencil /></span>
+                                <span style={styles.menuLabel}>Edit</span>
+                              </li>
+                              <li style={{...styles.menuItem, color: '#dc2626'}} onClick={() => handleSoftDelete(doc)}>
+                                <span style={{...styles.menuIcon, color: '#dc2626'}}><Trash2 /></span>
+                                <span style={styles.menuLabel}>Move to Trash</span>
+                              </li>
+                            </>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               
-                                      <div style={styles.gridCardTitle}>{doc.title || 'Untitled'}</div>
+              <div style={{...styles.gridCardTitle, fontWeight: isSeen ? 400 : 700}}>{doc.title || 'Untitled'}</div>
                         
-                        <div style={styles.gridCardMeta}>
-                          {doc.created_by_profile_pic ? (
-                            <img src={doc.created_by_profile_pic} alt="avatar" style={styles.gridCardAvatar} />
-                          ) : (
-                            <div style={{...styles.gridCardAvatar, background: getColorFromString(doc.created_by_name)}}>
-                              {getInitials(doc.created_by_name)}
-                            </div>
-                          )}
-                          <span>{doc.created_by_name || 'Unknown'}</span>
-                        </div>
+              <div style={styles.gridCardMeta}>
+                {doc.created_by_profile_pic ? (
+                  <img src={doc.created_by_profile_pic} alt="avatar" style={styles.gridCardAvatar} />
+                ) : (
+                  <div style={{...styles.gridCardAvatar, background: getColorFromString(doc.created_by_name)}}>
+                    {getInitials(doc.created_by_name)}
+                  </div>
+                )}
+                <span>{doc.created_by_name || 'Unknown'}</span>
+              </div>
                         
-                        <div style={styles.gridCardImage}>
+              <div style={styles.gridCardImage}>
                 {doc.google_drive_link ? (
                   <iframe
                     src={doc.google_drive_link.replace('/view', '/preview')}
@@ -3519,49 +3562,50 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                 )}
               </div>
               
-                                      <div style={styles.gridCardDetails}>
-                          {renderVisibilityTag(doc)}
-                          {doc.from_field && (
-                                                          <span style={{
-                                ...styles.gridCardTag, 
-                                background: '#3b82f6',
-                                fontSize: '12px',
-                                padding: '4px 8px'
-                              }}>
-                                From: {doc.from_field}
-                              </span>
-                          )}
-                          {doc.to_field && (
-                                                          <span style={{
-                                ...styles.gridCardTag, 
-                                background: '#10b981',
-                                fontSize: '12px',
-                                padding: '4px 8px'
-                              }}>
-                                To: {doc.to_field}
-                              </span>
-                          )}
-                          {doc.doc_type && (
-                                                          <span style={{
-                                ...styles.gridCardTag, 
-                                background: '#8b5cf6',
-                                fontSize: '12px',
-                                padding: '4px 8px'
-                              }}>
-                                {doc.doc_type}
-                              </span>
-                          )}
-                                                      <span style={{
-                              ...styles.gridCardTag, 
-                              background: '#6b7280',
-                              fontSize: '12px',
-                              padding: '4px 8px'
-                            }}>
-                              {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
-                            </span>
-                        </div>
-                      </div>
-          ))}
+              <div style={styles.gridCardDetails}>
+                {renderVisibilityTag(doc)}
+                {doc.from_field && (
+                  <span style={{
+                    ...styles.gridCardTag, 
+                    background: '#3b82f6',
+                    fontSize: '12px',
+                    padding: '4px 8px'
+                  }}>
+                    From: {doc.from_field}
+                  </span>
+                )}
+                {doc.to_field && (
+                  <span style={{
+                    ...styles.gridCardTag, 
+                    background: '#10b981',
+                    fontSize: '12px',
+                    padding: '4px 8px'
+                  }}>
+                    To: {doc.to_field}
+                  </span>
+                )}
+                {doc.doc_type && (
+                  <span style={{
+                    ...styles.gridCardTag, 
+                    background: '#8b5cf6',
+                    fontSize: '12px',
+                    padding: '4px 8px'
+                  }}>
+                    {doc.doc_type}
+                  </span>
+                )}
+                <span style={{
+                  ...styles.gridCardTag, 
+                  background: '#6b7280',
+                  fontSize: '12px',
+                  padding: '4px 8px'
+                }}>
+                  {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
+                </span>
+              </div>
+            </div>
+          );
+          })}
         </div>
         </>
       )}
@@ -3586,8 +3630,11 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
           <span style={{ color: '#374151', fontSize: 12 }}>Select All</span>
         </div>
         <div style={styles.listContainer}>
-          {paginatedDocuments.map((doc) => (
-            <div key={doc.id} style={styles.listItem}>
+          {paginatedDocuments.map((doc, index) => {
+            const docId = doc.id || doc.doc_id;
+            const isSeen = seenDocIds.has(Number(docId));
+            return (
+            <div key={index} style={styles.listItem}>
               <div style={styles.listItemLeft}>
                 <input
                   type="checkbox"
@@ -3604,7 +3651,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                 )}
                 
                 <div style={styles.listItemInfo}>
-                  <div style={styles.listItemTitle}>{doc.title || 'Untitled'}</div>
+                  <div style={{ ...styles.listItemTitle, fontWeight: isSeen ? 400 : 700 }}>{doc.title || 'Untitled'}</div>
                   <div style={styles.listItemMeta}>
                     {doc.created_by_name || 'Unknown'} • {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
                     {doc.reference && ` • ${doc.reference}`}
@@ -3633,62 +3680,59 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                 >
                   <Pin />
                 </button>
-                  {/* 3-dot dropdown menu */}
-                  <div className="dropdown-container" style={{ position: 'relative' }}>
-                    <button 
-                      className="btn btn-light btn-sm border rounded-circle" 
-                      onClick={() => toggleDropdown(doc.id)} 
-                      title="More actions"
-                      style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <ThreeDotsVertical size={14} />
-                    </button>
-                    {openDropdown === doc.id && (
-                      <div style={styles.dropdown}>
-                        <ul style={styles.menuList}>
-                          <li style={styles.menuItem} onClick={() => handleView(doc)}>
-                            <span style={styles.menuIcon}><Eye /></span>
-                            <span style={styles.menuLabel}>Open</span>
-                          </li>
-                          <li style={styles.menuItem} onClick={() => handleDownload(doc)}>
-                            <span style={styles.menuIcon}><Download /></span>
-                            <span style={styles.menuLabel}>Download</span>
-                          </li>
-                          <li style={styles.menuItem} onClick={() => handleSaveToDrive(doc)}>
-                            <span style={styles.menuIcon}><Download /></span>
-                            <span style={styles.menuLabel}>Save to Drive</span>
-                          </li>
-                          <li style={styles.menuDivider} />
-                          <li style={styles.menuItem} onClick={() => openProperties(doc)}>
-                            <span style={styles.menuIcon}><InfoCircle /></span>
-                            <span style={styles.menuLabel}>Properties</span>
-                          </li>
-                {hasAdminPrivileges(role) && (
-                  <>
-                              <li style={styles.menuDivider} />
-                              <li style={styles.menuItem} onMouseDown={() => handleEdit(doc)}>
-                                <span style={styles.menuIcon}><Pencil /></span>
-                                <span style={styles.menuLabel}>Edit</span>
-                              </li>
-                              <li style={{...styles.menuItem, color: '#dc2626'}} onClick={() => handleSoftDelete(doc)}>
-                                <span style={{...styles.menuIcon, color: '#dc2626'}}><Trash2 /></span>
-                                <span style={styles.menuLabel}>Move to Trash</span>
-                              </li>
-                  </>
-                )}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-              </div>
+                {/* 3-dot dropdown menu */}
+                <div className="dropdown-container" style={{ position: 'relative' }}>
+                  <button 
+                    className="btn btn-light btn-sm border rounded-circle" 
+                    onClick={() => toggleDropdown(doc.id)} 
+                    title="More actions"
+                    style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <ThreeDotsVertical size={14} />
+                  </button>
+                  {openDropdown === doc.id && (
+                    <div style={styles.dropdown}>
+                      <ul style={styles.menuList}>
+                        <li style={styles.menuItem} onClick={() => handleView(doc)}>
+                          <span style={styles.menuIcon}><Eye /></span>
+                          <span style={styles.menuLabel}>Open</span>
+                        </li>
+                        <li style={styles.menuItem} onClick={() => handleDownload(doc)}>
+                          <span style={styles.menuIcon}><Download /></span>
+                          <span style={styles.menuLabel}>Download</span>
+                        </li>
+                        <li style={styles.menuItem} onClick={() => handleSaveToDrive(doc)}>
+                          <span style={styles.menuIcon}><Download /></span>
+                          <span style={styles.menuLabel}>Save to Drive</span>
+                        </li>
+                        <li style={styles.menuDivider} />
+                        <li style={styles.menuItem} onClick={() => openProperties(doc)}>
+                          <span style={styles.menuIcon}><InfoCircle /></span>
+                          <span style={styles.menuLabel}>Properties</span>
+                        </li>
+                        {hasAdminPrivileges(role) && (
+                          <>
+                            <li style={styles.menuDivider} />
+                            <li style={styles.menuItem} onMouseDown={() => handleEdit(doc)}>
+                              <span style={styles.menuIcon}><Pencil /></span>
+                              <span style={styles.menuLabel}>Edit</span>
+                            </li>
+                            <li style={{...styles.menuItem, color: '#dc2626'}} onClick={() => handleSoftDelete(doc)}>
+                              <span style={{...styles.menuIcon, color: '#dc2626'}}><Trash2 /></span>
+                              <span style={styles.menuLabel}>Move to Trash</span>
+                            </li>
+                          </>
+                        )}
+                      </ul>
+                    </div>
+                  )}
                 </div>
-           ))}
+              </div>
+            </div>
+            );
+          })}
         </div>
         </>
-      )}
-
-      {filteredDocuments.length === 0 && !loading && (
-        <div>No documents found</div>
       )}
 
       {/* Pagination Component */}

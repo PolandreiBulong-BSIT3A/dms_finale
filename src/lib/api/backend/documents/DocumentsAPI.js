@@ -459,6 +459,29 @@ router.get('/documents/:id', requireAuth, async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error - Please try again later' });
   }
 });
+
+// Get list of document IDs that the current user has seen
+router.get('/documents/seen', requireAuth, async (req, res) => {
+  try {
+    const userId = req.currentUser?.id || req.currentUser?.user_id || req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const [rows] = await db.promise().query(
+      'SELECT doc_id FROM document_views WHERE user_id = ?',
+      [userId]
+    );
+
+    const seenIds = (rows || []).map(r => Number(r.doc_id)).filter(Boolean);
+
+    return res.json({ success: true, seen: seenIds });
+  } catch (error) {
+    console.error('Error fetching seen documents:', error);
+    return res.status(500).json({ success: false, message: 'Server error - Please try again later' });
+  }
+});
   } catch (error) {
     console.error('Error fetching latest documents:', error);
     res.status(500).json({ success: false, message: 'Database error.' });
