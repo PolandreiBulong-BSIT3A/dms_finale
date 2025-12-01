@@ -10,6 +10,19 @@ import { useUser } from '../../contexts/UserContext.jsx';
 const Request = ({ onNavigateToUpload }) => {
   const { documents, loading, error, refreshDocuments } = useDocuments();
   const { user: currentUser } = useUser();
+  
+  // Add spinner animation
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('pending'); // 'pending' or 'answered'
   const [answeredDocs, setAnsweredDocs] = useState([]);
@@ -124,6 +137,19 @@ const Request = ({ onNavigateToUpload }) => {
       
       const data = await res.json();
       const list = Array.isArray(data?.documents) ? data.documents : [];
+      
+      // Debug logging
+      console.log('[Request] Fetched documents:', {
+        total: list.length,
+        sample: list.length > 0 ? {
+          id: list[0].id,
+          title: list[0].title,
+          action_required: list[0].action_required,
+          action_required_name: list[0].action_required_name,
+          action_status: list[0].action_status
+        } : null
+      });
+      
       setRequestDocs(list);
       
       // Mark new requests as seen after a short delay
@@ -135,6 +161,8 @@ const Request = ({ onNavigateToUpload }) => {
             }
           });
         }, 1000);
+      } else {
+        console.log('[Request] No documents found. Check if documents have action_required assignments.');
       }
       
     } catch (e) {
@@ -736,12 +764,82 @@ const Request = ({ onNavigateToUpload }) => {
       </div>
       )}
 
-      {(loading || answeredLoading) && <div>Loading...</div>}
-      {error && <div style={{ color: '#c00' }}>{error}</div>}
+      {(loading || answeredLoading || loadingRequests) && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          padding: '40px 20px',
+          color: '#64748b',
+          fontSize: 16
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ 
+              width: 40, 
+              height: 40, 
+              border: '4px solid #e5e7eb', 
+              borderTop: '4px solid #3b82f6', 
+              borderRadius: '50%', 
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 16px'
+            }}></div>
+            Loading requests...
+          </div>
+        </div>
+      )}
+      
+      {requestError && !loadingRequests && (
+        <div style={{ 
+          color: '#dc2626', 
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fecaca',
+          padding: 16, 
+          borderRadius: 12,
+          marginBottom: 16
+        }}>
+          <strong>Error:</strong> {requestError}
+          <button
+            onClick={fetchRequestDocuments}
+            style={{
+              marginLeft: 12,
+              padding: '6px 12px',
+              backgroundColor: '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 14
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      
+      {error && !loadingRequests && (
+        <div style={{ color: '#dc2626', padding: 16, backgroundColor: '#fef2f2', borderRadius: 12, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
 
-      {!(loading || answeredLoading) && items.length === 0 && (
-        <div style={{ color: '#64748b', border: '1px dashed #cbd5e1', padding: 24, borderRadius: 12, background: '#f8fafc' }}>
-          {viewMode === 'pending' ? 'No documents requiring action.' : 'No answered requests found.'}
+      {!(loading || answeredLoading || loadingRequests) && items.length === 0 && !requestError && (
+        <div style={{ 
+          color: '#64748b', 
+          border: '1px dashed #cbd5e1', 
+          padding: 40, 
+          borderRadius: 12, 
+          background: '#f8fafc',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+            {viewMode === 'pending' ? 'No documents requiring action' : 'No answered requests found'}
+          </div>
+          <div style={{ fontSize: 14, color: '#9ca3af' }}>
+            {viewMode === 'pending' 
+              ? 'When documents are assigned to you with action requirements, they will appear here.'
+              : 'Completed requests will appear here once replies are submitted.'}
+          </div>
         </div>
       )}
 
