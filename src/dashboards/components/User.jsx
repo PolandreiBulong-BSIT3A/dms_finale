@@ -835,7 +835,9 @@ const fetchPositions = async (roleType = null) => {
                           {(isAdmin || effectiveIsDean) && (
                             <div className="d-flex gap-1">
                               <button className="btn btn-sm btn-outline-secondary border-0" aria-label="Edit user" title="Edit user" onClick={() => handleUpdateUser(user)}><FiEdit2 size={15} /></button>
-                              <button className="btn btn-sm btn-outline-danger border-0" aria-label="Delete user" title="Delete user" onClick={() => handleDeleteClick(user)}><FiTrash2 size={15} /></button>
+                              {(isAdmin) && (
+                                <button className="btn btn-sm btn-outline-danger border-0" aria-label="Delete user" title="Delete user" onClick={() => handleDeleteClick(user)}><FiTrash2 size={15} /></button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -938,19 +940,21 @@ const fetchPositions = async (roleType = null) => {
                             >
                               <FiEdit2 size={14} />
                             </button>
-                            <button 
-                              style={{
-                                ...styles.actionBtn,
-                                ...(hoveredButton === `delete-${user.id}` && styles.actionBtnHover),
-                                color: '#dc2626'
-                              }}
-                              title="Delete User"
-                              onMouseEnter={() => setHoveredButton(`delete-${user.id}`)}
-                              onMouseLeave={() => setHoveredButton(null)}
-                              onClick={() => handleDeleteClick(user)}
-                            >
-                              <FiTrash2 size={14} />
-                            </button>
+                            {(isAdmin) && (
+                              <button 
+                                style={{
+                                  ...styles.actionBtn,
+                                  ...(hoveredButton === `delete-${user.id}` && styles.actionBtnHover),
+                                  color: '#dc2626'
+                                }}
+                                title="Delete User"
+                                onMouseEnter={() => setHoveredButton(`delete-${user.id}`)}
+                                onMouseLeave={() => setHoveredButton(null)}
+                                onClick={() => handleDeleteClick(user)}
+                              >
+                                <FiTrash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       )}

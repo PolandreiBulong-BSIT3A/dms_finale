@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchWithRetry } from '../../lib/api/frontend/http.js';
 import { buildUrl } from '../../lib/api/frontend/client.js';
 import { FiExternalLink, FiEye, FiMessageSquare, FiUpload, FiDownload, FiPlus, FiMoreVertical, FiEdit3, FiTrash2, FiBookmark, FiInfo, FiAlertTriangle, FiSearch } from 'react-icons/fi';
@@ -28,16 +28,53 @@ const Request = ({ onNavigateToUpload }) => {
   const [selectedIds, setSelectedIds] = useState([]); // bulk selection
   const [allUsers, setAllUsers] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
+  const [seenDocIds, setSeenDocIds] = useState(() => new Set());
+  const [viewersByDocId, setViewersByDocId] = useState({});
+
+  const loadViewersForCard = useCallback(async (doc) => {
+    try {
+      const id = doc?.id || doc?.doc_id;
+      if (!id) return;
+      const numericId = Number(id);
+      if (!Number.isNaN(numericId) && viewersByDocId[numericId]) return; // already loaded
+
+      const res = await fetchWithRetry(buildUrl(`documents/${id}/views`), { credentials: 'include' });
+      if (!res || !res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const viewers = Array.isArray(data.viewers) ? data.viewers : [];
+      if (!Number.isNaN(numericId)) {
+        setViewersByDocId(prev => ({
+          ...prev,
+          [numericId]: viewers
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to load viewers for request card', e);
+    }
+  }, [viewersByDocId]);
 
   // Helper: mark document as seen for current user
   const markSeen = async (doc) => {
     try {
       const id = doc?.id || doc?.doc_id;
       if (!id) return;
-      await fetch(buildUrl(`documents/${id}/seen`), {
+      const res = await fetch(buildUrl(`documents/${id}/seen`), {
         method: 'POST',
         credentials: 'include'
       });
+      if (res && res.ok) {
+        const numericId = Number(id);
+        if (!Number.isNaN(numericId)) {
+          setSeenDocIds(prev => {
+            const next = new Set(prev);
+            next.add(numericId);
+            return next;
+          });
+        }
+
+        // lazily load viewers for this document after first successful interaction
+        await loadViewersForCard(doc);
+      }
     } catch (e) {
       // Do not block UI on errors
       console.warn('markSeen failed', e);
@@ -65,19 +102,93 @@ const Request = ({ onNavigateToUpload }) => {
   };
 
   const [requestDocs, setRequestDocs] = React.useState([]);
+  const [loadingRequests, setLoadingRequests] = React.useState(true);
+  const [requestError, setRequestError] = React.useState(null);
+
+  // Function to fetch request documents
+  const fetchRequestDocuments = async () => {
+    setLoadingRequests(true);
+    setRequestError(null);
+    try {
+      const res = await fetchWithRetry(buildUrl('documents/requests'), { 
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      const list = Array.isArray(data?.documents) ? data.documents : [];
+      setRequestDocs(list);
+      
+      // Mark new requests as seen after a short delay
+      if (list.length > 0) {
+        setTimeout(() => {
+          list.forEach(doc => {
+            if (doc.id && !seenDocIds.has(Number(doc.id))) {
+              markSeen(doc);
+            }
+          });
+        }, 1000);
+      }
+      
+    } catch (e) {
+      console.error('Failed to fetch requests:', e);
+      setRequestError('Failed to load requests. Please try refreshing the page.');
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  // Initial fetch and set up refresh interval
   React.useEffect(() => {
+    fetchRequestDocuments();
+    
+    // Refresh requests every 30 seconds
+    const intervalId = setInterval(fetchRequestDocuments, 30000);
+    
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Load seen document ids for current user (persistent seen state)
+  useEffect(() => {
+    let isMounted = true;
     (async () => {
       try {
-        const res = await fetchWithRetry(buildUrl('documents/requests'), { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          const list = data?.documents || [];
-          setRequestDocs(list);
-        }
+        const res = await fetchWithRetry(buildUrl('documents/seen'), { 
+          credentials: 'include',
+          // Don't show error toast for 404s as this is an optional feature
+          headers: { 'X-Silent-Error': 'true' }
+        }).catch(() => null);
+        
+        // Skip if component unmounted or request failed
+        if (!isMounted || !res) return;
+        
+        // If endpoint returns 404, just return - this is not a critical feature
+        if (res.status === 404) return;
+        
+        // Only process if response is ok
+        if (!res.ok) return;
+        
+        const data = await res.json().catch(() => ({}));
+        const ids = Array.isArray(data?.seen)
+          ? data.seen.map(n => Number(n)).filter(n => !Number.isNaN(n))
+          : [];
+        if (!isMounted) return;
+        setSeenDocIds(new Set(ids));
       } catch (e) {
-        console.error('Failed to fetch requests:', e);
+        console.warn('Failed to load seen documents for requests', e);
       }
     })();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Fetch answered documents
@@ -226,24 +337,66 @@ const Request = ({ onNavigateToUpload }) => {
   };
 
   const items = useMemo(() => {
-    let list;
+    let list = [];
+    
     if (viewMode === 'answered') {
-      list = answeredDocs;
+      // For answered view, use answeredDocs if available, otherwise filter documents
+      list = answeredDocs.length > 0 ? answeredDocs : documents.filter(doc => 
+        doc.status?.toLowerCase() === 'completed' || 
+        doc.action_status?.toLowerCase() === 'completed'
+      );
     } else {
-      list = requestDocs.length > 0 ? requestDocs : documents.filter(isActionRequiredDoc);
+      // For pending view, prioritize requestDocs, then filter documents
+      list = requestDocs.length > 0 ? requestDocs : documents.filter(doc => 
+        isActionRequiredDoc(doc) || 
+        doc.status?.toLowerCase() === 'pending' ||
+        (doc.action_required && doc.action_required.length > 0) ||
+        (doc.action_required_ids && doc.action_required_ids.length > 0)
+      );
     }
     
+    // Apply search filter if search term exists
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter(d =>
-        d.title?.toLowerCase().includes(q) ||
-        d.doc_type?.toLowerCase().includes(q) ||
-        (d.action_required_name || '').toLowerCase().includes(q) ||
-        (d.reply_title || '').toLowerCase().includes(q) ||
-        (d.reply_description || '').toLowerCase().includes(q) ||
-        (d.action_status || '').toLowerCase().includes(q) ||
-        (d.completed_by_name || '').toLowerCase().includes(q)
-      );
+      list = list.filter(d => {
+        // Check if the document is a request document (has action required)
+        const isRequestDoc = isActionRequiredDoc(d);
+        const isPending = d.status?.toLowerCase() === 'pending' || !d.status;
+        
+        // For pending requests, include more fields in search
+        if (viewMode === 'pending' && isRequestDoc && isPending) {
+          return (
+            (d.title || '').toLowerCase().includes(q) ||
+            (d.doc_type || '').toLowerCase().includes(q) ||
+            (d.action_required_name || '').toLowerCase().includes(q) ||
+            (d.action_required ? 
+              (Array.isArray(d.action_required) ? 
+                d.action_required.some(ar => 
+                  (ar.name || '').toLowerCase().includes(q) ||
+                  (ar.id || '').toString().includes(q)
+                ) : 
+                d.action_required.toString().toLowerCase().includes(q)
+              ) : 
+              false
+            ) ||
+            (d.created_by_name || '').toLowerCase().includes(q) ||
+            (d.description || '').toLowerCase().includes(q)
+          );
+        }
+        
+        // For answered requests or non-request documents
+        return (
+          (d.title || '').toLowerCase().includes(q) ||
+          (d.doc_type || '').toLowerCase().includes(q) ||
+          (d.action_required_name || '').toLowerCase().includes(q) ||
+          (d.reply_title || '').toLowerCase().includes(q) ||
+          (d.reply_description || '').toLowerCase().includes(q) ||
+          (d.action_status || '').toLowerCase().includes(q) ||
+          (d.completed_by_name || '').toLowerCase().includes(q) ||
+          (d.created_by_name || '').toLowerCase().includes(q) ||
+          (d.description || '').toLowerCase().includes(q)
+        );
+      });
     }
     
     // Apply sorting
@@ -327,7 +480,8 @@ const Request = ({ onNavigateToUpload }) => {
     setShowMenu(null);
   };
 
-  const openProperties = (doc) => {
+  const openProperties = async (doc) => {
+    await markSeen(doc);
     setPropertiesDoc(doc);
     setPropertiesOpen(true);
     setShowMenu(null);
@@ -596,8 +750,11 @@ const Request = ({ onNavigateToUpload }) => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginTop: 12 }}>
           {items.map((d) => {
             const u = findUserByName(d.created_by_name);
+            const numericId = Number(d.id || d.doc_id);
             const isSelected = selectedIds.includes(d.id || d.doc_id);
-            
+            const isSeen = !Number.isNaN(numericId) && seenDocIds.has(numericId);
+            const viewers = !Number.isNaN(numericId) && viewersByDocId[numericId] ? viewersByDocId[numericId] : [];
+
             return (
               <div 
                 key={d.id || d.doc_id}
@@ -772,11 +929,72 @@ const Request = ({ onNavigateToUpload }) => {
                     <div style={{ fontSize: 12, color: '#6b7280' }}>
                       {new Date(d.date_received || d.created_at).toLocaleDateString()}
                     </div>
+                    {viewers && viewers.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                        title={`Seen by ${viewers.map(v => v.name || v.full_name || v.username || v.email || `User #${v.user_id}`).join(', ')}`}
+                      >
+                        {viewers.slice(0, 4).map((v, idx) => (
+                          <div
+                            key={v.user_id || v.id || idx}
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: '9999px',
+                              backgroundColor: '#e5e7eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: '#374151',
+                              border: '1px solid #fff',
+                              marginLeft: idx === 0 ? 0 : -8
+                            }}
+                          >
+                            {((v.name || v.full_name || v.username || v.email || 'U').toString().trim().slice(0, 2)).toUpperCase()}
+                          </div>
+                        ))}
+                        {viewers.length > 4 && (
+                          <div
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: '9999px',
+                              backgroundColor: '#111827',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 9,
+                              fontWeight: 600,
+                              color: '#f9fafb',
+                              border: '1px solid #fff',
+                              marginLeft: -8
+                            }}
+                          >
+                            +{viewers.length - 4}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Document Title */}
-                <div style={{ fontWeight: 700, fontSize: 18, color: '#111827', marginBottom: 12, lineHeight: 1.4 }}>
+                <div
+                  style={{
+                    fontWeight: isSeen ? 400 : 700,
+                    fontSize: 18,
+                    color: '#111827',
+                    marginBottom: 12,
+                    lineHeight: 1.4
+                  }}
+                >
                   {d.title || 'Untitled'}
                 </div>
 
@@ -844,8 +1062,9 @@ const Request = ({ onNavigateToUpload }) => {
                 {/* Action Buttons */}
                 <div style={{ display: 'flex', gap: 10, marginTop: 16, paddingTop: 16, borderTop: '2px solid #e5e7eb' }}>
                   <button
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
+                      await markSeen(d);
                       window.open(d.google_drive_link, '_blank');
                     }}
                     className="btn btn-sm btn-light border"
@@ -957,7 +1176,11 @@ const Request = ({ onNavigateToUpload }) => {
               </tr>
             </thead>
             <tbody>
-              {items.map(d => (
+              {items.map(d => {
+                const numericId = Number(d.id || d.doc_id);
+                const isSeen = !Number.isNaN(numericId) && seenDocIds.has(numericId);
+                const viewers = !Number.isNaN(numericId) && viewersByDocId[numericId] ? viewersByDocId[numericId] : [];
+                return (
                 <tr key={d.id || d.doc_id} style={{ 
                   transition: 'all 0.2s ease', 
                   backgroundColor: '#fff', 
@@ -976,7 +1199,7 @@ const Request = ({ onNavigateToUpload }) => {
                     />
                   </td>
                   <td style={{ ...tdPrimary, border: 'none', backgroundColor: '#fff', paddingRight: 8 }}>
-                    <div style={{ fontWeight: 600 }}>{d.title}</div>
+                    <div style={{ fontWeight: isSeen ? 400 : 700 }}>{d.title}</div>
                   </td>
                   <td style={{ ...td, border: 'none', backgroundColor: '#fff', paddingLeft: 8 }}>{d.doc_type || '—'}</td>
                   <td style={{ ...td, border: 'none', backgroundColor: '#fff' }}>
@@ -994,7 +1217,61 @@ const Request = ({ onNavigateToUpload }) => {
                               </div>
                             )}
                           </div>
-                          <span>{d.created_by_name || '—'}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span>{d.created_by_name || '—'}</span>
+                            {viewers && viewers.length > 0 && (
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}
+                                title={`Seen by ${viewers.map(v => v.name || v.full_name || v.username || v.email || `User #${v.user_id}`).join(', ')}`}
+                              >
+                                {viewers.slice(0, 4).map((v, idx) => (
+                                  <div
+                                    key={v.user_id || v.id || idx}
+                                    style={{
+                                      width: 18,
+                                      height: 18,
+                                      borderRadius: '9999px',
+                                      backgroundColor: '#e5e7eb',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 9,
+                                      fontWeight: 600,
+                                      color: '#374151',
+                                      border: '1px solid #fff',
+                                      marginLeft: idx === 0 ? 0 : -6
+                                    }}
+                                  >
+                                    {((v.name || v.full_name || v.username || v.email || 'U').toString().trim().slice(0, 2)).toUpperCase()}
+                                  </div>
+                                ))}
+                                {viewers.length > 4 && (
+                                  <div
+                                    style={{
+                                      width: 18,
+                                      height: 18,
+                                      borderRadius: '9999px',
+                                      backgroundColor: '#111827',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 8,
+                                      fontWeight: 600,
+                                      color: '#f9fafb',
+                                      border: '1px solid #fff',
+                                      marginLeft: -6
+                                    }}
+                                  >
+                                    +{viewers.length - 4}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })()}
@@ -1146,7 +1423,12 @@ const Request = ({ onNavigateToUpload }) => {
                           padding: '8px 12px',
                           boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
                         }}
-                        onClick={() => d.google_drive_link && window.open(d.google_drive_link, '_blank', 'noopener')}
+                        onClick={async () => {
+                          await markSeen(d);
+                          if (d.google_drive_link) {
+                            window.open(d.google_drive_link, '_blank', 'noopener');
+                          }
+                        }}
                         disabled={!d.google_drive_link}
                       >
                         <FiExternalLink size={16} />
@@ -1216,7 +1498,7 @@ const Request = ({ onNavigateToUpload }) => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         </div>

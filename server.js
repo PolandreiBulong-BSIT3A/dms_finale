@@ -40,6 +40,15 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
+// Allowed origins for CORS (production domains)
+const ALLOWED_ORIGINS = [
+  FRONTEND_URL,
+  'https://ispsctagudindms.com',
+  'https://www.ispsctagudindms.com',
+  'http://localhost:5173',
+  'http://localhost:3000'
+].filter(Boolean);
+
 // ----- App & Realtime -----
 const app = express();
 
@@ -51,9 +60,18 @@ if (NODE_ENV === 'production') {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: FRONTEND_URL,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
+    origin: ALLOWED_ORIGINS,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: [
+      'Content-Type', 
+      'Authorization', 
+      'X-Requested-With',
+      'X-Silent-Error',
+      'x-silent-error',
+      'Cache-Control',
+      'cache-control'
+    ]
   }
 });
 
@@ -72,6 +90,9 @@ app.use(helmet({
         "'self'",
         "https://accounts.google.com",
         FRONTEND_URL,
+        "https://ispsctagudindms.com",
+        "https://www.ispsctagudindms.com",
+        "https://dms-finale.onrender.com",
         "http://localhost:5000",
         "ws://localhost:5000",
         "http://127.0.0.1:5000",
@@ -94,10 +115,28 @@ app.use(cookieParser());
 
 // ----- Core Middleware -----
 app.use(cors({
-  origin: FRONTEND_URL,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'X-Silent-Error',
+    'x-silent-error',
+    'Cache-Control',
+    'cache-control'
+  ],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 app.use(express.json({ limit: '10mb' }));

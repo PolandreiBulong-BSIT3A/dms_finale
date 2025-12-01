@@ -79,6 +79,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
   const [showOnlyMyDocuments, setShowOnlyMyDocuments] = useState(false);
   const [userPreferences, setUserPreferences] = useState({}); // Store favorite and pin status
   const [seenDocIds, setSeenDocIds] = useState(new Set());
+  const [viewersByDocId, setViewersByDocId] = useState({}); // cache of document viewers for cards/grid
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -148,12 +149,27 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     let isMounted = true;
     (async () => {
       try {
-        const res = await fetch(buildUrl('documents/seen'), { credentials: 'include' });
-        if (!res.ok) return;
-        const data = await res.json().catch(() => ({}));
-        if (!isMounted) return;
-        const ids = Array.isArray(data?.seen) ? data.seen.map(Number).filter(Boolean) : [];
-        setSeenDocIds(new Set(ids));
+        const res = await fetch(buildUrl('documents/seen'), { 
+          credentials: 'include',
+          // Don't show error toast for 404s as this is an optional feature
+          headers: { 'X-Silent-Error': 'true' }
+        }).catch(() => null);
+        
+        // Skip if component unmounted or request failed
+        if (!isMounted || !res) return;
+        
+        // If endpoint returns 404, just return - this is not a critical feature
+        if (res.status === 404) return;
+        
+        // Only process if response is ok
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (!isMounted) return;
+          const ids = Array.isArray(data?.seen) ? data.seen.map(Number).filter(Boolean) : [];
+          setSeenDocIds(new Set(ids));
+        } else {
+          console.warn('load seen documents failed', res.status);
+        }
       } catch (e) {
         console.warn('load seen documents failed', e);
       }
@@ -163,17 +179,46 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     };
   }, []);
 
+  const loadDocViewersForCard = useCallback(async (doc) => {
+    try {
+      const id = doc?.id || doc?.doc_id;
+      if (!id) return;
+      const numericId = Number(id);
+      // avoid refetching if already loaded
+      if (!Number.isNaN(numericId) && viewersByDocId[numericId]) return;
+
+      const res = await fetchWithRetry(buildUrl(`documents/${id}/views`), { credentials: 'include' });
+      if (!res || !res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const viewers = Array.isArray(data.viewers) ? data.viewers : [];
+      if (!Number.isNaN(numericId)) {
+        setViewersByDocId(prev => ({
+          ...prev,
+          [numericId]: viewers
+        }));
+      }
+    } catch (err) {
+      console.warn('Failed to load viewers for card', err);
+    }
+  }, [viewersByDocId]);
+
   const openProperties = (doc) => {
     if (doc) {
       markDocumentSeen(doc);
+      loadDocViewersForCard(doc);
     }
     setPropertiesDoc(doc);
     setPropertiesOpen(true);
   };
 
-  // Build list of folders that actually contain at least one currently visible document
-  // (computed after filteredDocuments is defined; see placement below)
-  // const visibleFolders = useMemo(...)
+  const openPreview = (doc) => {
+    if (doc) {
+      markDocumentSeen(doc);
+      loadDocViewersForCard(doc);
+    }
+    setPreviewDoc(doc);
+    setPreviewOpen(true);
+  };
 
   const scrollFolders = (dir) => {
     const el = folderScrollRef.current;
@@ -719,15 +764,6 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
     }
     
     return null;
-  };
-
-  const openPreview = (doc) => {
-    // Any interaction that opens the preview should mark the document as seen
-    if (doc) {
-      markDocumentSeen(doc);
-    }
-    setPreviewDoc(doc);
-    setPreviewOpen(true);
   };
 
   const closePreview = () => {
@@ -2417,10 +2453,10 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
               }}
               onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(0.95)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; }}
-              title={`Move ${selectedDocuments.length} item(s) to Trash`}
+              title={`Mark ${selectedDocuments.length} item(s) as Inactive`}
             >
               <Trash2 color="#ffffff" size={16} />
-              <span>Delete Selected</span>
+              <span>Mark Selected as Inactive</span>
               <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -2499,12 +2535,14 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                             <option value="">All Departments</option>
                             {departmentsLoading ? (
                               <option value="" disabled>Loading departments...</option>
-                            ) : departments.length > 0 ? (
-                              departments.map(d => {
+                            ) : departmentsList.length > 0 ? (
+                              departmentsList.map(d => {
                                 const count = documents.filter(doc => 
-                                  doc.department_names && doc.department_names.includes(d)
+                                  doc.department_names && doc.department_names.includes(d.name || d)
                                 ).length;
-                                return <option key={d} value={d}>{d} ({count})</option>;
+                                return <option key={d.department_id || d} value={d.department_id || d}>
+                                  {d.name || d} {count > 0 ? `(${count})` : ''}
+                                </option>;
                               })
                             ) : (
                               <option value="" disabled>No departments available</option>
@@ -2868,7 +2906,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                         onClick={() => handleDeleteFolder(folder)}
                         className="btn btn-sm btn-light text-danger"
                         style={{ padding: '4px 8px', fontSize: 12 }}
-                        title="Delete Folder"
+                        title="Mark Folder as Inactive"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -2981,16 +3019,16 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
               <th style={styles.th} className="hide-on-small">
                 <button onClick={() => handleSort('created_at')} style={styles.sortBtn}>Date Created {getSortIcon('created_at')}</button>
               </th>
-              <th style={styles.th} className="hide-on-medium">
-                <button onClick={() => handleSort('updated_at')} style={styles.sortBtn}>Last Updated {getSortIcon('updated_at')}</button>
-              </th>
+              <th style={styles.th} className="hide-on-medium">Seen</th>
               <th style={styles.th}>Actions</th>
              </tr>
            </thead>
           <tbody>
                        {paginatedDocuments.map((doc) => {
                  const docId = doc.id || doc.doc_id;
+                 const numericId = Number(docId);
                  const isSeen = seenDocIds.has(Number(docId));
+                 const viewers = !Number.isNaN(numericId) && viewersByDocId[numericId] ? viewersByDocId[numericId] : [];
                  return (
                  <tr 
                    key={doc.id} 
@@ -3059,7 +3097,76 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                      </div>
                  </td>
                  <td style={styles.td} className="hide-on-small">{doc.created_at ? (doc.created_at.split('T')[0] || doc.created_at) : '-'}</td>
-                 <td style={styles.td} className="hide-on-medium">{doc.updated_at ? (doc.updated_at.split('T')[0] || doc.updated_at) : '-'}</td>
+                 <td style={styles.td} className="hide-on-medium">
+                   {viewers && viewers.length > 0 && (
+                     <div
+                       style={{
+                         display: 'flex',
+                         alignItems: 'center',
+                         gap: 0,
+                         justifyContent: 'flex-start',
+                         flexWrap: 'wrap',
+                         maxWidth: '120px'
+                       }}
+                       title={`Seen by ${viewers.map(v => v.name || v.full_name || v.username || v.email || `User #${v.user_id}`).join(', ')}`}
+                     >
+                       {viewers.slice(0, 4).map((v, idx) => (
+                         <div
+                           key={v.user_id || v.id || idx}
+                           style={{
+                             width: 28,
+                             height: 28,
+                             borderRadius: '50%',
+                             background: getColorFromString(v.name || v.full_name || v.username || v.email || '?'),
+                             display: 'flex',
+                             alignItems: 'center',
+                             justifyContent: 'center',
+                             fontSize: 11,
+                             fontWeight: 600,
+                             color: '#1f2937',
+                             border: '1px solid #fff',
+                             marginLeft: idx === 0 ? 0 : -8,
+                             overflow: 'hidden'
+                           }}
+                         >
+                           {v.profile_picture ? (
+                             <img 
+                               src={v.profile_picture} 
+                               alt="" 
+                               style={{
+                                 width: '100%',
+                                 height: '100%',
+                                 objectFit: 'cover'
+                               }}
+                             />
+                           ) : (
+                             getInitials(v.name || v.full_name || v.username || v.email || '?')
+                           )}
+                         </div>
+                       ))}
+                       {viewers.length > 4 && (
+                         <div
+                           style={{
+                             width: 28,
+                             height: 28,
+                             borderRadius: '50%',
+                             backgroundColor: '#111827',
+                             display: 'flex',
+                             alignItems: 'center',
+                             justifyContent: 'center',
+                             fontSize: 10,
+                             fontWeight: 600,
+                             color: '#f9fafb',
+                             border: '1px solid #fff',
+                             marginLeft: -8
+                           }}
+                         >
+                           +{viewers.length - 4}
+                         </div>
+                       )}
+                     </div>
+                   )}
+                 </td>
                   <td style={{...styles.td, ...styles.tableRowLastCell}}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2, position: 'relative' }}>
                       <button 
@@ -3188,7 +3295,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                                 </li>
                                 <li style={{...styles.menuItem, color: '#dc2626'}} onClick={(e) => { e.stopPropagation(); handleSoftDelete(doc); }}>
                                   <span style={{...styles.menuIcon, color: '#dc2626'}}><Trash2 /></span>
-                                  <span style={styles.menuLabel}>Move to Trash</span>
+                                  <span style={styles.menuLabel}>Mark as Inactive</span>
                                 </li>
                               </>
                             )}
@@ -3209,7 +3316,9 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
         <div className="d-grid gap-3">
           {paginatedDocuments.map((doc, index) => {
             const docId = doc.id || doc.doc_id;
+            const numericId = Number(docId);
             const isSeen = seenDocIds.has(Number(docId));
+            const viewers = !Number.isNaN(numericId) && viewersByDocId[numericId] ? viewersByDocId[numericId] : [];
             return (
             <div key={index} className="card shadow-sm">
 
@@ -3272,31 +3381,59 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                         <span style={{ fontWeight: '500' }}>Date:</span> {doc.created_at ? (doc.created_at.split('T')[0] || doc.created_at) : '-'}
                       </div>
                     </div>
-                  </div>
-                  <div className="d-flex flex-column gap-1">
-                    <button 
-                      className="btn btn-sm btn-light border-0" 
-                      onClick={() => handleTogglePin(doc.id || doc.doc_id)} 
-                      title={userPreferences[doc.id || doc.doc_id]?.is_pinned ? "Unpin" : "Pin"}
-                      style={{ color: userPreferences[doc.id || doc.doc_id]?.is_pinned ? '#f59e0b' : '#6b7280' }}
-                    >
-                      <Pin size={16} />
-                    </button>
-                    <button 
-                      className="btn btn-sm btn-light border-0" 
-                      onClick={() => handleToggleFavorite(doc.id || doc.doc_id)} 
-                      title={userPreferences[doc.id || doc.doc_id]?.is_favorite ? "Remove from favorites" : "Add to favorites"}
-                      style={{ color: userPreferences[doc.id || doc.doc_id]?.is_favorite ? '#fbbf24' : '#6b7280' }}
-                    >
-                      <Star size={16} />
-                    </button>
-                    <button 
-                      className="btn btn-sm btn-light border-0" 
-                      onClick={(e) => { e.stopPropagation(); toggleDropdown(doc.id); }} 
-                      title="More actions"
-                    >
-                      <ThreeDotsVertical size={16} />
-                    </button>
+                    {viewers && viewers.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                        title={`Seen by ${viewers.map(v => v.name || v.full_name || v.username || v.email || `User #${v.user_id}`).join(', ')}`}
+                      >
+                        {viewers.slice(0, 4).map((v, idx) => (
+                          <div
+                            key={v.user_id || v.id || idx}
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: '9999px',
+                              backgroundColor: '#e5e7eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: '#374151',
+                              border: '1px solid #fff',
+                              marginLeft: idx === 0 ? 0 : -8
+                            }}
+                          >
+                            {getInitials(v.name || v.full_name || v.username || v.email || '')}
+                          </div>
+                        ))}
+                        {viewers.length > 4 && (
+                          <div
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: '9999px',
+                              backgroundColor: '#111827',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: '#f9fafb',
+                              border: '1px solid #fff',
+                              marginLeft: -8
+                            }}
+                          >
+                            +{viewers.length - 4}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -3406,7 +3543,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                             style={{ border: 'none', padding: '10px 12px', fontSize: '14px' }}
                           >
                             <Trash size={14} style={{ marginRight: 8 }} />
-                            Delete
+                            Inactive
                           </button>
                         </>
                       )}
@@ -3442,7 +3579,9 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
           <div style={styles.gridContainer}>
           {paginatedDocuments.map((doc, index) => {
             const docId = doc.id || doc.doc_id;
+            const numericId = Number(docId);
             const isSeen = seenDocIds.has(Number(docId));
+            const viewers = !Number.isNaN(numericId) && viewersByDocId[numericId] ? viewersByDocId[numericId] : [];
             return (
             <div key={index} style={styles.gridCard} onClick={() => openPreview(doc)}>
               <div style={styles.gridCardHeader}>
@@ -3517,7 +3656,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                               </li>
                               <li style={{...styles.menuItem, color: '#dc2626'}} onClick={() => handleSoftDelete(doc)}>
                                 <span style={{...styles.menuIcon, color: '#dc2626'}}><Trash2 /></span>
-                                <span style={styles.menuLabel}>Move to Trash</span>
+                                <span style={styles.menuLabel}>Mark as Inactive</span>
                               </li>
                             </>
                           )}
@@ -3540,6 +3679,61 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                 )}
                 <span>{doc.created_by_name || 'Unknown'}</span>
               </div>
+
+              {viewers && viewers.length > 0 && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    marginBottom: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                  title={`Seen by ${viewers.map(v => v.name || v.full_name || v.username || v.email || `User #${v.user_id}`).join(', ')}`}
+                >
+                  {viewers.slice(0, 4).map((v, idx) => (
+                    <div
+                      key={v.user_id || v.id || idx}
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: '9999px',
+                        backgroundColor: '#e5e7eb',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: '#374151',
+                        border: '1px solid #fff',
+                        marginLeft: idx === 0 ? 0 : -8
+                      }}
+                    >
+                      {getInitials(v.name || v.full_name || v.username || v.email || '')}
+                    </div>
+                  ))}
+                  {viewers.length > 4 && (
+                    <div
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: '9999px',
+                        backgroundColor: '#111827',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 9,
+                        fontWeight: 600,
+                        color: '#f9fafb',
+                        border: '1px solid #fff',
+                        marginLeft: -8
+                      }}
+                    >
+                      +{viewers.length - 4}
+                    </div>
+                  )}
+                </div>
+              )}
                         
               <div style={styles.gridCardImage}>
                 {doc.google_drive_link ? (
@@ -3553,7 +3747,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                 ) : (
                   <div style={styles.imagePlaceholder}>
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#9ca3af' }}>
-                      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
+                      <path d="M19 3H5c-1.1 0-2 .89-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.89 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
                       <path d="M14 14h-4v-4h4v4zm-2-2v-2h-2v2h2z"/>
                       <circle cx="8.5" cy="8.5" r="1.5"/>
                     </svg>
@@ -3719,7 +3913,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                             </li>
                             <li style={{...styles.menuItem, color: '#dc2626'}} onClick={() => handleSoftDelete(doc)}>
                               <span style={{...styles.menuIcon, color: '#dc2626'}}><Trash2 /></span>
-                              <span style={styles.menuLabel}>Move to Trash</span>
+                              <span style={styles.menuLabel}>Mark as Inactive</span>
                             </li>
                           </>
                         )}
@@ -3939,7 +4133,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
               }}>
                 <div style={styles.warningModalTitle}>
                   <span style={styles.warningIcon}>⚠️</span>
-                  Move Documents to Trash
+                  Mark Documents as Inactive
                 </div>
                 <button onClick={cancelMassDelete} style={{
                   ...styles.editModalCloseBtn,
@@ -3959,12 +4153,13 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
               <div style={styles.warningModalBody}>
                 <div style={styles.warningContent}>
                   <div style={styles.warningMessage}>
-                    Are you sure you want to move {selectedDocuments.length} selected document(s) to the trash? This action can be undone later.
+                    Are you sure you want to mark {selectedDocuments.length} selected document(s) as inactive? This action can be undone later.
                   </div>
                   
                   <div style={styles.warningMessage}>
                     <strong>What happens next:</strong>
                     <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
+                      <li>All selected documents will be marked as inactive</li>
                       <li>All selected documents will be moved to the trash</li>
                       <li>They will no longer appear in the active documents list</li>
                       <li>You can restore them later from the trash</li>
@@ -3988,7 +4183,7 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
                     style={styles.deleteButton}
                   >
                     <Trash2 style={{ marginRight: '6px' }} />
-                    Move to Trash
+                    Mark as Inactive
                   </button>
                 </div>
               </div>
