@@ -6,7 +6,7 @@ import { FiExternalLink, FiEye, FiMessageSquare, FiUpload, FiDownload, FiPlus, F
 import { ArrowDownUp, ArrowUp, ArrowDown } from 'react-bootstrap-icons';
 import { useDocuments } from '../../contexts/DocumentContext.jsx';
 import { useUser } from '../../contexts/UserContext.jsx';
-import { markDocumentAsViewed, fetchViewers } from '../../lib/api/frontend/DocumentViewsClient.js';
+import { markDocumentAsViewed, getDocumentViewers } from '../../lib/api/frontend/DocumentViewsClient.js';
 
 const Request = ({ onNavigateToUpload }) => {
   const { documents, loading, error, refreshDocuments } = useDocuments();
