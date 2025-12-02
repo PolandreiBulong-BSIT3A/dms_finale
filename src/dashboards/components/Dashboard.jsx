@@ -244,10 +244,17 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
 
   //
 
-  // Handle document click to open document modal
-  const handleDocumentClick = (doc) => {
-    setSelectedDocument(doc);
-    setShowDocumentModal(true);
+  // Handle document click to open document in a new tab
+  const handleDocumentClick = async (doc) => {
+    try {
+      // Open document in a new tab
+      const docUrl = buildUrl(`documents/${doc.id || doc.doc_id}`);
+      window.open(docUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error opening document:', error);
+      // Show error message to user
+      alert('Unable to open document. Please try again.');
+    }
   };
 
   // Handle user click to navigate to users view
@@ -924,7 +931,7 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
         {renderTabContent()}
       </div>
 
-       {/* Document Modal */}
+       {/* Document View Modal */}
        {showDocumentModal && selectedDocument && (
          <div 
            style={styles.modalOverlay}
@@ -939,67 +946,62 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
              <div style={styles.modalHeader}>
                <div style={styles.modalTitleSection}>
                  <FileText style={styles.modalIcon} />
-                 <h3 style={styles.modalTitle}>Document Details</h3>
+                 <h3 style={styles.modalTitle}>Document Viewer</h3>
                </div>
              </div>
              <div style={styles.modalBody}>
                <div style={styles.documentModalContent}>
-                 <div style={styles.documentModalSection}>
-                   <h4 style={styles.documentModalSectionTitle}>Document Information</h4>
-                   <div style={styles.documentModalInfo}>
-                     <div style={styles.documentModalField}>
-                       <span style={styles.documentModalLabel}>Title:</span>
-                       <span style={styles.documentModalValue}>{selectedDocument.title}</span>
+                 {selectedDocument.isLoading ? (
+                   <div style={styles.loadingContainer}>
+                     <div style={styles.loadingSpinner}></div>
+                     <p>Loading document content...</p>
+                   </div>
+                 ) : (
+                   <>
+                     <div style={styles.documentHeader}>
+                       <div>
+                         <h4 style={styles.documentTitle}>{selectedDocument.title || 'Untitled Document'}</h4>
+                         <div style={styles.documentMeta}>
+                           <span><strong>Type:</strong> {selectedDocument.doc_type || 'N/A'}</span>
+                           <span><strong>Reference:</strong> {selectedDocument.reference || 'N/A'}</span>
+                           <span><strong>Status:</strong> {selectedDocument.status || 'N/A'}</span>
+                         </div>
+                       </div>
+                       <div style={styles.documentDates}>
+                         <div><strong>Created:</strong> {formatDateTimeDisplay(pickCreatedDate(selectedDocument))}</div>
+                         {selectedDocument.updated_at && (
+                           <div><strong>Updated:</strong> {new Date(selectedDocument.updated_at).toLocaleDateString()} at {new Date(selectedDocument.updated_at).toLocaleTimeString()}</div>
+                         )}
+                       </div>
                      </div>
-                     <div style={styles.documentModalField}>
-                       <span style={styles.documentModalLabel}>Type:</span>
-                       <span style={styles.documentModalValue}>{selectedDocument.doc_type}</span>
-                     </div>
-                     <div style={styles.documentModalField}>
-                       <span style={styles.documentModalLabel}>Reference:</span>
-                       <span style={styles.documentModalValue}>{selectedDocument.reference}</span>
-                     </div>
-                     <div style={styles.documentModalField}>
-                       <span style={styles.documentModalLabel}>Status:</span>
-                       <span style={styles.documentModalValue}>{selectedDocument.status}</span>
-                     </div>
-                     <div style={styles.documentModalField}>
-                       <span style={styles.documentModalLabel}>Created:</span>
-                       <span style={styles.documentModalValue}>
-                         {formatDateTimeDisplay(pickCreatedDate(selectedDocument))}
-                       </span>
-                     </div>
-                     {selectedDocument.updated_at && (
-                       <div style={styles.documentModalField}>
-                         <span style={styles.documentModalLabel}>Last Updated:</span>
-                         <span style={styles.documentModalValue}>
-                           {new Date(selectedDocument.updated_at).toLocaleDateString()} at {new Date(selectedDocument.updated_at).toLocaleTimeString()}
-                         </span>
+
+                     {selectedDocument.description && (
+                       <div style={styles.descriptionSection}>
+                         <h5 style={styles.sectionTitle}>Description</h5>
+                         <p style={styles.descriptionText}>{selectedDocument.description}</p>
                        </div>
                      )}
-                     <div style={styles.documentModalField}>
-                       <span style={styles.documentModalLabel}>Action:</span>
-                       <span style={styles.documentModalValue}>{getActionDisplay(selectedDocument)}</span>
+
+                     <div style={styles.contentSection}>
+                       <h5 style={styles.sectionTitle}>Content</h5>
+                       <div style={styles.documentContent}>
+                         {selectedDocument.content || 'No content available for this document.'}
+                       </div>
                      </div>
-                   </div>
-                 </div>
-                 
-                 {selectedDocument.description && (
-                   <div style={styles.documentModalSection}>
-                     <h4 style={styles.documentModalSectionTitle}>Description</h4>
-                     <p style={styles.documentModalDescription}>{selectedDocument.description}</p>
-                   </div>
-                 )}
-                 
-                 {selectedDocument.tags && selectedDocument.tags.length > 0 && (
-                   <div style={styles.documentModalSection}>
-                     <h4 style={styles.documentModalSectionTitle}>Tags</h4>
-                     <div style={styles.documentModalTags}>
-                       {selectedDocument.tags.map((tag, index) => (
-                         <span key={index} style={styles.documentModalTag}>{tag}</span>
-                       ))}
-                     </div>
-                   </div>
+
+                     {selectedDocument.tags && selectedDocument.tags.length > 0 && (
+                       <div style={styles.tagsSection}>
+                         <h5 style={styles.sectionTitle}>Tags</h5>
+                         <div style={styles.tagsContainer}>
+                           {selectedDocument.tags.map((tag, index) => (
+                             <span key={index} style={styles.tag}>
+                               {tag}
+                             </span>
+                           ))}
+                         </div>
+                       </div>
+                     )}
+                   </>
                  )}
                </div>
              </div>
@@ -1019,28 +1021,22 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
                >
                  Close
                </button>
-               {selectedDocument.google_drive_link && selectedDocument.google_drive_link.trim() && (
-                 <button 
-                   onClick={() => {
-                     const driveLink = selectedDocument.google_drive_link?.trim();
-                     if (driveLink) {
-                       // Get preview URL if available, otherwise use the original link
-                       const previewUrl = getDrivePreviewUrl(driveLink);
-                       const urlToOpen = previewUrl || driveLink;
-                       window.open(urlToOpen, '_blank');
-                     }
-                   }}
-                   style={styles.primaryBtn}
-                   onMouseEnter={(e) => {
-                     Object.assign(e.target.style, styles.primaryBtnHover);
-                   }}
-                   onMouseLeave={(e) => {
-                     Object.assign(e.target.style, styles.primaryBtn);
-                   }}
-                 >
-                   View Document
-                 </button>
-               )}
+               <button 
+                 onClick={() => {
+                   if (onNavigateToDocuments) {
+                     onNavigateToDocuments('documents');
+                   }
+                 }}
+                 style={styles.primaryBtn}
+                 onMouseEnter={(e) => {
+                   Object.assign(e.target.style, styles.primaryBtnHover);
+                 }}
+                 onMouseLeave={(e) => {
+                   Object.assign(e.target.style, styles.submitBtn);
+                 }}
+               >
+                 View Full Document
+               </button>
              </div>
            </div>
          </div>
@@ -1051,6 +1047,103 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
 };
 
 const styles = {
+  // Loading styles
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 0',
+  },
+  loadingSpinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #3498db',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    marginBottom: '16px',
+  },
+  // Document header styles
+  documentHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    marginBottom: '20px',
+    paddingBottom: '16px',
+    borderBottom: '1px solid #e9ecef',
+  },
+  documentTitle: {
+    fontSize: '24px',
+    fontWeight: '600',
+    margin: '0 0 12px 0',
+    color: '#212529',
+  },
+  documentMeta: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '16px',
+    fontSize: '14px',
+    color: '#6c757d',
+    marginBottom: '12px',
+  },
+  documentDates: {
+    textAlign: 'right',
+    fontSize: '14px',
+    color: '#6c757d',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  // Section styles
+  sectionTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    margin: '0 0 12px 0',
+    color: '#343a40',
+  },
+  descriptionSection: {
+    marginBottom: '24px',
+    padding: '16px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '6px',
+  },
+  descriptionText: {
+    margin: '0',
+    lineHeight: '1.6',
+    color: '#212529',
+  },
+  contentSection: {
+    marginBottom: '24px',
+  },
+  documentContent: {
+    padding: '16px',
+    backgroundColor: '#fff',
+    border: '1px solid #e9ecef',
+    borderRadius: '6px',
+    minHeight: '200px',
+    maxHeight: '50vh',
+    overflowY: 'auto',
+    whiteSpace: 'pre-wrap',
+    lineHeight: '1.6',
+    color: '#212529',
+  },
+  tagsSection: {
+    marginBottom: '16px',
+  },
+  tagsContainer: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+  },
+  tag: {
+    backgroundColor: '#e9ecef',
+    color: '#495057',
+    padding: '4px 10px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '500',
+  },
   container: {
     padding: '24px',
     maxWidth: '1200px',
@@ -1194,14 +1287,7 @@ const styles = {
     alignItems: 'center',
     marginBottom: '16px',
   },
-  sectionTitle: {
-    fontSize: 'clamp(16px, 2.5vw, 18px)',
-    color: '#1e293b',
-    margin: 0,
-    fontWeight: '600',
-    display: 'flex',
-    alignItems: 'center',
-  },
+
   sectionBtn: {
     padding: '6px 12px',
     borderRadius: '6px',
@@ -1247,12 +1333,6 @@ const styles = {
   documentInfo: {
     display: 'flex',
     flexDirection: 'column',
-  },
-  documentTitle: {
-    margin: '0 0 5px 0',
-    fontSize: 'clamp(14px, 2.4vw, 16px)',
-    color: '#333',
-    fontWeight: '500',
   },
   documentDetails: {
     fontSize: 'clamp(11px, 2vw, 12px)',

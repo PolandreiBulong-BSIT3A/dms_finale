@@ -510,10 +510,6 @@ const Navbar = ({ setSidebarOpen, isMobile }) => {
                   </div>
                 </div>
                 <div className="dropdown-menu">
-                  <button className="dropdown-item" onClick={handleEnableNotifications}>
-                    <FiBell className="dropdown-item-icon" />
-                    <span>Enable Notifications</span>
-                  </button>
                   <button className="dropdown-item logout" onClick={handleLogout}>
                     <FiLogOut className="dropdown-item-icon" />
                     <span>Logout</span>

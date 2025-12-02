@@ -34,12 +34,13 @@ router.get('/notifications', requireAuth, (req, res) => {
   const currentUser = req.currentUser || {};
   const limit = Math.max(1, Math.min(Number(req.query.limit) || 100, 200));
 
-  // Treat ADMIN/DEAN/FACULTY as admin-like: they can see all notifications
   const roleLower = (currentUser.role || '').toString().toLowerCase();
   const userParam = (currentUser.user_id ?? currentUser.id) ?? null;
-  const isAdminLike = roleLower === 'admin' || roleLower === 'dean' || roleLower === 'faculty';
+  const isAdmin = roleLower === 'admin';
+  const isDeanOrFaculty = roleLower === 'dean' || roleLower === 'faculty';
 
-  if (isAdminLike) {
+  // Admin: see all notifications (no type filtering)
+  if (isAdmin) {
     const sqlAll = `
       SELECT 
         n.notification_id AS id,
@@ -59,7 +60,36 @@ router.get('/notifications', requireAuth, (req, res) => {
     `;
     return db.query(sqlAll, [userParam, limit], (err, results) => {
       if (err) {
-        console.error('Error fetching notifications (admin-like):', err);
+        console.error('Error fetching notifications (admin):', err);
+        return res.status(500).json({ success: false, message: 'Database error.' });
+      }
+      return res.json({ success: true, notifications: results });
+    });
+  }
+
+  // Dean / Faculty: see all notifications EXCEPT deleted / updated types
+  if (isDeanOrFaculty) {
+    const sqlDeanFaculty = `
+      SELECT 
+        n.notification_id AS id,
+        n.title,
+        n.message,
+        n.type,
+        n.visible_to_all,
+        n.created_at,
+        n.related_doc_id,
+        EXISTS(
+          SELECT 1 FROM notification_reads r
+          WHERE r.notification_id = n.notification_id AND r.user_id = ?
+        ) AS is_read
+      FROM notifications n
+      WHERE n.type NOT IN ('deleted', 'updated')
+      ORDER BY is_read ASC, n.created_at DESC
+      LIMIT ?
+    `;
+    return db.query(sqlDeanFaculty, [userParam, limit], (err, results) => {
+      if (err) {
+        console.error('Error fetching notifications (dean/faculty):', err);
         return res.status(500).json({ success: false, message: 'Database error.' });
       }
       return res.json({ success: true, notifications: results });
@@ -115,12 +145,13 @@ router.get('/notifications', requireAuth, (req, res) => {
 router.get('/notifications/count', requireAuth, (req, res) => {
   const currentUser = req.currentUser || {};
 
-  // Treat ADMIN/DEAN/FACULTY as admin-like: unread count across all notifications
   const roleLower = (currentUser.role || '').toString().toLowerCase();
   const userParam = (currentUser.user_id ?? currentUser.id) ?? null;
-  const isAdminLike = roleLower === 'admin' || roleLower === 'dean' || roleLower === 'faculty';
+  const isAdmin = roleLower === 'admin';
+  const isDeanOrFaculty = roleLower === 'dean' || roleLower === 'faculty';
 
-  if (isAdminLike) {
+  // Admin: unread count across all notifications
+  if (isAdmin) {
     const sqlAllCount = `
       SELECT COUNT(*) AS total
       FROM notifications n
@@ -131,7 +162,28 @@ router.get('/notifications/count', requireAuth, (req, res) => {
     `;
     return db.query(sqlAllCount, [userParam], (err, results) => {
       if (err) {
-        console.error('Error fetching notification count (admin-like):', err);
+        console.error('Error fetching notification count (admin):', err);
+        return res.status(500).json({ success: false, message: 'Database error.' });
+      }
+      const total = results[0]?.total || 0;
+      return res.json({ success: true, count: total });
+    });
+  }
+
+  // Dean / Faculty: unread count excluding deleted / updated notifications
+  if (isDeanOrFaculty) {
+    const sqlDeanFacultyCount = `
+      SELECT COUNT(*) AS total
+      FROM notifications n
+      WHERE n.type NOT IN ('deleted', 'updated')
+        AND NOT EXISTS (
+          SELECT 1 FROM notification_reads r 
+          WHERE r.notification_id = n.notification_id AND r.user_id = ?
+        )
+    `;
+    return db.query(sqlDeanFacultyCount, [userParam], (err, results) => {
+      if (err) {
+        console.error('Error fetching notification count (dean/faculty):', err);
         return res.status(500).json({ success: false, message: 'Database error.' });
       }
       const total = results[0]?.total || 0;
