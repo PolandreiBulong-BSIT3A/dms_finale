@@ -4702,6 +4702,80 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
         </div>
       )}
 
+      {/* Add this in the properties modal, after other document information */}
+      {propertiesDoc && (
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#374151' }}>Seen By</h4>
+            <button 
+              onClick={() => fetchViewers(propertiesDoc.id || propertiesDoc.doc_id)}
+              style={{
+                padding: '4px 8px',
+                fontSize: 12,
+                background: '#f3f4f6',
+                border: '1px solid #d1d5db',
+                borderRadius: 6,
+                cursor: 'pointer'
+              }}
+            >
+              {loadingViewers[propertiesDoc.id || propertiesDoc.doc_id] ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            {documentViewers[propertiesDoc.id || propertiesDoc.doc_id]?.length > 0 ? (
+              documentViewers[propertiesDoc.id || propertiesDoc.doc_id].map((viewer, idx) => (
+                <div 
+                  key={viewer.user_id || idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 8px',
+                    background: '#f9fafb',
+                    borderRadius: 20,
+                    border: '1px solid #e5e7eb'
+                  }}
+                  title={`${viewer.name} - ${new Date(viewer.viewed_at).toLocaleString()}`}
+                >
+                  {viewer.profile_pic ? (
+                    <img 
+                      src={viewer.profile_pic} 
+                      alt={viewer.name}
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      background: getColorFromString(viewer.name),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: '#374151'
+                    }}>
+                      {getInitials(viewer.name)}
+                    </div>
+                  )}
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>{viewer.name}</span>
+                </div>
+              ))
+            ) : (
+              <span style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>
+                No views yet
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

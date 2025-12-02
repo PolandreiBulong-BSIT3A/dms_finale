@@ -81,7 +81,9 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
         reply_doc.title AS reply_title,
         reply_doc.description AS reply_description,
         reply_doc.google_drive_link AS reply_google_drive_link,
-        reply_doc.created_at AS reply_created_at
+        reply_doc.created_at AS reply_created_at,
+        CASE WHEN dv.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_viewed,
+        dv.viewed_at
       FROM dms_documents d
       LEFT JOIN document_types dt ON d.doc_type = dt.type_id
       INNER JOIN document_actions da ON da.doc_id = d.doc_id
@@ -90,11 +92,12 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
       LEFT JOIN dms_user creator ON creator.Username = d.created_by_name OR CONCAT(creator.firstname, ' ', creator.lastname) = d.created_by_name
       LEFT JOIN dms_user completed_user ON da.completed_by_user_id = completed_user.user_id
       LEFT JOIN dms_documents reply_doc ON reply_doc.is_reply_to_doc_id = d.doc_id
+      LEFT JOIN document_views dv ON d.doc_id = dv.doc_id AND dv.user_id = ?
       WHERE (d.deleted IS NULL OR d.deleted = 0)
         AND TRIM(LOWER(COALESCE(da.status, ''))) IN ('pending','open','in_progress','awaiting','assigned')
     `;
 
-    const params = [];
+    const params = [userId || null];
 
     if (!isAdminLike) {
       // Non admin-like users: only see requests assigned to them (user/department/role)
@@ -107,7 +110,7 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
     }
 
     sql += `
-      GROUP BY d.doc_id
+      GROUP BY d.doc_id, dv.user_id, dv.viewed_at
       ORDER BY d.created_at DESC
     `;
 
@@ -148,7 +151,10 @@ router.get('/documents/requests', requireAuth, async (req, res) => {
       reply_google_drive_link: r.reply_google_drive_link,
       reply_created_at: r.reply_created_at,
       // For backward compatibility
-      action_required_name: r.action_required_names ? r.action_required_names.split(', ')[0] : null
+      action_required_name: r.action_required_names ? r.action_required_names.split(', ')[0] : null,
+      // Viewed status
+      is_viewed: r.is_viewed === 1 || r.is_viewed === true,
+      viewed_at: r.viewed_at || null
     }));
 
     res.json({ success: true, documents });

@@ -6,6 +6,7 @@ import { FiExternalLink, FiEye, FiMessageSquare, FiUpload, FiDownload, FiPlus, F
 import { ArrowDownUp, ArrowUp, ArrowDown } from 'react-bootstrap-icons';
 import { useDocuments } from '../../contexts/DocumentContext.jsx';
 import { useUser } from '../../contexts/UserContext.jsx';
+import { markDocumentAsViewed, fetchViewers } from '../../lib/api/frontend/DocumentViewsClient.js';
 
 const Request = ({ onNavigateToUpload }) => {
   const { documents, loading, error, refreshDocuments } = useDocuments();
@@ -310,10 +311,18 @@ const Request = ({ onNavigateToUpload }) => {
     setShowMenu(null);
   };
 
-  const openProperties = (doc) => {
+  const openProperties = async (doc) => {
+    // Mark document as viewed when opening properties
+    try {
+      await markDocumentAsViewed(doc.id || doc.doc_id);
+    } catch (error) {
+      console.error('Failed to mark document as viewed:', error);
+    }
     setPropertiesDoc(doc);
     setPropertiesOpen(true);
     setShowMenu(null);
+    // Auto-fetch viewers when opening properties
+    fetchViewers(doc.id || doc.doc_id);
   };
   const closeProperties = () => {
     setPropertiesOpen(false);
@@ -1204,7 +1213,7 @@ const Request = ({ onNavigateToUpload }) => {
             </div>
             <div style={modalBody}>
               <div style={{ marginBottom: '16px', color: '#6b7280', fontSize: 14 }}>
-                Overview of this document’s metadata
+                Overview of this document's metadata
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                 {Object.entries(propertiesDoc)

@@ -5,6 +5,7 @@ import Announcements from './Announcements.jsx';
 import './Dashboard.css';
 import { useUser } from '../../contexts/UserContext.jsx';
 import { buildUrl, fetchJson } from '../../lib/api/frontend/client.js';
+import { getDrivePreviewUrl } from '../../lib/utils/drive.js';
 import { 
   FiUsers, 
   FiFileText, 
@@ -925,8 +926,16 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
 
        {/* Document Modal */}
        {showDocumentModal && selectedDocument && (
-         <div style={styles.modalOverlay}>
-           <div style={styles.modal}>
+         <div 
+           style={styles.modalOverlay}
+           onClick={(e) => {
+             if (e.target === e.currentTarget) {
+               setShowDocumentModal(false);
+               setSelectedDocument(null);
+             }
+           }}
+         >
+           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
              <div style={styles.modalHeader}>
                <div style={styles.modalTitleSection}>
                  <FileText style={styles.modalIcon} />
@@ -1010,22 +1019,28 @@ const Dashboard = ({ role, onNavigateToDocuments }) => {
                >
                  Close
                </button>
-               <button 
-                 onClick={() => {
-                   if (onNavigateToDocuments) {
-                     onNavigateToDocuments('documents');
-                   }
-                 }}
-                 style={styles.primaryBtn}
-                 onMouseEnter={(e) => {
-                   Object.assign(e.target.style, styles.primaryBtnHover);
-                 }}
-                 onMouseLeave={(e) => {
-                   Object.assign(e.target.style, styles.submitBtn);
-                 }}
-               >
-                 View Full Document
-               </button>
+               {selectedDocument.google_drive_link && selectedDocument.google_drive_link.trim() && (
+                 <button 
+                   onClick={() => {
+                     const driveLink = selectedDocument.google_drive_link?.trim();
+                     if (driveLink) {
+                       // Get preview URL if available, otherwise use the original link
+                       const previewUrl = getDrivePreviewUrl(driveLink);
+                       const urlToOpen = previewUrl || driveLink;
+                       window.open(urlToOpen, '_blank');
+                     }
+                   }}
+                   style={styles.primaryBtn}
+                   onMouseEnter={(e) => {
+                     Object.assign(e.target.style, styles.primaryBtnHover);
+                   }}
+                   onMouseLeave={(e) => {
+                     Object.assign(e.target.style, styles.primaryBtn);
+                   }}
+                 >
+                   View Document
+                 </button>
+               )}
              </div>
            </div>
          </div>

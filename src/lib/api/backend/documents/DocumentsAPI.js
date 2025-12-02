@@ -334,6 +334,7 @@ router.get('/documents/latest', requireAuth, async (req, res) => {
         d.created_by_name,
         d.allowed_user_ids,
         d.allowed_roles,
+        d.google_drive_link,
         dt.name AS doc_type,
         u.profile_pic AS created_by_profile_pic,
         u.user_email AS created_by_email,
@@ -1347,6 +1348,44 @@ router.delete('/documents/:id', requireAuth, (req, res) => {
     if (err) return res.status(500).json({ success: false, message: 'Database error.' });
     return res.json({ success: true, message: 'Document deleted.' });
   });
+});
+
+// Get list of users who viewed a document
+router.get('/documents/:id/viewers', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [rows] = await db.promise().query(
+      `SELECT 
+        dv.user_id,
+        dv.viewed_at,
+        u.Username,
+        u.firstname,
+        u.lastname,
+        u.user_email,
+        u.profile_pic,
+        CONCAT(u.firstname, ' ', u.lastname) AS full_name
+      FROM document_views dv
+      LEFT JOIN dms_user u ON dv.user_id = u.user_id
+      WHERE dv.doc_id = ?
+      ORDER BY dv.viewed_at DESC`,
+      [id]
+    );
+
+    const viewers = rows.map(r => ({
+      user_id: r.user_id,
+      username: r.Username,
+      name: r.full_name || r.Username || 'Unknown',
+      email: r.user_email,
+      profile_pic: r.profile_pic,
+      viewed_at: r.viewed_at
+    }));
+
+    return res.json({ success: true, viewers });
+  } catch (error) {
+    console.error('Error fetching document viewers:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch viewers' });
+  }
 });
 
 export default router;
