@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { fetchWithRetry } from '../../lib/api/frontend/http.js';
 import { buildUrl } from '../../lib/api/frontend/client.js';
 import { FiExternalLink, FiEye, FiMessageSquare, FiUpload, FiDownload, FiPlus, FiMoreVertical, FiEdit3, FiTrash2, FiBookmark, FiInfo, FiAlertTriangle, FiSearch } from 'react-icons/fi';
@@ -11,19 +11,6 @@ import { markDocumentAsViewed, getDocumentViewers } from '../../lib/api/frontend
 const Request = ({ onNavigateToUpload }) => {
   const { documents, loading, error, refreshDocuments } = useDocuments();
   const { user: currentUser } = useUser();
-  
-  // Add spinner animation
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `;
-    document.head.appendChild(style);
-    return () => document.head.removeChild(style);
-  }, []);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('pending'); // 'pending' or 'answered'
   const [answeredDocs, setAnsweredDocs] = useState([]);
@@ -37,63 +24,11 @@ const Request = ({ onNavigateToUpload }) => {
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [propertiesDoc, setPropertiesDoc] = useState(null);
-  const [requestViewers, setRequestViewers] = useState([]);
-  const [requestViewersLoading, setRequestViewersLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]); // bulk selection
   const [allUsers, setAllUsers] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
   const [seenDocIds, setSeenDocIds] = useState(() => new Set());
   const [viewersByDocId, setViewersByDocId] = useState({});
-
-  const loadViewersForCard = useCallback(async (doc) => {
-    try {
-      const id = doc?.id || doc?.doc_id;
-      if (!id) return;
-      const numericId = Number(id);
-      if (!Number.isNaN(numericId) && viewersByDocId[numericId]) return; // already loaded
-
-      const res = await fetchWithRetry(buildUrl(`documents/${id}/views`), { credentials: 'include' });
-      if (!res || !res.ok) return;
-      const data = await res.json().catch(() => ({}));
-      const viewers = Array.isArray(data.viewers) ? data.viewers : [];
-      if (!Number.isNaN(numericId)) {
-        setViewersByDocId(prev => ({
-          ...prev,
-          [numericId]: viewers
-        }));
-      }
-    } catch (e) {
-      console.warn('Failed to load viewers for request card', e);
-    }
-  }, [viewersByDocId]);
-
-  // Helper: mark document as seen for current user
-  const markSeen = async (doc) => {
-    try {
-      const id = doc?.id || doc?.doc_id;
-      if (!id) return;
-      const res = await fetch(buildUrl(`documents/${id}/seen`), {
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (res && res.ok) {
-        const numericId = Number(id);
-        if (!Number.isNaN(numericId)) {
-          setSeenDocIds(prev => {
-            const next = new Set(prev);
-            next.add(numericId);
-            return next;
-          });
-        }
-
-        // lazily load viewers for this document after first successful interaction
-        await loadViewersForCard(doc);
-      }
-    } catch (e) {
-      // Do not block UI on errors
-      console.warn('markSeen failed', e);
-    }
-  };
 
   useEffect(() => {
     const onResize = () => {
@@ -116,108 +51,19 @@ const Request = ({ onNavigateToUpload }) => {
   };
 
   const [requestDocs, setRequestDocs] = React.useState([]);
-  const [loadingRequests, setLoadingRequests] = React.useState(true);
-  const [requestError, setRequestError] = React.useState(null);
-
-  // Function to fetch request documents
-  const fetchRequestDocuments = async () => {
-    setLoadingRequests(true);
-    setRequestError(null);
-    try {
-      const res = await fetchWithRetry(buildUrl('documents/requests'), { 
-        credentials: 'include',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      
-      const data = await res.json();
-      const list = Array.isArray(data?.documents) ? data.documents : [];
-      
-      // Debug logging
-      console.log('[Request] Fetched documents:', {
-        total: list.length,
-        sample: list.length > 0 ? {
-          id: list[0].id,
-          title: list[0].title,
-          action_required: list[0].action_required,
-          action_required_name: list[0].action_required_name,
-          action_status: list[0].action_status
-        } : null
-      });
-      
-      setRequestDocs(list);
-      
-      // Mark new requests as seen after a short delay
-      if (list.length > 0) {
-        setTimeout(() => {
-          list.forEach(doc => {
-            if (doc.id && !seenDocIds.has(Number(doc.id))) {
-              markSeen(doc);
-            }
-          });
-        }, 1000);
-      } else {
-        console.log('[Request] No documents found. Check if documents have action_required assignments.');
-      }
-      
-    } catch (e) {
-      console.error('Failed to fetch requests:', e);
-      setRequestError('Failed to load requests. Please try refreshing the page.');
-    } finally {
-      setLoadingRequests(false);
-    }
-  };
-
-  // Initial fetch and set up refresh interval
   React.useEffect(() => {
-    fetchRequestDocuments();
-    
-    // Refresh requests every 30 seconds
-    const intervalId = setInterval(fetchRequestDocuments, 30000);
-    
-    // Cleanup interval on component unmount
-    return () => clearInterval(intervalId);
-  }, []);
-
-  // Load seen document ids for current user (persistent seen state)
-  useEffect(() => {
-    let isMounted = true;
     (async () => {
       try {
-        const res = await fetchWithRetry(buildUrl('documents/seen'), { 
-          credentials: 'include',
-          // Don't show error toast for 404s as this is an optional feature
-          headers: { 'X-Silent-Error': 'true' }
-        }).catch(() => null);
-        
-        // Skip if component unmounted or request failed
-        if (!isMounted || !res) return;
-        
-        // If endpoint returns 404, just return - this is not a critical feature
-        if (res.status === 404) return;
-        
-        // Only process if response is ok
-        if (!res.ok) return;
-        
-        const data = await res.json().catch(() => ({}));
-        const ids = Array.isArray(data?.seen)
-          ? data.seen.map(n => Number(n)).filter(n => !Number.isNaN(n))
-          : [];
-        if (!isMounted) return;
-        setSeenDocIds(new Set(ids));
+        const res = await fetchWithRetry(buildUrl('documents/requests'), { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          const list = data?.documents || [];
+          setRequestDocs(list);
+        }
       } catch (e) {
-        console.warn('Failed to load seen documents for requests', e);
+        console.error('Failed to fetch requests:', e);
       }
     })();
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   // Fetch answered documents
@@ -288,6 +134,33 @@ const Request = ({ onNavigateToUpload }) => {
     // Try startsWith for partials
     match = allUsers.find(u => name.includes(u.full_name) || u.full_name.includes(name));
     return match || null;
+  };
+
+  // Mark document as viewed
+  const markAsViewedAndLoadViewers = async (doc) => {
+    try {
+      const docId = doc.id || doc.doc_id;
+      if (!docId) return;
+      
+      // Mark as viewed
+      await markDocumentAsViewed(docId);
+      setSeenDocIds(prev => {
+        const next = new Set(prev);
+        next.add(Number(docId));
+        return next;
+      });
+      
+      // Load viewers
+      const viewersData = await getDocumentViewers(docId);
+      if (viewersData && viewersData.viewers) {
+        setViewersByDocId(prev => ({
+          ...prev,
+          [Number(docId)]: viewersData.viewers
+        }));
+      }
+    } catch (err) {
+      console.warn('Failed to mark document as viewed or load viewers', err);
+    }
   };
 
   // Close menu when clicking outside
@@ -366,66 +239,24 @@ const Request = ({ onNavigateToUpload }) => {
   };
 
   const items = useMemo(() => {
-    let list = [];
-    
+    let list;
     if (viewMode === 'answered') {
-      // For answered view, use answeredDocs if available, otherwise filter documents
-      list = answeredDocs.length > 0 ? answeredDocs : documents.filter(doc => 
-        doc.status?.toLowerCase() === 'completed' || 
-        doc.action_status?.toLowerCase() === 'completed'
-      );
+      list = answeredDocs;
     } else {
-      // For pending view, prioritize requestDocs, then filter documents
-      list = requestDocs.length > 0 ? requestDocs : documents.filter(doc => 
-        isActionRequiredDoc(doc) || 
-        doc.status?.toLowerCase() === 'pending' ||
-        (doc.action_required && doc.action_required.length > 0) ||
-        (doc.action_required_ids && doc.action_required_ids.length > 0)
-      );
+      list = requestDocs.length > 0 ? requestDocs : documents.filter(isActionRequiredDoc);
     }
     
-    // Apply search filter if search term exists
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter(d => {
-        // Check if the document is a request document (has action required)
-        const isRequestDoc = isActionRequiredDoc(d);
-        const isPending = d.status?.toLowerCase() === 'pending' || !d.status;
-        
-        // For pending requests, include more fields in search
-        if (viewMode === 'pending' && isRequestDoc && isPending) {
-          return (
-            (d.title || '').toLowerCase().includes(q) ||
-            (d.doc_type || '').toLowerCase().includes(q) ||
-            (d.action_required_name || '').toLowerCase().includes(q) ||
-            (d.action_required ? 
-              (Array.isArray(d.action_required) ? 
-                d.action_required.some(ar => 
-                  (ar.name || '').toLowerCase().includes(q) ||
-                  (ar.id || '').toString().includes(q)
-                ) : 
-                d.action_required.toString().toLowerCase().includes(q)
-              ) : 
-              false
-            ) ||
-            (d.created_by_name || '').toLowerCase().includes(q) ||
-            (d.description || '').toLowerCase().includes(q)
-          );
-        }
-        
-        // For answered requests or non-request documents
-        return (
-          (d.title || '').toLowerCase().includes(q) ||
-          (d.doc_type || '').toLowerCase().includes(q) ||
-          (d.action_required_name || '').toLowerCase().includes(q) ||
-          (d.reply_title || '').toLowerCase().includes(q) ||
-          (d.reply_description || '').toLowerCase().includes(q) ||
-          (d.action_status || '').toLowerCase().includes(q) ||
-          (d.completed_by_name || '').toLowerCase().includes(q) ||
-          (d.created_by_name || '').toLowerCase().includes(q) ||
-          (d.description || '').toLowerCase().includes(q)
-        );
-      });
+      list = list.filter(d =>
+        d.title?.toLowerCase().includes(q) ||
+        d.doc_type?.toLowerCase().includes(q) ||
+        (d.action_required_name || '').toLowerCase().includes(q) ||
+        (d.reply_title || '').toLowerCase().includes(q) ||
+        (d.reply_description || '').toLowerCase().includes(q) ||
+        (d.action_status || '').toLowerCase().includes(q) ||
+        (d.completed_by_name || '').toLowerCase().includes(q)
+      );
     }
     
     // Apply sorting
@@ -510,40 +341,15 @@ const Request = ({ onNavigateToUpload }) => {
   };
 
   const openProperties = (doc) => {
+    markAsViewedAndLoadViewers(doc);
     setPropertiesDoc(doc);
     setPropertiesOpen(true);
     setShowMenu(null);
-    // Auto-fetch viewers when opening properties
-    fetchViewers(doc.id || doc.doc_id);
   };
   const closeProperties = () => {
     setPropertiesOpen(false);
     setPropertiesDoc(null);
   };
-
-  // Load viewers when properties modal opens
-  useEffect(() => {
-    const loadViews = async () => {
-      if (!propertiesOpen || !propertiesDoc) {
-        setRequestViewers([]);
-        return;
-      }
-      const id = propertiesDoc.id || propertiesDoc.doc_id;
-      if (!id) return;
-      try {
-        setRequestViewersLoading(true);
-        const res = await fetchWithRetry(buildUrl(`documents/${id}/views`), { credentials: 'include' });
-        const data = await res.json();
-        setRequestViewers(Array.isArray(data.viewers) ? data.viewers : []);
-      } catch (e) {
-        console.warn('Failed to load request views', e);
-        setRequestViewers([]);
-      } finally {
-        setRequestViewersLoading(false);
-      }
-    };
-    loadViews();
-  }, [propertiesOpen, propertiesDoc]);
 
   const handleDelete = (doc) => {
     setSelectedDocument(doc);
@@ -622,9 +428,6 @@ const Request = ({ onNavigateToUpload }) => {
     }
   };
 
-  const roleUpper = (currentUser?.role || '').toString().toUpperCase();
-  const canAddDocument = roleUpper === 'ADMIN' || roleUpper === 'DEAN';
-
   return (
     <div style={{ padding: 24 }}>
       {isMobile ? (
@@ -681,8 +484,8 @@ const Request = ({ onNavigateToUpload }) => {
               />
             </div>
 
-            {/* Add Document (mobile, only in answered) - only ADMIN/DEAN */}
-            {viewMode === 'answered' && canAddDocument && (
+            {/* Add Document (mobile, only in answered) */}
+            {viewMode === 'answered' && (
               <button
                 className="btn btn-primary border rounded-pill px-3"
                 onClick={() => onNavigateToUpload && onNavigateToUpload('upload')}
@@ -766,82 +569,12 @@ const Request = ({ onNavigateToUpload }) => {
       </div>
       )}
 
-      {(loading || answeredLoading || loadingRequests) && (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          padding: '40px 20px',
-          color: '#64748b',
-          fontSize: 16
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ 
-              width: 40, 
-              height: 40, 
-              border: '4px solid #e5e7eb', 
-              borderTop: '4px solid #3b82f6', 
-              borderRadius: '50%', 
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 16px'
-            }}></div>
-            Loading requests...
-          </div>
-        </div>
-      )}
-      
-      {requestError && !loadingRequests && (
-        <div style={{ 
-          color: '#dc2626', 
-          backgroundColor: '#fef2f2',
-          border: '1px solid #fecaca',
-          padding: 16, 
-          borderRadius: 12,
-          marginBottom: 16
-        }}>
-          <strong>Error:</strong> {requestError}
-          <button
-            onClick={fetchRequestDocuments}
-            style={{
-              marginLeft: 12,
-              padding: '6px 12px',
-              backgroundColor: '#dc2626',
-              color: 'white',
-              border: 'none',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontSize: 14
-            }}
-          >
-            Retry
-          </button>
-        </div>
-      )}
-      
-      {error && !loadingRequests && (
-        <div style={{ color: '#dc2626', padding: 16, backgroundColor: '#fef2f2', borderRadius: 12, marginBottom: 16 }}>
-          {error}
-        </div>
-      )}
+      {(loading || answeredLoading) && <div>Loading...</div>}
+      {error && <div style={{ color: '#c00' }}>{error}</div>}
 
-      {!(loading || answeredLoading || loadingRequests) && items.length === 0 && !requestError && (
-        <div style={{ 
-          color: '#64748b', 
-          border: '1px dashed #cbd5e1', 
-          padding: 40, 
-          borderRadius: 12, 
-          background: '#f8fafc',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
-          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
-            {viewMode === 'pending' ? 'No documents requiring action' : 'No answered requests found'}
-          </div>
-          <div style={{ fontSize: 14, color: '#9ca3af' }}>
-            {viewMode === 'pending' 
-              ? 'When documents are assigned to you with action requirements, they will appear here.'
-              : 'Completed requests will appear here once replies are submitted.'}
-          </div>
+      {!(loading || answeredLoading) && items.length === 0 && (
+        <div style={{ color: '#64748b', border: '1px dashed #cbd5e1', padding: 24, borderRadius: 12, background: '#f8fafc' }}>
+          {viewMode === 'pending' ? 'No documents requiring action.' : 'No answered requests found.'}
         </div>
       )}
 
@@ -850,11 +583,8 @@ const Request = ({ onNavigateToUpload }) => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginTop: 12 }}>
           {items.map((d) => {
             const u = findUserByName(d.created_by_name);
-            const numericId = Number(d.id || d.doc_id);
             const isSelected = selectedIds.includes(d.id || d.doc_id);
-            const isSeen = !Number.isNaN(numericId) && seenDocIds.has(numericId);
-            const viewers = !Number.isNaN(numericId) && viewersByDocId[numericId] ? viewersByDocId[numericId] : [];
-
+            
             return (
               <div 
                 key={d.id || d.doc_id}
@@ -909,9 +639,8 @@ const Request = ({ onNavigateToUpload }) => {
                         padding: '4px 0'
                       }}>
                         <button
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            await markSeen(d);
                             window.open(d.google_drive_link, '_blank');
                             setShowMenu(null);
                           }}
@@ -955,31 +684,29 @@ const Request = ({ onNavigateToUpload }) => {
                         >
                           <FiInfo size={14} /> Properties
                         </button>
-                        {canAddDocument && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              uploadDocumentFromSource(d);
-                              setShowMenu(null);
-                            }}
-                            style={{
-                              width: '100%',
-                              padding: '8px 12px',
-                              border: 'none',
-                              background: 'none',
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              fontSize: 14
-                            }}
-                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
-                            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                          >
-                            <FiPlus size={14} /> + Add Document
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            uploadDocumentFromSource(d);
+                            setShowMenu(null);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: 'none',
+                            background: 'none',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            fontSize: 14
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                        >
+                          <FiPlus size={14} /> + Add Document
+                        </button>
                         {viewMode === 'pending' && (
                           <button
                             onClick={(e) => {
@@ -1029,72 +756,11 @@ const Request = ({ onNavigateToUpload }) => {
                     <div style={{ fontSize: 12, color: '#6b7280' }}>
                       {new Date(d.date_received || d.created_at).toLocaleDateString()}
                     </div>
-                    {viewers && viewers.length > 0 && (
-                      <div
-                        style={{
-                          marginTop: 6,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}
-                        title={`Seen by ${viewers.map(v => v.name || v.full_name || v.username || v.email || `User #${v.user_id}`).join(', ')}`}
-                      >
-                        {viewers.slice(0, 4).map((v, idx) => (
-                          <div
-                            key={v.user_id || v.id || idx}
-                            style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: '9999px',
-                              backgroundColor: '#e5e7eb',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 10,
-                              fontWeight: 600,
-                              color: '#374151',
-                              border: '1px solid #fff',
-                              marginLeft: idx === 0 ? 0 : -8
-                            }}
-                          >
-                            {((v.name || v.full_name || v.username || v.email || 'U').toString().trim().slice(0, 2)).toUpperCase()}
-                          </div>
-                        ))}
-                        {viewers.length > 4 && (
-                          <div
-                            style={{
-                              width: 22,
-                              height: 22,
-                              borderRadius: '9999px',
-                              backgroundColor: '#111827',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 9,
-                              fontWeight: 600,
-                              color: '#f9fafb',
-                              border: '1px solid #fff',
-                              marginLeft: -8
-                            }}
-                          >
-                            +{viewers.length - 4}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
 
                 {/* Document Title */}
-                <div
-                  style={{
-                    fontWeight: isSeen ? 400 : 700,
-                    fontSize: 18,
-                    color: '#111827',
-                    marginBottom: 12,
-                    lineHeight: 1.4
-                  }}
-                >
+                <div style={{ fontWeight: 700, fontSize: 18, color: '#111827', marginBottom: 12, lineHeight: 1.4 }}>
                   {d.title || 'Untitled'}
                 </div>
 
@@ -1162,9 +828,8 @@ const Request = ({ onNavigateToUpload }) => {
                 {/* Action Buttons */}
                 <div style={{ display: 'flex', gap: 10, marginTop: 16, paddingTop: 16, borderTop: '2px solid #e5e7eb' }}>
                   <button
-                    onClick={async (e) => {
+                    onClick={(e) => {
                       e.stopPropagation();
-                      await markSeen(d);
                       window.open(d.google_drive_link, '_blank');
                     }}
                     className="btn btn-sm btn-light border"
@@ -1255,6 +920,7 @@ const Request = ({ onNavigateToUpload }) => {
                     <th style={{ ...sortableTh, backgroundColor: 'transparent', borderBottom: '1px solid #f3f4f6' }}>
                       <button onClick={() => handleSort('date_received')} style={{ ...sortableTh, background: 'none', border: 'none', padding: 0 }}>Date Received {getSortIcon('date_received')}</button>
                     </th>
+                    <th style={{ ...sortableTh, backgroundColor: 'transparent', borderBottom: '1px solid #f3f4f6' }}>Seen</th>
                   </>
                 ) : (
                   <>
@@ -1276,11 +942,7 @@ const Request = ({ onNavigateToUpload }) => {
               </tr>
             </thead>
             <tbody>
-              {items.map(d => {
-                const numericId = Number(d.id || d.doc_id);
-                const isSeen = !Number.isNaN(numericId) && seenDocIds.has(numericId);
-                const viewers = !Number.isNaN(numericId) && viewersByDocId[numericId] ? viewersByDocId[numericId] : [];
-                return (
+              {items.map(d => (
                 <tr key={d.id || d.doc_id} style={{ 
                   transition: 'all 0.2s ease', 
                   backgroundColor: '#fff', 
@@ -1299,7 +961,7 @@ const Request = ({ onNavigateToUpload }) => {
                     />
                   </td>
                   <td style={{ ...tdPrimary, border: 'none', backgroundColor: '#fff', paddingRight: 8 }}>
-                    <div style={{ fontWeight: isSeen ? 400 : 700 }}>{d.title}</div>
+                    <div style={{ fontWeight: 600 }}>{d.title}</div>
                   </td>
                   <td style={{ ...td, border: 'none', backgroundColor: '#fff', paddingLeft: 8 }}>{d.doc_type || '—'}</td>
                   <td style={{ ...td, border: 'none', backgroundColor: '#fff' }}>
@@ -1317,61 +979,7 @@ const Request = ({ onNavigateToUpload }) => {
                               </div>
                             )}
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <span>{d.created_by_name || '—'}</span>
-                            {viewers && viewers.length > 0 && (
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 4
-                                }}
-                                title={`Seen by ${viewers.map(v => v.name || v.full_name || v.username || v.email || `User #${v.user_id}`).join(', ')}`}
-                              >
-                                {viewers.slice(0, 4).map((v, idx) => (
-                                  <div
-                                    key={v.user_id || v.id || idx}
-                                    style={{
-                                      width: 18,
-                                      height: 18,
-                                      borderRadius: '9999px',
-                                      backgroundColor: '#e5e7eb',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: 9,
-                                      fontWeight: 600,
-                                      color: '#374151',
-                                      border: '1px solid #fff',
-                                      marginLeft: idx === 0 ? 0 : -6
-                                    }}
-                                  >
-                                    {((v.name || v.full_name || v.username || v.email || 'U').toString().trim().slice(0, 2)).toUpperCase()}
-                                  </div>
-                                ))}
-                                {viewers.length > 4 && (
-                                  <div
-                                    style={{
-                                      width: 18,
-                                      height: 18,
-                                      borderRadius: '9999px',
-                                      backgroundColor: '#111827',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: 8,
-                                      fontWeight: 600,
-                                      color: '#f9fafb',
-                                      border: '1px solid #fff',
-                                      marginLeft: -6
-                                    }}
-                                  >
-                                    +{viewers.length - 4}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          <span>{d.created_by_name || '—'}</span>
                         </div>
                       );
                     })()}
@@ -1428,6 +1036,107 @@ const Request = ({ onNavigateToUpload }) => {
                         )}
                       </td>
                       <td style={{ ...td, border: 'none', backgroundColor: '#fff' }}>{d.date_received ? new Date(d.date_received).toLocaleString() : '—'}</td>
+                      <td style={{ ...td, border: 'none', backgroundColor: '#fff' }}>
+                        {(() => {
+                          const docId = d.id || d.doc_id;
+                          const numericId = Number(docId);
+                          const viewers = !Number.isNaN(numericId) && viewersByDocId[numericId] ? viewersByDocId[numericId] : [];
+                          
+                          if (!viewers || viewers.length === 0) {
+                            return null;
+                          }
+                          
+                          const avatarSize = 24;
+                          return (
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0,
+                                justifyContent: 'flex-start',
+                                flexWrap: 'wrap',
+                                maxWidth: '120px'
+                              }}
+                              title={`Seen by ${viewers.map(v => {
+                                const viewerName = v.name || v.full_name || v.username || v.email || `User #${v.user_id}`;
+                                const u = findUserByName(viewerName);
+                                return u?.full_name || viewerName;
+                              }).join(', ')}`}
+                            >
+                              {viewers.slice(0, 4).map((v, idx) => {
+                                const viewerName = v.name || v.full_name || v.username || v.email || `User #${v.user_id}`;
+                                const u = findUserByName(viewerName);
+                                const profilePic = u?.profilePic || v.profile_pic || v.profile_picture || null;
+                                const displayName = u?.full_name || viewerName;
+                                
+                                return (
+                                  <div
+                                    key={v.user_id || v.id || idx}
+                                    style={{
+                                      width: avatarSize,
+                                      height: avatarSize,
+                                      borderRadius: '50%',
+                                      overflow: 'hidden',
+                                      backgroundColor: '#e5e7eb',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      color: '#64748b',
+                                      border: '1px solid #fff',
+                                      marginLeft: idx === 0 ? 0 : -8,
+                                      flexShrink: 0
+                                    }}
+                                    title={displayName}
+                                  >
+                                    {profilePic ? (
+                                      <img 
+                                        src={profilePic} 
+                                        alt={displayName}
+                                        style={{
+                                          width: '100%',
+                                          height: '100%',
+                                          objectFit: 'cover'
+                                        }}
+                                        onError={(e) => {
+                                          // Fallback to initials if image fails to load
+                                          e.target.style.display = 'none';
+                                          e.target.parentElement.textContent = (displayName || '?').toString().trim().slice(0, 1).toUpperCase();
+                                        }}
+                                      />
+                                    ) : (
+                                      (displayName || '?').toString().trim().slice(0, 1).toUpperCase()
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              {viewers.length > 4 && (
+                                <div
+                                  style={{
+                                    width: avatarSize,
+                                    height: avatarSize,
+                                    borderRadius: '50%',
+                                    backgroundColor: '#111827',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: '#f9fafb',
+                                    border: '1px solid #fff',
+                                    marginLeft: -8,
+                                    flexShrink: 0
+                                  }}
+                                  title={`${viewers.length - 4} more viewer${viewers.length - 4 > 1 ? 's' : ''}`}
+                                >
+                                  +{viewers.length - 4}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
                     </>
                   ) : (
                     <>
@@ -1468,7 +1177,12 @@ const Request = ({ onNavigateToUpload }) => {
                                 padding: '8px 12px',
                                 boxShadow: '0 2px 4px rgba(5, 150, 105, 0.2)'
                               }}
-                              onClick={() => d.reply_google_drive_link && window.open(d.reply_google_drive_link, '_blank', 'noopener')}
+                              onClick={() => {
+                                markAsViewedAndLoadViewers(d);
+                                if (d.reply_google_drive_link) {
+                                  window.open(d.reply_google_drive_link, '_blank', 'noopener');
+                                }
+                              }}
                               disabled={!d.reply_google_drive_link}
                             >
                               <FiEye size={16} />
@@ -1486,7 +1200,10 @@ const Request = ({ onNavigateToUpload }) => {
                               padding: '8px 12px',
                               boxShadow: '0 2px 4px rgba(13, 110, 253, 0.2)'
                             }}
-                            onClick={() => createDocumentFromSource(d)}
+                            onClick={() => {
+                              markAsViewedAndLoadViewers(d);
+                              createDocumentFromSource(d);
+                            }}
                           >
                             <FiUpload size={16} />
                           </button>
@@ -1504,7 +1221,12 @@ const Request = ({ onNavigateToUpload }) => {
                               padding: '8px 12px',
                               boxShadow: '0 2px 4px rgba(5, 150, 105, 0.2)'
                             }}
-                            onClick={() => d.reply_google_drive_link && window.open(d.reply_google_drive_link, '_blank', 'noopener')}
+                            onClick={() => {
+                              markAsViewedAndLoadViewers(d);
+                              if (d.reply_google_drive_link) {
+                                window.open(d.reply_google_drive_link, '_blank', 'noopener');
+                              }
+                            }}
                             disabled={!d.reply_google_drive_link}
                           >
                             <FiEye size={16} />
@@ -1523,8 +1245,8 @@ const Request = ({ onNavigateToUpload }) => {
                           padding: '8px 12px',
                           boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
                         }}
-                        onClick={async () => {
-                          await markSeen(d);
+                        onClick={() => {
+                          markAsViewedAndLoadViewers(d);
                           if (d.google_drive_link) {
                             window.open(d.google_drive_link, '_blank', 'noopener');
                           }
@@ -1573,7 +1295,12 @@ const Request = ({ onNavigateToUpload }) => {
                                 <span style={menuIconStyle}><FiUpload /></span>
                                 <span style={menuLabelStyle}>Upload Reply</span>
                               </li>
-                              <li style={menuItemStyle} onClick={() => d.google_drive_link && window.open(d.google_drive_link, '_blank', 'noopener')}>
+                              <li style={menuItemStyle} onClick={() => {
+                                markAsViewedAndLoadViewers(d);
+                                if (d.google_drive_link) {
+                                  window.open(d.google_drive_link, '_blank', 'noopener');
+                                }
+                              }}>
                                 <span style={menuIconStyle}><FiExternalLink /></span>
                                 <span style={menuLabelStyle}>Open Original</span>
                               </li>
@@ -1598,7 +1325,7 @@ const Request = ({ onNavigateToUpload }) => {
                     </div>
                   </td>
                 </tr>
-              );})}
+              ))}
             </tbody>
           </table>
         </div>
@@ -1666,24 +1393,6 @@ const Request = ({ onNavigateToUpload }) => {
                     </div>
                   </div>
                 ))}
-              </div>
-              <div style={{ marginTop: 20 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Seen by</div>
-                {requestViewersLoading ? (
-                  <div style={{ fontSize: 13, color: '#6b7280' }}>Loading viewers...</div>
-                ) : requestViewers.length === 0 ? (
-                  <div style={{ fontSize: 13, color: '#9ca3af' }}>No views yet</div>
-                ) : (
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
-                    {requestViewers.map((v) => (
-                      <li key={v.user_id}>
-                        {v.name || `User #${v.user_id}`}
-                        {v.role ? ` • ${v.role}` : ''}
-                        {v.viewed_at ? ` • ${new Date(v.viewed_at).toLocaleString()}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
                 <button onClick={closeProperties} style={cancelBtn}>Close</button>

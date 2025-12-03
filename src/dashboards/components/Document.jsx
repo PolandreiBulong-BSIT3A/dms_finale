@@ -1791,6 +1791,21 @@ const Document = ({ role, onOpenTrash, onNavigateToUpload, onNavigateToUpdate })
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
+    
+    // Prevent future dates for date_received field
+    if (name === 'date_received' && value) {
+      const selectedDate = new Date(value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time part to ensure date-only comparison
+      
+      if (selectedDate > today) {
+        // If selected date is in the future, set to today's date
+        const todayISO = today.toISOString().split('T')[0];
+        setEditForm(prev => ({ ...prev, [name]: todayISO }));
+        return;
+      }
+    }
+    
     setEditForm(prev => ({ ...prev, [name]: value }));
   };
 
